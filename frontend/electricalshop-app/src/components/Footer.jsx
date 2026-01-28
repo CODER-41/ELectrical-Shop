@@ -37,6 +37,28 @@ const Footer = () => {
                         </ul>
                     </div>
 
+                    {/*Customer Service*/}
+                    <div>
+                        <h4 className="text-sm font-semibold mb-4 uppercase">Customer Service</h4>
+                        <ul className="space-y-2">
+                            <li>
+                                <Link to="/faq" className="text-gray-400 hover:text-white text-sm">
+                                    FAQs
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/returns" className="text-gray-400 hover:text-white text-sm">
+                                    Returns Policy 
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/warranty" className="text-gray-400 hover:text-white text-sm">
+                                    Warranty Info
+                                </Link>
+                            </li>
+                        </ul>
+                    </div>
+
                 </div>
             </div>
         </footer>
