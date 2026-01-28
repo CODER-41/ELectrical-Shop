@@ -59,6 +59,30 @@ const Footer = () => {
                         </ul>
                     </div>
 
+                    {/*Legal*/}
+                    <div>
+                        <h4 className="text-sm font-semibold mb-4 uppercase">Legal</h4>
+                        <ul className="space-y-2">
+                            <li>
+                                <Link to="/terms" className="text-gray-400 hover:text-white text-sm">
+                                    Terms & Conditions
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/privacy" className="text-gray-400 hover:text-white text-sm">
+                                    Privacy Policy
+                                </Link>
+                            </li>
+                        </ul>
+                    </div>
+
+                </div>
+
+                {/*Bottom Bar*/}
+                <div className='border-t border-gray-800 mt-8 pt-6 text-center'>
+                    <p className='text-gray-400 text-sm'>
+                        &copy; {currentyear} Electronics Shop. All rights reserved.
+                    </p>
                 </div>
             </div>
         </footer>
