@@ -18,4 +18,24 @@ const Login = () => {
     const {user, isLoading, isError, isSuccess, message} = useSelector(
         (state) => state.auth
     )
+
+    useEffect(() => {
+        if (isError) {
+            toast.error(message);
+        }
+
+        if(isSuccess && user) {
+            toast.success('Login successful!');
+        }
+        
+        if (user.role === 'customer') {
+            navigate('/');
+
+        }else if (user.role === 'supplier') {
+            navigate('/supplier/dashboard');
+
+        } else if (user.role.includes('admin') || user.role.includes('manager') || user.role === 'support') {
+            navigate('/admin/dashboard');
+        }
+    })
 }
