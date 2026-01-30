@@ -17,3 +17,7 @@ from app.utils.validation import (
     validate_password,
     validate_required_fields
 )
+from app.utils.responses import success_response, error_response, validation_error_response
+
+auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
+
