@@ -201,6 +201,23 @@ def refresh():
         )
     except Exception as e:
         return error_response(f'Refresh failed: {str(e)}', 500)
+    
+
+@auth_bp.route('/me', methods=['GET'])
+@jwt_required()
+def get_current_user():
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if not user:
+            return error_response('User not found', 404)
+
+        return success_response(data=user.to_dict(include_profile=True))
+    
+    except Exception as e:
+        return error_response(f'Failed to fetch user: {str(e)}', 500)
+
 
         
 
