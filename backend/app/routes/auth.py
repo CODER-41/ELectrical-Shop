@@ -110,3 +110,47 @@ def register():
     except Exception as e:
         db.session.rollback()
         return error_response(f'Registration failed: {str(e)}', 500)
+    
+
+
+
+@auth_bp.route('/login', methods=['POST'])
+@validate_required_fields(['email', 'password'])
+def login():
+    data = request.get_json()
+
+    email = data.get('email', '').strip().lower()
+    password =  data.get('password')
+
+    user = User.query.filter_by(email=email).first()
+
+    if not user or not user.check_password(password):
+        return error_response('Invalid email or password', 401)
+    
+    if not user.is_active:
+        return error_response('Account is deactivated. Please contact support.', 401)
+    
+    if user.role == UserRole.SUPPLIER and user.supplier_profile:
+        if not user.supplier_profile.is_active:
+            return error_response('Your supplier account is pending approval. Please wait for admin approval ')
+
+
+    try:
+        access_token = create_access_token(identity=user.id)
+        refresh_token = create_refresh_token(identity=user.id)
+
+        ip_address = request.remote_addr
+        user_agent = request.headers.get('User-Agent', '')
+
+        expires_at = datetime.utcnow() + timedelta(minutes = 15)
+
+        session = Session(
+            user_id = user.id,
+            token = access_token,
+            refresh_token = refresh_token,
+            ip_address = ip_address,
+            user_agent = user_agent,
+            expires_at = expires_at
+        ) 
+          
+    
