@@ -152,5 +152,56 @@ def login():
             user_agent = user_agent,
             expires_at = expires_at
         ) 
-          
+        user.last_login = datetime.utcnow()
+        db.session.add(session)
+        db.session.commit()
+
+        return success_response(
+            data = {
+                'access_token': access_token,
+                'refresh_token': refresh_token,
+                'token-type': 'Bearer',
+                'expires_in': 900, # 15 minutes in seconds
+                'user': user.to_dict(include_profile=True) 
+            },
+            message='Login successful',
+            status_code=200
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Login failed: {str(e)}', 500)
     
+@auth_bp.route('/refresh', methods=['POST'])
+@jwt_required(refresh=True)
+def refresh():
+    try:
+        user_id = get_jwt_identity()
+
+        user = User.query.get(user_id)
+        if not user or not user.is_active:
+            return error_response('User not found or inactive', 404)
+        
+        access_token = create_access_token(identity=user_id)
+
+        session = Session.query.filter_by(user_id = user_id).order_by(Session.created_at.desc()).first()
+        if session:
+            session.token = access_token
+            session.expires_at = datetime.utcnow() + timedelta(minutes = 15)
+            db.session.commit()
+        
+        return success_response(
+            data = {
+                'access_token': access_token,
+                'token-type': 'Bearer',
+                'expires_in': 900, 
+            },
+            message = 'Token refreshed successfully',
+            status_code = 200
+        )
+    except Exception as e:
+        return error_response(f'Refresh failed: {str(e)}', 500)
+
+        
+
+
