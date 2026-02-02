@@ -388,7 +388,7 @@ def update_order_status(order_id):
             return error_response('Invalid order status', 400)
         
         # Check permissions
-        is_admin = user.role in [UserRole.ADMIN, UserRole.ORDER_MANAGER]
+        is_admin = user.role in [UserRole.ADMIN, UserRole.FINANCE_ADMIN]
         
         if not is_admin:
             return error_response('Only admins can update order status', 403)
@@ -425,7 +425,7 @@ def update_payment_status(order_id):
         data = request.get_json()
         
         # Only admin or order owner can update payment
-        is_admin = user.role in [UserRole.ADMIN, UserRole.ORDER_MANAGER]
+        is_admin = user.role in [UserRole.ADMIN, UserRole.FINANCE_ADMIN]
         is_owner = user.role == UserRole.CUSTOMER and order.customer_id == user.customer_profile.id
         
         if not (is_admin or is_owner):
@@ -449,3 +449,85 @@ def update_payment_status(order_id):
     except Exception as e:
         db.session.rollback()
         return error_response(f'Failed to update payment status: {str(e)}', 500)
+
+
+@orders_bp.route('/<order_id>/cancel', methods=['POST'])
+@jwt_required()
+def cancel_order(order_id):
+    """
+    Cancel an order.
+    Customers can cancel their own unpaid/pending orders.
+    Admins can cancel any order.
+    """
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        order = Order.query.get(order_id)
+
+        if not order:
+            return error_response('Order not found', 404)
+
+        data = request.get_json() or {}
+        cancellation_reason = data.get('reason', '').strip()
+
+        # Check permissions
+        is_admin = user.role in [UserRole.ADMIN, UserRole.FINANCE_ADMIN]
+        is_owner = user.role == UserRole.CUSTOMER and order.customer_id == user.customer_profile.id
+
+        if not (is_admin or is_owner):
+            return error_response('You do not have permission to cancel this order', 403)
+
+        # Check if order can be cancelled
+        non_cancellable_statuses = [
+            OrderStatus.SHIPPED,
+            OrderStatus.DELIVERED,
+            OrderStatus.CANCELLED,
+            OrderStatus.RETURNED
+        ]
+
+        if order.status in non_cancellable_statuses:
+            return error_response(
+                f'Cannot cancel order with status: {order.status.value}',
+                400
+            )
+
+        # Customers can only cancel unpaid orders
+        if is_owner and not is_admin:
+            if order.payment_status == PaymentStatus.COMPLETED:
+                return error_response(
+                    'Cannot cancel a paid order. Please request a return instead.',
+                    400
+                )
+
+        # Restore product stock
+        for order_item in order.items:
+            product = Product.query.get(order_item.product_id)
+            if product:
+                product.stock_quantity += order_item.quantity
+                product.purchase_count -= order_item.quantity
+
+        # Update order status
+        order.status = OrderStatus.CANCELLED
+
+        # Add cancellation reason to admin notes
+        cancel_note = f'Order cancelled by {"admin" if is_admin else "customer"}'
+        if cancellation_reason:
+            cancel_note += f': {cancellation_reason}'
+        cancel_note += f' on {datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")}'
+
+        order.admin_notes = (order.admin_notes or '') + f'\n{cancel_note}'
+
+        # If order was paid, mark for refund
+        if order.payment_status == PaymentStatus.COMPLETED:
+            order.payment_status = PaymentStatus.REFUNDED
+            order.admin_notes += '\nRefund required - order was paid before cancellation.'
+
+        db.session.commit()
+
+        return success_response(
+            data=order.to_dict(),
+            message='Order cancelled successfully'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to cancel order: {str(e)}', 500)

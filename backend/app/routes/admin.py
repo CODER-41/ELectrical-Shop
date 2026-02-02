@@ -19,7 +19,7 @@ def require_admin(func):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
-        if user.role not in [UserRole.ADMIN, UserRole.ORDER_MANAGER, UserRole.PRODUCT_MANAGER]:
+        if user.role not in [UserRole.ADMIN, UserRole.FINANCE_ADMIN, UserRole.PRODUCT_MANAGER]:
             return error_response('Admin access required', 403)
         
         return func(*args, **kwargs)

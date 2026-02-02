@@ -33,6 +33,8 @@ def create_app(config_name=None):
         from app.models.product import Product, Category, Brand
         from app.models.order import Order, OrderItem, DeliveryZone
         from app.models.returns import Return, SupplierPayout
+        from app.models.cart import Cart, CartItem
+        from app.models.audit_log import AuditLog
 
     from app.routes.auth import auth_bp
     from app.routes.products import products_bp
@@ -41,8 +43,10 @@ def create_app(config_name=None):
     from app.routes.returns import returns_bp
     from app.routes.supplier import supplier_bp
     from app.routes.admin import admin_bp
-    
-    
+    from app.routes.uploads import uploads_bp
+    from app.routes.cart import cart_bp
+
+
     app.register_blueprint(auth_bp)
     app.register_blueprint(products_bp)
     app.register_blueprint(orders_bp)
@@ -50,6 +54,8 @@ def create_app(config_name=None):
     app.register_blueprint(returns_bp)
     app.register_blueprint(supplier_bp)
     app.register_blueprint(admin_bp)
+    app.register_blueprint(uploads_bp)
+    app.register_blueprint(cart_bp)
     
     @jwt.unauthorized_loader
     def unauthorized_callback(callback):

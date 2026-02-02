@@ -150,7 +150,7 @@ def review_return(return_id):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
-        if user.role not in [UserRole.ADMIN, UserRole.ORDER_MANAGER]:
+        if user.role not in [UserRole.ADMIN, UserRole.FINANCE_ADMIN]:
             return error_response('Only admins can review returns', 403)
         
         return_request = Return.query.get(return_id)
@@ -198,7 +198,7 @@ def update_return_status(return_id):
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
-        if user.role not in [UserRole.ADMIN, UserRole.ORDER_MANAGER]:
+        if user.role not in [UserRole.ADMIN, UserRole.FINANCE_ADMIN]:
             return error_response('Only admins can update return status', 403)
         
         return_request = Return.query.get(return_id)
@@ -264,7 +264,7 @@ def get_return_stats():
                     Return.status == ReturnStatus.APPROVED
                 ).count()
             
-        elif user.role in [UserRole.ADMIN, UserRole.ORDER_MANAGER]:
+        elif user.role in [UserRole.ADMIN, UserRole.FINANCE_ADMIN]:
             # All returns
             total = Return.query.count()
             pending = Return.query.filter(

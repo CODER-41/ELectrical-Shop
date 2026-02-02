@@ -7,12 +7,23 @@ load_dotenv()
 
 class Config:
     """Base configuration."""
-    
+
     # Flask
     SECRET_KEY = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
-    
-    # Database
-    SQLALCHEMY_DATABASE_URI = os.getenv('DATABASE_URL', 'sqlite:///electronics_shop.db')
+
+    # Database - PostgreSQL as primary, with fallback handling for Render's postgres:// URL
+    DATABASE_URL = os.getenv('DATABASE_URL')
+    if DATABASE_URL:
+        # Render uses postgres:// but SQLAlchemy requires postgresql://
+        if DATABASE_URL.startswith('postgres://'):
+            DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
+        SQLALCHEMY_DATABASE_URI = DATABASE_URL
+    else:
+        # Development fallback - prefer PostgreSQL, fallback to SQLite
+        SQLALCHEMY_DATABASE_URI = os.getenv(
+            'DATABASE_URL',
+            'postgresql://postgres:postgres@localhost:5432/electronics_shop'
+        )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False
     
@@ -39,9 +50,14 @@ class Config:
     
     # CORS
     FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-    
+    BACKEND_URL = os.getenv('BACKEND_URL', 'http://localhost:5000')
+
     # Session
     SESSION_TIMEOUT_MINUTES = int(os.getenv('SESSION_TIMEOUT_MINUTES', 30))
+
+    # Google OAuth
+    GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+    GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET')
 
 
 class DevelopmentConfig(Config):
@@ -59,7 +75,10 @@ class ProductionConfig(Config):
 class TestingConfig(Config):
     """Testing configuration."""
     TESTING = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///test_electronics_shop.db'
+    SQLALCHEMY_DATABASE_URI = os.getenv(
+        'TEST_DATABASE_URL',
+        'postgresql://postgres:postgres@localhost:5432/electronics_shop_test'
+    )
 
 
 config = {
