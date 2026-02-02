@@ -3,218 +3,242 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// Get user from localStorage
-const userFromStorage = localStorage.getItem('user');
-const tokenFromStorage = localStorage.getItem('access_token');
+// Get token from localStorage
+const getAuthHeaders = () => {
+  const user = localStorage.getItem('user');
+  if (user) {
+    const userData = JSON.parse(user);
+    return {
+      headers: {
+        Authorization: `Bearer ${userData.token}`,
+      },
+    };
+  }
+  return {};
+};
+
+// Address Actions
+export const getAddresses = createAsyncThunk('orders/getAddresses', async (_, thunkAPI) => {
+  try {
+    const response = await axios.get(`${API_URL}/orders/addresses`, getAuthHeaders());
+    return response.data.data;
+  } catch (error) {
+    return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to fetch addresses');
+  }
+});
+
+export const createAddress = createAsyncThunk('orders/createAddress', async (addressData, thunkAPI) => {
+  try {
+    const response = await axios.post(`${API_URL}/orders/addresses`, addressData, getAuthHeaders());
+    return response.data.data;
+  } catch (error) {
+    return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to create address');
+  }
+});
+
+export const updateAddress = createAsyncThunk('orders/updateAddress', async ({ addressId, addressData }, thunkAPI) => {
+  try {
+    const response = await axios.put(`${API_URL}/orders/addresses/${addressId}`, addressData, getAuthHeaders());
+    return response.data.data;
+  } catch (error) {
+    return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to update address');
+  }
+});
+
+export const deleteAddress = createAsyncThunk('orders/deleteAddress', async (addressId, thunkAPI) => {
+  try {
+    await axios.delete(`${API_URL}/orders/addresses/${addressId}`, getAuthHeaders());
+    return addressId;
+  } catch (error) {
+    return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to delete address');
+  }
+});
+
+// Delivery Zones
+export const getDeliveryZones = createAsyncThunk('orders/getDeliveryZones', async (_, thunkAPI) => {
+  try {
+    const response = await axios.get(`${API_URL}/orders/delivery-zones`);
+    return response.data.data;
+  } catch (error) {
+    return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to fetch delivery zones');
+  }
+});
+
+export const calculateDeliveryFee = createAsyncThunk('orders/calculateDeliveryFee', async (county, thunkAPI) => {
+  try {
+    const response = await axios.post(`${API_URL}/orders/delivery-zones/calculate`, { county });
+    return response.data.data;
+  } catch (error) {
+    return thunkAPI.rejectWithValue(error.response?.data?.error || 'Delivery not available for this location');
+  }
+});
+
+// Order Actions
+export const createOrder = createAsyncThunk('orders/createOrder', async (orderData, thunkAPI) => {
+  try {
+    const response = await axios.post(`${API_URL}/orders`, orderData, getAuthHeaders());
+    return response.data.data;
+  } catch (error) {
+    return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to create order');
+  }
+});
+
+export const getOrders = createAsyncThunk('orders/getOrders', async (_, thunkAPI) => {
+  try {
+    const response = await axios.get(`${API_URL}/orders`, getAuthHeaders());
+    return response.data.data;
+  } catch (error) {
+    return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to fetch orders');
+  }
+});
+
+export const getOrder = createAsyncThunk('orders/getOrder', async (orderId, thunkAPI) => {
+  try {
+    const response = await axios.get(`${API_URL}/orders/${orderId}`, getAuthHeaders());
+    return response.data.data;
+  } catch (error) {
+    return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to fetch order');
+  }
+});
 
 const initialState = {
-  user: userFromStorage ? JSON.parse(userFromStorage) : null,
-  token: tokenFromStorage || null,
-  refreshToken: localStorage.getItem('refresh_token') || null,
+  addresses: [],
+  deliveryZones: [],
+  selectedAddress: null,
+  deliveryFee: null,
+  orders: [],
+  currentOrder: null,
   isLoading: false,
-  isSuccess: false,
   isError: false,
+  isSuccess: false,
   message: '',
 };
 
-// Register user
-export const register = createAsyncThunk(
-  'auth/register',
-  async (userData, thunkAPI) => {
-    try {
-      const response = await axios.post(`${API_URL}/auth/register`, userData);
-      return response.data;
-    } catch (error) {
-      const message =
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        error.message ||
-        'Registration failed';
-      return thunkAPI.rejectWithValue(message);
-    }
-  }
-);
-
-// Login user
-export const login = createAsyncThunk(
-  'auth/login',
-  async (credentials, thunkAPI) => {
-    try {
-      const response = await axios.post(`${API_URL}/auth/login`, credentials);
-      
-      if (response.data.success) {
-        const { access_token, refresh_token, user } = response.data.data;
-        
-        // Save to localStorage
-        localStorage.setItem('access_token', access_token);
-        localStorage.setItem('refresh_token', refresh_token);
-        localStorage.setItem('user', JSON.stringify(user));
-        
-        return response.data.data;
-      }
-      
-      return thunkAPI.rejectWithValue('Login failed');
-    } catch (error) {
-      const message =
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        error.message ||
-        'Login failed';
-      return thunkAPI.rejectWithValue(message);
-    }
-  }
-);
-
-// Logout user
-export const logout = createAsyncThunk(
-  'auth/logout',
-  async (_, thunkAPI) => {
-    try {
-      const token = localStorage.getItem('access_token');
-      
-      if (token) {
-        await axios.post(
-          `${API_URL}/auth/logout`,
-          {},
-          {
-            headers: { Authorization: `Bearer ${token}` }
-          }
-        );
-      }
-      
-      // Clear localStorage
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user');
-      
-      return null;
-    } catch (error) {
-      // Even if API call fails, clear local data
-      localStorage.removeItem('access_token');
-      localStorage.removeItem('refresh_token');
-      localStorage.removeItem('user');
-      return null;
-    }
-  }
-);
-
-// Get current user
-export const getCurrentUser = createAsyncThunk(
-  'auth/getCurrentUser',
-  async (_, thunkAPI) => {
-    try {
-      const token = localStorage.getItem('access_token');
-      
-      if (!token) {
-        return thunkAPI.rejectWithValue('No token found');
-      }
-      
-      const response = await axios.get(`${API_URL}/auth/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.data.success) {
-        const user = response.data.data;
-        localStorage.setItem('user', JSON.stringify(user));
-        return user;
-      }
-      
-      return thunkAPI.rejectWithValue('Failed to fetch user');
-    } catch (error) {
-      const message =
-        error.response?.data?.error ||
-        error.response?.data?.message ||
-        error.message ||
-        'Failed to fetch user';
-      return thunkAPI.rejectWithValue(message);
-    }
-  }
-);
-
-const authSlice = createSlice({
-  name: 'auth',
+const ordersSlice = createSlice({
+  name: 'orders',
   initialState,
   reducers: {
     reset: (state) => {
       state.isLoading = false;
-      state.isSuccess = false;
       state.isError = false;
+      state.isSuccess = false;
       state.message = '';
     },
-    updateUser: (state, action) => {
-      state.user = action.payload;
-      localStorage.setItem('user', JSON.stringify(action.payload));
+    setSelectedAddress: (state, action) => {
+      state.selectedAddress = action.payload;
+    },
+    clearCurrentOrder: (state) => {
+      state.currentOrder = null;
     },
   },
   extraReducers: (builder) => {
     builder
-      // Register
-      .addCase(register.pending, (state) => {
+      // Get Addresses
+      .addCase(getAddresses.pending, (state) => {
         state.isLoading = true;
       })
-      .addCase(register.fulfilled, (state, action) => {
+      .addCase(getAddresses.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.isSuccess = true;
-        state.message = action.payload.message || 'Registration successful';
+        state.addresses = action.payload;
       })
-      .addCase(register.rejected, (state, action) => {
+      .addCase(getAddresses.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;
-        state.user = null;
       })
-      // Login
-      .addCase(login.pending, (state) => {
+      
+      // Create Address
+      .addCase(createAddress.pending, (state) => {
         state.isLoading = true;
       })
-      .addCase(login.fulfilled, (state, action) => {
+      .addCase(createAddress.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.user = action.payload.user;
-        state.token = action.payload.access_token;
-        state.refreshToken = action.payload.refresh_token;
-        state.message = 'Login successful';
+        state.addresses.push(action.payload);
       })
-      .addCase(login.rejected, (state, action) => {
+      .addCase(createAddress.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;
-        state.user = null;
-        state.token = null;
-        state.refreshToken = null;
       })
-      // Logout
-      .addCase(logout.pending, (state) => {
+      
+      // Update Address
+      .addCase(updateAddress.fulfilled, (state, action) => {
+        const index = state.addresses.findIndex(addr => addr.id === action.payload.id);
+        if (index !== -1) {
+          state.addresses[index] = action.payload;
+        }
+      })
+      
+      // Delete Address
+      .addCase(deleteAddress.fulfilled, (state, action) => {
+        state.addresses = state.addresses.filter(addr => addr.id !== action.payload);
+      })
+      
+      // Get Delivery Zones
+      .addCase(getDeliveryZones.fulfilled, (state, action) => {
+        state.deliveryZones = action.payload;
+      })
+      
+      // Calculate Delivery Fee
+      .addCase(calculateDeliveryFee.pending, (state) => {
         state.isLoading = true;
       })
-      .addCase(logout.fulfilled, (state) => {
-        state.user = null;
-        state.token = null;
-        state.refreshToken = null;
+      .addCase(calculateDeliveryFee.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.isSuccess = false;
-        state.isError = false;
-        state.message = '';
+        state.deliveryFee = action.payload;
       })
-      // Get current user
-      .addCase(getCurrentUser.pending, (state) => {
+      .addCase(calculateDeliveryFee.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+        state.deliveryFee = null;
+      })
+      
+      // Create Order
+      .addCase(createOrder.pending, (state) => {
         state.isLoading = true;
       })
-      .addCase(getCurrentUser.fulfilled, (state, action) => {
+      .addCase(createOrder.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.user = action.payload;
+        state.isSuccess = true;
+        state.currentOrder = action.payload;
       })
-      .addCase(getCurrentUser.rejected, (state, action) => {
+      .addCase(createOrder.rejected, (state, action) => {
         state.isLoading = false;
-        state.user = null;
-        state.token = null;
-        state.refreshToken = null;
-        localStorage.removeItem('access_token');
-        localStorage.removeItem('refresh_token');
-        localStorage.removeItem('user');
+        state.isError = true;
+        state.message = action.payload;
+      })
+      
+      // Get Orders
+      .addCase(getOrders.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(getOrders.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.orders = action.payload;
+      })
+      .addCase(getOrders.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      
+      // Get Order
+      .addCase(getOrder.pending, (state) => {
+        state.isLoading = true;
+      })
+      .addCase(getOrder.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.currentOrder = action.payload;
+      })
+      .addCase(getOrder.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
       });
   },
 });
 
-export const { reset, updateUser } = authSlice.actions;
-export default authSlice.reducer;
+export const { reset, setSelectedAddress, clearCurrentOrder } = ordersSlice.actions;
+export default ordersSlice.reducer;
