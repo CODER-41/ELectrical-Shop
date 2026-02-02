@@ -13,11 +13,11 @@ const Header = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center group">
-              <div className="w-10 h-10 bg-gradient-to-r from-green-600 to-green-700 rounded-full flex items-center justify-center mr-3">
-                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
-              </div>
+              <img 
+                src="/elogo.png" 
+                alt="Electronics Shop Logo" 
+                className="w-16 h-16 mr-3 rounded-full"
+              />
               <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent group-hover:from-green-700 group-hover:to-green-800 transition-all duration-200">
                 Electronics Shop
               </span>

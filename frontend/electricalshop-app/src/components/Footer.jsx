@@ -10,11 +10,11 @@ const Footer = () => {
                     {/*Company Info*/}
                     <div>
                         <div className="flex items-center mb-4">
-                            <div className="w-10 h-10 bg-gradient-to-r from-green-600 to-green-700 rounded-full flex items-center justify-center mr-3">
-                                <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                                </svg>
-                            </div>
+                            <img 
+                              src="/elogo.png" 
+                              alt="Electronics Shop Logo" 
+                              className="w-16 h-16 mr-3 rounded-full"
+                            />
                             <h3 className="text-lg font-bold bg-gradient-to-r from-green-400 to-green-500 bg-clip-text text-transparent">Electronics Shop</h3>
                         </div>
                         <p className="text-gray-300 text-sm leading-relaxed mb-4">
