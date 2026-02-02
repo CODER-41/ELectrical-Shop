@@ -13,14 +13,20 @@ const Header = () => {
           {/* Logo */}
           <div className="flex items-center">
             <Link to="/" className="flex items-center group">
-              <img 
-                src="/elogo.png" 
-                alt="Electronics Shop Logo" 
-                className="w-16 h-16 mr-3 rounded-full"
-              />
-              <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent group-hover:from-green-700 group-hover:to-green-800 transition-all duration-200">
-                Electronics Shop
-              </span>
+              <div className="relative w-16 h-16 mr-4">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-600 to-pink-600 rounded-full shadow-lg transform rotate-45 group-hover:rotate-0 transition-transform duration-500 ease-out"></div>
+                <div className="absolute inset-2 bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 rounded-full shadow-inner flex items-center justify-center">
+                  <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                  </svg>
+                </div>
+              </div>
+              <div className="relative">
+                <h1 className="text-3xl font-extrabold bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent group-hover:from-blue-700 group-hover:via-purple-700 group-hover:to-pink-700 transition-all duration-500 ease-out">
+                  Electronics Shop
+                </h1>
+                <div className="absolute -bottom-1 left-0 w-full h-1 bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              </div>
             </Link>
           </div>
           
