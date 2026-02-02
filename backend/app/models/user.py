@@ -6,23 +6,29 @@ from app.models import db
 
 
 class UserRole(str, Enum):
-    """User role enumeration."""
+    """User role enumeration matching masterplan."""
     CUSTOMER = 'customer'
     SUPPLIER = 'supplier'
     ADMIN = 'admin'
     PRODUCT_MANAGER = 'product_manager'
-    ORDER_MANAGER = 'order_manager'
-    SUPPORT = 'support'
+    FINANCE_ADMIN = 'finance_admin'
+    SUPPORT_ADMIN = 'support_admin'
+
+
+class AuthProvider(str, Enum):
+    """Authentication provider enumeration."""
+    LOCAL = 'local'
+    GOOGLE = 'google'
 
 
 class User(db.Model):
     """User model for authentication and authorization."""
-    
+
     __tablename__ = 'users'
-    
+
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     email = db.Column(db.String(120), unique=True, nullable=False, index=True)
-    password_hash = db.Column(db.String(255), nullable=False)
+    password_hash = db.Column(db.String(255), nullable=True)  # Nullable for OAuth users
     role = db.Column(db.Enum(UserRole), nullable=False, default=UserRole.CUSTOMER)
     is_active = db.Column(db.Boolean, default=True, nullable=False)
     is_verified = db.Column(db.Boolean, default=False, nullable=False)
@@ -31,6 +37,11 @@ class User(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     last_login = db.Column(db.DateTime, nullable=True)
+
+    # OAuth fields
+    auth_provider = db.Column(db.Enum(AuthProvider), default=AuthProvider.LOCAL, nullable=False)
+    google_id = db.Column(db.String(100), unique=True, nullable=True, index=True)
+    profile_picture = db.Column(db.String(500), nullable=True)
     
     # Relationships
     customer_profile = db.relationship('CustomerProfile', backref='user', uselist=False, cascade='all, delete-orphan')
@@ -47,7 +58,13 @@ class User(db.Model):
     
     def check_password(self, password):
         """Verify password against hash."""
+        if not self.password_hash:
+            return False  # OAuth users without password
         return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
+
+    def has_password(self):
+        """Check if user has a password set (local auth)."""
+        return self.password_hash is not None
     
     def to_dict(self, include_profile=False):
         """Convert user to dictionary."""
@@ -58,6 +75,9 @@ class User(db.Model):
             'is_active': self.is_active,
             'is_verified': self.is_verified,
             'two_fa_enabled': self.two_fa_enabled,
+            'auth_provider': self.auth_provider.value if self.auth_provider else 'local',
+            'has_password': self.has_password(),
+            'profile_picture': self.profile_picture,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'last_login': self.last_login.isoformat() if self.last_login else None
         }
@@ -67,7 +87,7 @@ class User(db.Model):
                 data['profile'] = self.customer_profile.to_dict()
             elif self.role == UserRole.SUPPLIER and self.supplier_profile:
                 data['profile'] = self.supplier_profile.to_dict()
-            elif self.role in [UserRole.ADMIN, UserRole.PRODUCT_MANAGER, UserRole.ORDER_MANAGER, UserRole.SUPPORT] and self.admin_profile:
+            elif self.role in [UserRole.ADMIN, UserRole.PRODUCT_MANAGER, UserRole.FINANCE_ADMIN, UserRole.SUPPORT_ADMIN] and self.admin_profile:
                 data['profile'] = self.admin_profile.to_dict()
         
         return data

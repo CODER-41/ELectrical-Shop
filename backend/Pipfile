@@ -4,9 +4,41 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
+# Flask and Extensions
 flask = "*"
+flask-sqlalchemy = "*"
+flask-migrate = "*"
+flask-jwt-extended = "*"
+flask-cors = "*"
+flask-mail = "*"
+
+# Database
+sqlalchemy = "*"
+psycopg2-binary = "*"
+
+# Authentication & Security
+bcrypt = "*"
+pyjwt = "*"
+pyotp = "*"
+
+# HTTP & API
+requests = "*"
+
+# Image Upload
+cloudinary = "*"
+
+# Environment & Config
+python-dotenv = "*"
+
+# Utilities
+email-validator = "*"
+
+# Production Server
+gunicorn = "*"
 
 [dev-packages]
+pytest = "*"
+pytest-flask = "*"
 
 [requires]
 python_version = "3.12"
