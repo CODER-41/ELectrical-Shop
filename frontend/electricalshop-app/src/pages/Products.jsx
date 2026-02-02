@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
-import { getProducts, getCategories, getBrands, setFilters, reset } from "../../store/slices/supplierProductsSlice";
+import { getProducts, getCategories, getBrands, setFilters, reset } from "../store/slices/productsSlice";
 import ProductCard from "../components/ProductCard";
-import ProductFilters from "../components/ProductFilters";
+import ProductFilters from "../components/ProductFilter";
 import { toast } from "react-toastify";
 
 const Products = () => {
     const dispatch = useDispatch();
     const [searchParams, setSearchParams] = useSearchParams();
-    const { products, pagination, filters, isLoading, isError, message, categories, brands } = useSelector((state) => state.Products);
+    const { products, pagination, filters, isLoading, isError, message, categories, brands } = useSelector((state) => state.products);
 
     const [searchTerm, setSearchTerm] = useState(filters.search || "");
     const [sortBy, setSortBy] = useState(filters.sort_by || "newest");
