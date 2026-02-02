@@ -1,0 +1,451 @@
+from flask import Blueprint, request
+from flask_jwt_extended import jwt_required, get_jwt_identity
+from datetime import datetime
+from app.models import db
+from app.models.user import User, UserRole
+from app.models.address import Address
+from app.models.order import Order, OrderItem, DeliveryZone, OrderStatus, PaymentStatus
+from app.models.product import Product
+from app.utils.validation import validate_required_fields
+from app.utils.responses import success_response, error_response, validation_error_response
+from app.services.email_service import (
+    send_order_confirmation_email,
+    send_payment_confirmation_email,
+    send_shipping_notification_email,
+    send_delivery_confirmation_email
+)
+
+orders_bp = Blueprint('orders', __name__, url_prefix='/api/orders')
+
+
+# Address Management Routes
+
+@orders_bp.route('/addresses', methods=['GET'])
+@jwt_required()
+def get_addresses():
+    """Get all addresses for current user."""
+    try:
+        user_id = get_jwt_identity()
+        addresses = Address.query.filter_by(user_id=user_id).all()
+        
+        return success_response(data=[addr.to_dict() for addr in addresses])
+    except Exception as e:
+        return error_response(f'Failed to fetch addresses: {str(e)}', 500)
+
+
+@orders_bp.route('/addresses', methods=['POST'])
+@jwt_required()
+@validate_required_fields(['label', 'full_name', 'phone_number', 'address_line_1', 'city', 'county'])
+def create_address():
+    """Create new address."""
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+        
+        # If this is first address or is_default is True, make it default
+        is_default = data.get('is_default', False)
+        existing_addresses = Address.query.filter_by(user_id=user_id).count()
+        
+        if existing_addresses == 0:
+            is_default = True
+        elif is_default:
+            # Unset other default addresses
+            Address.query.filter_by(user_id=user_id, is_default=True).update({'is_default': False})
+        
+        address = Address(
+            user_id=user_id,
+            label=data['label'].strip(),
+            full_name=data['full_name'].strip(),
+            phone_number=data['phone_number'].strip(),
+            address_line_1=data['address_line_1'].strip(),
+            address_line_2=data.get('address_line_2', '').strip() if data.get('address_line_2') else None,
+            city=data['city'].strip(),
+            county=data['county'].strip(),
+            postal_code=data.get('postal_code', '').strip() if data.get('postal_code') else None,
+            is_default=is_default
+        )
+        
+        db.session.add(address)
+        db.session.commit()
+        
+        return success_response(
+            data=address.to_dict(),
+            message='Address created successfully',
+            status_code=201
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to create address: {str(e)}', 500)
+
+
+@orders_bp.route('/addresses/<address_id>', methods=['PUT'])
+@jwt_required()
+def update_address(address_id):
+    """Update address."""
+    try:
+        user_id = get_jwt_identity()
+        address = Address.query.get(address_id)
+        
+        if not address or address.user_id != user_id:
+            return error_response('Address not found', 404)
+        
+        data = request.get_json()
+        
+        # Update fields
+        if 'label' in data:
+            address.label = data['label'].strip()
+        if 'full_name' in data:
+            address.full_name = data['full_name'].strip()
+        if 'phone_number' in data:
+            address.phone_number = data['phone_number'].strip()
+        if 'address_line_1' in data:
+            address.address_line_1 = data['address_line_1'].strip()
+        if 'address_line_2' in data:
+            address.address_line_2 = data['address_line_2'].strip() if data['address_line_2'] else None
+        if 'city' in data:
+            address.city = data['city'].strip()
+        if 'county' in data:
+            address.county = data['county'].strip()
+        if 'postal_code' in data:
+            address.postal_code = data['postal_code'].strip() if data['postal_code'] else None
+        
+        # Handle default address
+        if 'is_default' in data and data['is_default']:
+            Address.query.filter_by(user_id=user_id, is_default=True).update({'is_default': False})
+            address.is_default = True
+        
+        db.session.commit()
+        
+        return success_response(
+            data=address.to_dict(),
+            message='Address updated successfully'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to update address: {str(e)}', 500)
+
+
+@orders_bp.route('/addresses/<address_id>', methods=['DELETE'])
+@jwt_required()
+def delete_address(address_id):
+    """Delete address."""
+    try:
+        user_id = get_jwt_identity()
+        address = Address.query.get(address_id)
+        
+        if not address or address.user_id != user_id:
+            return error_response('Address not found', 404)
+        
+        # If this was default, make another address default
+        if address.is_default:
+            other_address = Address.query.filter(
+                Address.user_id == user_id,
+                Address.id != address_id
+            ).first()
+            
+            if other_address:
+                other_address.is_default = True
+        
+        db.session.delete(address)
+        db.session.commit()
+        
+        return success_response(message='Address deleted successfully')
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to delete address: {str(e)}', 500)
+
+
+# Delivery Zones Routes
+
+@orders_bp.route('/delivery-zones', methods=['GET'])
+def get_delivery_zones():
+    """Get all active delivery zones."""
+    try:
+        zones = DeliveryZone.query.filter_by(is_active=True).all()
+        return success_response(data=[zone.to_dict() for zone in zones])
+    except Exception as e:
+        return error_response(f'Failed to fetch delivery zones: {str(e)}', 500)
+
+
+@orders_bp.route('/delivery-zones/calculate', methods=['POST'])
+@validate_required_fields(['county'])
+def calculate_delivery_fee():
+    """Calculate delivery fee for a county."""
+    try:
+        data = request.get_json()
+        county = data['county'].strip()
+        
+        # Find zone that contains this county
+        zones = DeliveryZone.query.filter_by(is_active=True).all()
+        
+        for zone in zones:
+            if county.lower() in [c.lower() for c in zone.counties]:
+                return success_response(data={
+                    'zone_id': zone.id,
+                    'zone_name': zone.name,
+                    'delivery_fee': float(zone.delivery_fee),
+                    'estimated_days': zone.estimated_days
+                })
+        
+        return error_response('Delivery not available for this location', 400)
+    except Exception as e:
+        return error_response(f'Failed to calculate delivery fee: {str(e)}', 500)
+
+
+# Order Routes
+
+@orders_bp.route('', methods=['POST'])
+@jwt_required()
+@validate_required_fields(['items', 'delivery_address_id', 'payment_method'])
+def create_order():
+    """Create a new order from cart items."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if not user or user.role != UserRole.CUSTOMER:
+            return error_response('Only customers can create orders', 403)
+        
+        data = request.get_json()
+        
+        # Validate address
+        address = Address.query.get(data['delivery_address_id'])
+        if not address or address.user_id != user_id:
+            return error_response('Invalid delivery address', 400)
+        
+        # Calculate delivery fee
+        zones = DeliveryZone.query.filter_by(is_active=True).all()
+        delivery_zone = None
+        delivery_fee = 0
+        
+        for zone in zones:
+            if address.county.lower() in [c.lower() for c in zone.counties]:
+                delivery_zone = zone
+                delivery_fee = float(zone.delivery_fee)
+                break
+        
+        if not delivery_zone:
+            return error_response('Delivery not available to your location', 400)
+        
+        # Validate items and calculate subtotal
+        items = data['items']
+        if not items or len(items) == 0:
+            return error_response('Order must contain at least one item', 400)
+        
+        subtotal = 0
+        order_items = []
+        
+        for item_data in items:
+            product = Product.query.get(item_data['product_id'])
+            
+            if not product or not product.is_active:
+                return error_response(f'Product {item_data.get("product_id")} not found', 400)
+            
+            quantity = int(item_data['quantity'])
+            
+            if quantity <= 0:
+                return error_response('Quantity must be greater than 0', 400)
+            
+            if quantity > product.stock_quantity:
+                return error_response(f'{product.name} only has {product.stock_quantity} in stock', 400)
+            
+            # Create order item
+            order_item = OrderItem(
+                product_id=product.id,
+                supplier_id=product.supplier_id,
+                product_name=product.name,
+                product_price=product.price,
+                quantity=quantity,
+                warranty_period_months=product.warranty_period_months
+            )
+            
+            order_item.calculate_amounts()
+            order_items.append(order_item)
+            subtotal += float(order_item.subtotal)
+        
+        # Create order
+        order = Order(
+            customer_id=user.customer_profile.id,
+            delivery_address_id=address.id,
+            delivery_zone=delivery_zone.name,
+            delivery_fee=delivery_fee,
+            subtotal=subtotal,
+            payment_method=data['payment_method'],
+            customer_notes=data.get('customer_notes')
+        )
+        
+        order.calculate_totals()
+        order.generate_order_number()
+        
+        # Add order items
+        for order_item in order_items:
+            order_item.order = order
+            db.session.add(order_item)
+        
+        # Update product stock
+        for item_data, order_item in zip(items, order_items):
+            product = Product.query.get(item_data['product_id'])
+            product.stock_quantity -= order_item.quantity
+            product.purchase_count += order_item.quantity
+        
+        db.session.add(order)
+        db.session.commit()
+        
+        # Send order confirmation email
+        try:
+            send_order_confirmation_email(order, user.email)
+        except Exception as e:
+            # Log error but don't fail the order creation
+            import logging
+            logging.error(f'Failed to send order confirmation email: {str(e)}')
+        
+        return success_response(
+            data=order.to_dict(),
+            message='Order created successfully',
+            status_code=201
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to create order: {str(e)}', 500)
+
+
+@orders_bp.route('', methods=['GET'])
+@jwt_required()
+def get_orders():
+    """Get orders for current user."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        
+        if user.role == UserRole.CUSTOMER:
+            orders = Order.query.filter_by(customer_id=user.customer_profile.id)\
+                .order_by(Order.created_at.desc()).all()
+        elif user.role == UserRole.SUPPLIER:
+            # Get orders containing supplier's products
+            orders = db.session.query(Order).join(OrderItem)\
+                .filter(OrderItem.supplier_id == user.supplier_profile.id)\
+                .order_by(Order.created_at.desc()).distinct().all()
+        else:
+            # Admin sees all orders
+            orders = Order.query.order_by(Order.created_at.desc()).all()
+        
+        return success_response(data=[order.to_dict(include_items=False) for order in orders])
+    except Exception as e:
+        return error_response(f'Failed to fetch orders: {str(e)}', 500)
+
+
+@orders_bp.route('/<order_id>', methods=['GET'])
+@jwt_required()
+def get_order(order_id):
+    """Get single order details."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        order = Order.query.get(order_id)
+        
+        if not order:
+            return error_response('Order not found', 404)
+        
+        # Check permissions
+        if user.role == UserRole.CUSTOMER:
+            if order.customer_id != user.customer_profile.id:
+                return error_response('You do not have permission to view this order', 403)
+        elif user.role == UserRole.SUPPLIER:
+            # Check if supplier has items in this order
+            has_items = OrderItem.query.filter_by(
+                order_id=order_id,
+                supplier_id=user.supplier_profile.id
+            ).first()
+            
+            if not has_items:
+                return error_response('You do not have permission to view this order', 403)
+        
+        return success_response(data=order.to_dict())
+    except Exception as e:
+        return error_response(f'Failed to fetch order: {str(e)}', 500)
+
+
+@orders_bp.route('/<order_id>/status', methods=['PUT'])
+@jwt_required()
+@validate_required_fields(['status'])
+def update_order_status(order_id):
+    """Update order status (Admin/Supplier)."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        order = Order.query.get(order_id)
+        
+        if not order:
+            return error_response('Order not found', 404)
+        
+        data = request.get_json()
+        new_status = data['status']
+        
+        # Validate status
+        try:
+            OrderStatus(new_status)
+        except ValueError:
+            return error_response('Invalid order status', 400)
+        
+        # Check permissions
+        is_admin = user.role in [UserRole.ADMIN, UserRole.ORDER_MANAGER]
+        
+        if not is_admin:
+            return error_response('Only admins can update order status', 403)
+        
+        order.status = new_status
+        
+        if 'admin_notes' in data:
+            order.admin_notes = data['admin_notes']
+        
+        db.session.commit()
+        
+        return success_response(
+            data=order.to_dict(),
+            message='Order status updated successfully'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to update order status: {str(e)}', 500)
+
+
+@orders_bp.route('/<order_id>/payment', methods=['PUT'])
+@jwt_required()
+@validate_required_fields(['payment_status'])
+def update_payment_status(order_id):
+    """Update payment status (usually after M-Pesa callback)."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        order = Order.query.get(order_id)
+        
+        if not order:
+            return error_response('Order not found', 404)
+        
+        data = request.get_json()
+        
+        # Only admin or order owner can update payment
+        is_admin = user.role in [UserRole.ADMIN, UserRole.ORDER_MANAGER]
+        is_owner = user.role == UserRole.CUSTOMER and order.customer_id == user.customer_profile.id
+        
+        if not (is_admin or is_owner):
+            return error_response('You do not have permission to update payment status', 403)
+        
+        order.payment_status = data['payment_status']
+        
+        if 'payment_reference' in data:
+            order.payment_reference = data['payment_reference']
+        
+        if data['payment_status'] == PaymentStatus.COMPLETED.value:
+            order.paid_at = datetime.utcnow()
+            order.status = OrderStatus.PAID
+        
+        db.session.commit()
+        
+        return success_response(
+            data=order.to_dict(),
+            message='Payment status updated successfully'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to update payment status: {str(e)}', 500)
