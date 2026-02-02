@@ -17,13 +17,11 @@ def create_app(config_name=None):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
     
-    #
     db.init_app(app)
     CORS(app, resources={r"/api/*": {"origins": app.config['FRONTEND_URL']}})
     jwt = JWTManager(app)
     migrate = Migrate(app, db)
     mail.init_app(app)
-    
     
     with app.app_context():
         from app.models.user import User, CustomerProfile, SupplierProfile, AdminProfile

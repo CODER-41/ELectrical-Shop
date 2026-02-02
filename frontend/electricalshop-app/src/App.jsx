@@ -23,6 +23,13 @@ import Checkout from './pages/Checkout';
 import OrderConfirmation from './pages/OrderConfirmation';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
+import About from './pages/About';
+import TermsAndConditions from './pages/TermsAndConditions';
+import PrivacyPolicy from './pages/PrivacyPolicy';
+import FAQs from './pages/FAQs';
+import ReturnsPolicy from './pages/ReturnsPolicy';
+import WarrantyInfo from './pages/WarrantyInfo';
+import ContactUs from './pages/ContactUs';
 
 // Supplier Pages
 import SupplierDashboard from './pages/Supplier/SupplierDashboard';
@@ -60,6 +67,13 @@ function App() {
           <Route element={<MainLayout />}>
             {/* Public Routes */}
             <Route path="/" element={<Home />} />
+            <Route path="/about" element={<About />} />
+            <Route path="/contact" element={<ContactUs />} />
+            <Route path="/terms" element={<TermsAndConditions />} />
+            <Route path="/privacy" element={<PrivacyPolicy />} />
+            <Route path="/faq" element={<FAQs />} />
+            <Route path="/returns" element={<ReturnsPolicy />} />
+            <Route path="/warranty" element={<WarrantyInfo />} />
             <Route path="/products" element={<Products />} />
             <Route path="/products/:slug" element={<ProductDetail />} />
             
