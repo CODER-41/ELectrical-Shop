@@ -244,8 +244,8 @@ def login():
         return error_response('Account is deactivated. Please contact support.', 401)
     
     if user.role == UserRole.SUPPLIER and user.supplier_profile:
-        if not user.supplier_profile.is_active:
-            return error_response('Your supplier account is pending approval. Please wait for admin approval ')
+        if not user.supplier_profile.is_approved:
+            return error_response('Your supplier account is pending approval. Please wait for admin approval.', 403)
 
 
     try:

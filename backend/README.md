@@ -1,194 +1,502 @@
 # Electronics Shop - Backend API
 
-Flask-based REST API for the Electronics Shop multi-vendor e-commerce platform.
+A Flask-based REST API powering the Electronics Shop multi-vendor e-commerce platform. This backend handles user authentication, product management, order processing, payments, and supplier operations.
+
+## Table of Contents
+
+- [Tech Stack](#tech-stack)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+  - [Quick Setup](#quick-setup)
+  - [Manual Setup](#manual-setup)
+- [Configuration](#configuration)
+- [Database Setup](#database-setup)
+- [Running the Server](#running-the-server)
+- [API Documentation](#api-documentation)
+- [Project Structure](#project-structure)
+- [User Roles](#user-roles)
+- [Testing](#testing)
+
+---
 
 ## Tech Stack
 
-- **Framework:** Flask 3.x
-- **Database:** PostgreSQL with SQLAlchemy ORM
-- **Authentication:** JWT (Flask-JWT-Extended) + Google OAuth 2.0
-- **Email:** Flask-Mail
-- **File Upload:** Cloudinary
-- **Payments:** M-Pesa Daraja API
-- **Migrations:** Flask-Migrate (Alembic)
+| Technology | Version | Purpose |
+|------------|---------|---------|
+| Python | 3.10+ | Runtime |
+| Flask | 3.x | Web framework |
+| PostgreSQL | 14+ | Database |
+| SQLAlchemy | 2.x | ORM |
+| Flask-JWT-Extended | 4.x | JWT authentication |
+| Flask-Migrate | 4.x | Database migrations |
+| Flask-Mail | 0.9+ | Email service |
+| Cloudinary | 1.36+ | Image uploads |
+| Gunicorn | 21+ | Production server |
 
-## Quick Setup
+---
 
-From the project root, run:
+## Prerequisites
+
+Before installing, ensure you have the following installed on your system:
+
+- **Python 3.10 or higher**
+  ```bash
+  python3 --version
+  ```
+
+- **pip (Python package manager)**
+  ```bash
+  pip3 --version
+  ```
+
+- **PostgreSQL 14 or higher**
+  ```bash
+  psql --version
+  ```
+
+- **Virtual environment support**
+  ```bash
+  python3 -m venv --help
+  ```
+
+---
+
+## Installation
+
+### Quick Setup
+
+From the project root directory, run the automated setup script:
 
 ```bash
 ./setup.sh
 ```
 
-This will automatically set up the backend, frontend, database, and run migrations.
+This will:
+- Create a Python virtual environment
+- Install all dependencies
+- Set up environment files
+- Create the database
+- Run migrations
+- Seed sample data
 
-## Manual Setup
+### Manual Setup
 
-### 1. Create Virtual Environment
+If you prefer to set up manually or the script doesn't work for your system:
+
+#### Step 1: Navigate to Backend Directory
 
 ```bash
 cd backend
-python3 -m venv venv
-source venv/bin/activate  # Linux/Mac
-# or
-venv\Scripts\activate  # Windows
 ```
 
-### 2. Install Dependencies
+#### Step 2: Create Virtual Environment
+
+```bash
+# Create virtual environment
+python3 -m venv venv
+
+# Activate virtual environment
+# On Linux/macOS:
+source venv/bin/activate
+
+# On Windows (Command Prompt):
+venv\Scripts\activate.bat
+
+# On Windows (PowerShell):
+venv\Scripts\Activate.ps1
+```
+
+#### Step 3: Upgrade pip
+
+```bash
+pip install --upgrade pip
+```
+
+#### Step 4: Install Dependencies
+
+Install all required Python packages:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 3. Configure Environment
+**Individual packages (if requirements.txt fails):**
 
 ```bash
-cp .env.example .env
-# Edit .env with your credentials
+# Core Flask packages
+pip install Flask>=3.0.0
+pip install Flask-SQLAlchemy>=3.1.0
+pip install Flask-Migrate>=4.0.0
+pip install Flask-JWT-Extended>=4.6.0
+pip install Flask-CORS>=4.0.0
+pip install Flask-Mail>=0.9.1
+
+# Database
+pip install SQLAlchemy>=2.0.0
+pip install psycopg2-binary>=2.9.9
+
+# Authentication & Security
+pip install bcrypt>=4.1.0
+pip install PyJWT>=2.8.0
+pip install pyotp>=2.9.0
+
+# HTTP & API
+pip install requests>=2.31.0
+
+# Image Upload
+pip install cloudinary>=1.36.0
+
+# Environment & Config
+pip install python-dotenv>=1.0.0
+
+# Utilities
+pip install email-validator>=2.1.0
+
+# Production Server
+pip install gunicorn>=21.0.0
+
+# Development & Testing
+pip install pytest>=7.4.0
+pip install pytest-flask>=1.3.0
 ```
 
-### 4. Setup Database
+#### Step 5: Set Up Environment Variables
 
 ```bash
-# Create PostgreSQL database
-sudo -u postgres createdb electronics_shop
+# Copy the example environment file
+cp .env.example .env
 
-# Or with password
+# Edit the .env file with your credentials
+nano .env  # or use your preferred editor
+```
+
+---
+
+## Configuration
+
+Create a `.env` file in the backend directory with the following variables:
+
+```env
+# Application
+FLASK_APP=run.py
+FLASK_ENV=development
+SECRET_KEY=your-super-secret-key-change-in-production
+
+# Database
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/electronics_shop
+
+# JWT Authentication
+JWT_SECRET_KEY=your-jwt-secret-key-change-in-production
+JWT_ACCESS_TOKEN_EXPIRES=3600
+JWT_REFRESH_TOKEN_EXPIRES=2592000
+
+# Email Configuration (Gmail example)
+MAIL_SERVER=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USE_TLS=True
+MAIL_USERNAME=your-email@gmail.com
+MAIL_PASSWORD=your-app-password
+MAIL_DEFAULT_SENDER=your-email@gmail.com
+
+# Google OAuth 2.0
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# Cloudinary (Image uploads)
+CLOUDINARY_CLOUD_NAME=your-cloud-name
+CLOUDINARY_API_KEY=your-api-key
+CLOUDINARY_API_SECRET=your-api-secret
+
+# M-Pesa Daraja API
+MPESA_CONSUMER_KEY=your-consumer-key
+MPESA_CONSUMER_SECRET=your-consumer-secret
+MPESA_SHORTCODE=your-shortcode
+MPESA_PASSKEY=your-passkey
+MPESA_CALLBACK_URL=https://your-domain.com/api/payments/mpesa/callback
+MPESA_ENVIRONMENT=sandbox
+
+# Web3Forms (Contact form)
+WEB3FORMS_ACCESS_KEY=your-access-key
+
+# Frontend URL (for CORS)
+FRONTEND_URL=http://localhost:5173
+```
+
+---
+
+## Database Setup
+
+### Create PostgreSQL Database
+
+**Option 1: Using sudo (Linux)**
+```bash
+sudo -u postgres createdb electronics_shop
+```
+
+**Option 2: Using psql with password**
+```bash
 PGPASSWORD=postgres psql -U postgres -h localhost -c "CREATE DATABASE electronics_shop;"
 ```
 
-### 5. Run Migrations
+**Option 3: Using pgAdmin or DBeaver**
+- Connect to your PostgreSQL server
+- Right-click on Databases
+- Create new database named `electronics_shop`
+
+### Run Migrations
 
 ```bash
-export FLASK_APP=run.py
+# Set Flask app environment variable
+export FLASK_APP=run.py  # Linux/macOS
+# or
+set FLASK_APP=run.py  # Windows
+
+# Initialize migrations (first time only)
+flask db init
+
+# Create migration
+flask db migrate -m "Initial migration"
+
+# Apply migrations
 flask db upgrade
 ```
 
-### 6. Start Server
+### Seed Sample Data
 
 ```bash
+python seed_all.py
+```
+
+This creates:
+- Admin user (admin@electronicsshop.com / admin123)
+- Sample suppliers
+- Product categories and brands
+- 43 sample products with images
+- Delivery zones
+
+---
+
+## Running the Server
+
+### Development Mode
+
+```bash
+# Make sure virtual environment is activated
+source venv/bin/activate  # Linux/macOS
+
+# Run the development server
 python run.py
 ```
 
-Server runs at: http://localhost:5000
+The server runs at: **http://localhost:5000**
 
-## API Endpoints
+### Production Mode
 
-### Authentication
+```bash
+gunicorn -w 4 -b 0.0.0.0:5000 run:app
+```
+
+---
+
+## API Documentation
+
+### Base URL
+```
+http://localhost:5000/api
+```
+
+### Authentication Endpoints
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/auth/register` | Register new user | No |
+| POST | `/auth/login` | Login user | No |
+| POST | `/auth/logout` | Logout user | Yes |
+| POST | `/auth/refresh` | Refresh access token | Yes |
+| GET | `/auth/me` | Get current user profile | Yes |
+| POST | `/auth/send-otp` | Send OTP to email | No |
+| POST | `/auth/verify-otp` | Verify OTP code | No |
+| GET | `/auth/google` | Initiate Google OAuth | No |
+| POST | `/auth/google/token` | Authenticate with Google token | No |
+| POST | `/auth/forgot-password` | Request password reset | No |
+| POST | `/auth/reset-password` | Reset password with token | No |
+| POST | `/auth/change-password` | Change password | Yes |
+
+### Product Endpoints
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/products` | List all products (paginated) | No |
+| GET | `/products/<id>` | Get product details | No |
+| GET | `/products/categories` | List all categories | No |
+| GET | `/products/brands` | List all brands | No |
+| POST | `/products` | Create product | Supplier |
+| PUT | `/products/<id>` | Update product | Supplier/Admin |
+| DELETE | `/products/<id>` | Delete product | Supplier/Admin |
+
+### Order Endpoints
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/orders` | List user's orders | Yes |
+| GET | `/orders/<id>` | Get order details | Yes |
+| POST | `/orders` | Create new order | Yes |
+| POST | `/orders/<id>/cancel` | Cancel order | Yes |
+| PUT | `/orders/<id>/status` | Update order status | Admin |
+
+### Cart Endpoints
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| GET | `/cart` | Get user's cart | Yes |
+| POST | `/cart/items` | Add item to cart | Yes |
+| PUT | `/cart/items/<id>` | Update cart item quantity | Yes |
+| DELETE | `/cart/items/<id>` | Remove item from cart | Yes |
+| DELETE | `/cart` | Clear cart | Yes |
+
+### Payment Endpoints
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/payments/mpesa/initiate` | Initiate M-Pesa STK push | Yes |
+| POST | `/payments/mpesa/callback` | M-Pesa callback (webhook) | No |
+| GET | `/payments/<id>/status` | Check payment status | Yes |
+
+### Contact Endpoints
+
+| Method | Endpoint | Description | Auth Required |
+|--------|----------|-------------|---------------|
+| POST | `/contact` | Submit contact form | No |
+| GET | `/contact/info` | Get contact information | No |
+
+### Health Check
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/auth/register` | Register new user |
-| POST | `/api/auth/login` | Login user |
-| POST | `/api/auth/logout` | Logout user |
-| POST | `/api/auth/refresh` | Refresh access token |
-| GET | `/api/auth/me` | Get current user |
-| POST | `/api/auth/send-otp` | Send OTP to email |
-| POST | `/api/auth/verify-otp` | Verify OTP code |
-| GET | `/api/auth/google` | Initiate Google OAuth |
-| POST | `/api/auth/google/token` | Authenticate with Google ID token |
-| POST | `/api/auth/forgot-password` | Request password reset |
-| POST | `/api/auth/reset-password` | Reset password with token |
-| POST | `/api/auth/change-password` | Change password (authenticated) |
+| GET | `/health` | API health check |
 
-### Products
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/products` | List all products |
-| GET | `/api/products/<id>` | Get product details |
-| POST | `/api/products` | Create product (supplier) |
-| PUT | `/api/products/<id>` | Update product |
-| DELETE | `/api/products/<id>` | Delete product |
-
-### Orders
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/orders` | List orders |
-| GET | `/api/orders/<id>` | Get order details |
-| POST | `/api/orders` | Create order |
-| POST | `/api/orders/<id>/cancel` | Cancel order |
-| PUT | `/api/orders/<id>/status` | Update order status |
-
-### Cart
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/cart` | Get user's cart |
-| POST | `/api/cart/items` | Add item to cart |
-| PUT | `/api/cart/items/<id>` | Update cart item |
-| DELETE | `/api/cart/items/<id>` | Remove from cart |
-
-### Contact
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/api/contact` | Submit contact form |
-| GET | `/api/contact/info` | Get contact information |
-
-### Health
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/health` | Health check |
+---
 
 ## Project Structure
 
 ```
 backend/
 ├── app/
-│   ├── __init__.py          # App factory
+│   ├── __init__.py              # Application factory
 │   ├── config/
-│   │   └── config.py        # Configuration classes
-│   ├── models/              # SQLAlchemy models
-│   │   ├── user.py
-│   │   ├── product.py
-│   │   ├── order.py
-│   │   ├── cart.py
+│   │   └── config.py            # Configuration classes
+│   ├── models/                  # SQLAlchemy models
+│   │   ├── __init__.py          # Database instance
+│   │   ├── user.py              # User, CustomerProfile, SupplierProfile
+│   │   ├── product.py           # Product, Category, Brand
+│   │   ├── order.py             # Order, OrderItem
+│   │   ├── cart.py              # Cart, CartItem
+│   │   ├── returns.py           # Return, SupplierPayout
+│   │   ├── address.py           # Address, DeliveryZone
+│   │   ├── notifications.py     # Notification
+│   │   ├── otp.py               # OTP verification
+│   │   ├── session.py           # User sessions
+│   │   └── audit_log.py         # Audit logging
+│   ├── routes/                  # API blueprints
+│   │   ├── auth.py              # Authentication routes
+│   │   ├── products.py          # Product routes
+│   │   ├── orders.py            # Order routes
+│   │   ├── cart.py              # Cart routes
+│   │   ├── payments.py          # Payment routes
+│   │   ├── contact.py           # Contact form routes
 │   │   └── ...
-│   ├── routes/              # API blueprints
-│   │   ├── auth.py
-│   │   ├── products.py
-│   │   ├── orders.py
+│   ├── services/                # Business logic
+│   │   ├── email_service.py     # Email sending
+│   │   ├── google_oauth_service.py  # Google OAuth
+│   │   ├── mpesa_service.py     # M-Pesa integration
 │   │   └── ...
-│   ├── services/            # Business logic
-│   │   ├── email_service.py
-│   │   ├── google_oauth_service.py
-│   │   └── ...
-│   └── utils/               # Utilities
-│       ├── decorators.py    # Role-based decorators
-│       ├── validation.py
-│       └── responses.py
-├── migrations/              # Database migrations
-├── .env.example             # Environment template
-├── requirements.txt         # Python dependencies
-└── run.py                   # Entry point
+│   └── utils/                   # Utilities
+│       ├── decorators.py        # Role-based access decorators
+│       ├── validation.py        # Input validation
+│       └── responses.py         # Standard API responses
+├── migrations/                  # Alembic migrations
+├── .env.example                 # Environment template
+├── requirements.txt             # Python dependencies
+├── seed_all.py                  # Database seeding script
+└── run.py                       # Application entry point
 ```
+
+---
 
 ## User Roles
 
-| Role | Description |
-|------|-------------|
-| `customer` | Regular customer |
-| `supplier` | Product seller |
-| `admin` | Full system access |
-| `product_manager` | Manage products/categories |
-| `finance_admin` | Manage payments/payouts |
-| `support_admin` | Customer support |
+| Role | Description | Permissions |
+|------|-------------|-------------|
+| `customer` | Regular customer | Browse, purchase, manage orders |
+| `supplier` | Product seller | Manage own products, view orders |
+| `admin` | Full system access | All permissions |
+| `product_manager` | Manage products/categories | Product CRUD, category management |
+| `finance_admin` | Manage payments/payouts | View transactions, process payouts |
+| `support_admin` | Customer support | Handle returns, customer queries |
 
-## Environment Variables
+---
 
-See `.env.example` for all required variables:
+## Testing
 
-- `DATABASE_URL` - PostgreSQL connection string
-- `JWT_SECRET_KEY` - Secret for JWT tokens
-- `MAIL_*` - Email configuration
-- `GOOGLE_CLIENT_ID/SECRET` - Google OAuth
-- `CLOUDINARY_*` - Image upload
-- `MPESA_*` - M-Pesa payments
-- `WEB3FORMS_ACCESS_KEY` - Contact form
-
-## Running Tests
+### Run All Tests
 
 ```bash
 pytest
 ```
 
+### Run with Coverage
+
+```bash
+pytest --cov=app --cov-report=html
+```
+
+### Run Specific Tests
+
+```bash
+pytest tests/test_auth.py -v
+```
+
+---
+
+## Common Issues
+
+### psycopg2 Installation Fails
+
+Install PostgreSQL development headers:
+```bash
+# Ubuntu/Debian
+sudo apt-get install libpq-dev python3-dev
+
+# macOS
+brew install postgresql
+
+# Windows
+# Use psycopg2-binary instead (already in requirements.txt)
+```
+
+### Permission Denied on setup.sh
+
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+### Database Connection Refused
+
+1. Ensure PostgreSQL is running:
+   ```bash
+   sudo systemctl start postgresql
+   ```
+
+2. Check your DATABASE_URL in `.env`
+
+3. Verify PostgreSQL accepts connections:
+   ```bash
+   psql -U postgres -h localhost
+   ```
+
+---
+
 ## License
 
-MIT
+MIT License - See LICENSE file for details.

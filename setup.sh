@@ -165,11 +165,40 @@ run_migrations() {
     cd "$PROJECT_ROOT"
 }
 
+# Seed database
+seed_database() {
+    print_step "Seeding database with sample data..."
+
+    cd "$BACKEND_DIR"
+    source venv/bin/activate
+
+    python seed_all.py
+
+    print_success "Database seeded successfully"
+
+    cd "$PROJECT_ROOT"
+}
+
 # Setup frontend
 setup_frontend() {
     print_step "Setting up frontend..."
 
     cd "$FRONTEND_DIR"
+
+    # Setup environment file
+    if [ ! -f ".env" ]; then
+        if [ -f ".env.example" ]; then
+            cp .env.example .env
+            print_success "Created frontend .env from .env.example"
+        else
+            print_warning "Frontend .env.example not found, creating default .env"
+            echo "VITE_API_URL=http://localhost:5000/api" > .env
+            echo "VITE_BACKEND_URL=http://localhost:5000" >> .env
+            print_success "Created frontend .env with defaults"
+        fi
+    else
+        print_success "Frontend .env file already exists"
+    fi
 
     # Install npm dependencies
     print_step "Installing Node.js dependencies..."
@@ -227,6 +256,7 @@ main() {
     setup_backend
     setup_database
     run_migrations
+    seed_database
     setup_frontend
     print_instructions
 }
