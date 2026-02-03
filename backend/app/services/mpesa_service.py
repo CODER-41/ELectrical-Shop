@@ -219,5 +219,84 @@ class MPesaService:
         return True, formatted
 
 
+def b2c_payment(self, phone_number, amount, remarks, occasion=''):
+        """
+        Send B2C (Business to Customer) payment to supplier.
+        Used to pay suppliers their earnings.
+
+        Args:
+            phone_number: Recipient phone number (254XXXXXXXXX format)
+            amount: Amount to send
+            remarks: Description/reason for payment
+            occasion: Optional occasion description
+
+        Returns:
+            dict: Response from M-Pesa API
+        """
+        try:
+            access_token = self.get_access_token()
+
+            # B2C specific credentials
+            b2c_shortcode = os.getenv('MPESA_B2C_SHORTCODE', self.business_short_code)
+            initiator_name = os.getenv('MPESA_B2C_INITIATOR_NAME', 'testapi')
+            security_credential = os.getenv('MPESA_B2C_SECURITY_CREDENTIAL', '')
+            result_url = os.getenv('MPESA_B2C_RESULT_URL', self.callback_url)
+            timeout_url = os.getenv('MPESA_B2C_TIMEOUT_URL', self.callback_url)
+
+            # Format phone number
+            formatted_phone = self.format_phone_number(phone_number)
+
+            url = f'{self.base_url}/mpesa/b2c/v3/paymentrequest'
+
+            headers = {
+                'Authorization': f'Bearer {access_token}',
+                'Content-Type': 'application/json'
+            }
+
+            payload = {
+                'OriginatorConversationID': f'payout-{datetime.utcnow().strftime("%Y%m%d%H%M%S")}',
+                'InitiatorName': initiator_name,
+                'SecurityCredential': security_credential,
+                'CommandID': 'BusinessPayment',  # For supplier payments
+                'Amount': int(amount),
+                'PartyA': b2c_shortcode,
+                'PartyB': formatted_phone,
+                'Remarks': remarks[:100] if remarks else 'Supplier payout',
+                'QueueTimeOutURL': timeout_url,
+                'ResultURL': result_url,
+                'Occasion': occasion[:100] if occasion else ''
+            }
+
+            current_app.logger.info(f'Initiating B2C payment to {formatted_phone}, amount {amount}')
+
+            response = requests.post(url, json=payload, headers=headers)
+            response.raise_for_status()
+
+            data = response.json()
+            current_app.logger.info(f'B2C response: {data}')
+
+            return {
+                'success': data.get('ResponseCode') == '0',
+                'conversation_id': data.get('ConversationID'),
+                'originator_conversation_id': data.get('OriginatorConversationID'),
+                'response_code': data.get('ResponseCode'),
+                'response_description': data.get('ResponseDescription')
+            }
+        except requests.exceptions.RequestException as e:
+            current_app.logger.error(f'B2C API error: {str(e)}')
+            if hasattr(e, 'response') and e.response is not None:
+                current_app.logger.error(f'Response: {e.response.text}')
+            return {
+                'success': False,
+                'error': f'B2C payment failed: {str(e)}'
+            }
+        except Exception as e:
+            current_app.logger.error(f'B2C error: {str(e)}')
+            return {
+                'success': False,
+                'error': f'Payment failed: {str(e)}'
+            }
+
+
 # Initialize service
 mpesa_service = MPesaService()

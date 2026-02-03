@@ -113,7 +113,6 @@ class CustomerProfile(db.Model):
     
     # Relationships
     orders = db.relationship('Order', backref='customer', lazy='dynamic')
-    returns = db.relationship('Return', backref='customer', lazy='dynamic')
     
     def to_dict(self):
         """Convert customer profile to dictionary."""
@@ -153,7 +152,6 @@ class SupplierProfile(db.Model):
     
     # Relationships
     products = db.relationship('Product', backref='supplier', lazy='dynamic')
-    payouts = db.relationship('SupplierPayout', backref='supplier', lazy='dynamic')
     
     def to_dict(self):
         """Convert supplier profile to dictionary."""
