@@ -1,7 +1,7 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
-import { logout, reset } from '../store/slices/authSlice';
+import { logout, reset, updateProfile, changePassword } from '../store/slices/authSlice';
 
 export const useAuth = () => {
   const dispatch = useDispatch();
@@ -22,6 +22,14 @@ export const useAuth = () => {
     dispatch(reset());
   };
   
+  const handleUpdateProfile = async (profileData) => {
+    return dispatch(updateProfile(profileData)).unwrap();
+  };
+  
+  const handleChangePassword = async (currentPassword, newPassword) => {
+    return dispatch(changePassword({ currentPassword, newPassword })).unwrap();
+  };
+  
   return {
     user,
     token,
@@ -30,7 +38,9 @@ export const useAuth = () => {
     isError,
     isSuccess,
     message,
-    handleLogout,
+    logout: handleLogout,
     resetAuthState,
+    updateProfile: handleUpdateProfile,
+    changePassword: handleChangePassword,
   };
 };

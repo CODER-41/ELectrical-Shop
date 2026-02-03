@@ -18,9 +18,13 @@ const GoogleCallback = () => {
       const error = searchParams.get('error');
       const accessToken = searchParams.get('access_token');
       const userId = searchParams.get('user_id');
+      const success = searchParams.get('success');
+
+      console.log('Callback params:', { error, accessToken: !!accessToken, userId, success });
 
       // Handle OAuth errors
       if (error) {
+        console.error('OAuth error:', error);
         toast.error(`Google authentication failed: ${error}`);
         navigate('/login', { replace: true });
         return;
@@ -30,6 +34,7 @@ const GoogleCallback = () => {
       if (accessToken && userId) {
         try {
           setStatus('Verifying credentials...');
+          console.log('Verifying credentials with token');
 
           // Fetch user data using the access token
           const response = await fetch(`${BACKEND_URL}/api/auth/me`, {
@@ -39,11 +44,16 @@ const GoogleCallback = () => {
             }
           });
 
+          console.log('Auth/me response status:', response.status);
+
           if (!response.ok) {
+            const errorText = await response.text();
+            console.error('Auth/me failed:', errorText);
             throw new Error('Failed to verify credentials');
           }
 
           const data = await response.json();
+          console.log('User data received:', data);
 
           if (!data.success || !data.data) {
             throw new Error('Invalid user data received');
@@ -70,6 +80,7 @@ const GoogleCallback = () => {
           navigate(redirectPath, { replace: true });
 
         } catch (error) {
+          console.error('Authentication error:', error);
           toast.error('Authentication failed. Please try again.');
           navigate('/login', { replace: true });
         }
@@ -77,6 +88,7 @@ const GoogleCallback = () => {
       }
 
       // No valid parameters
+      console.log('No valid parameters found');
       toast.error('Authentication failed: No credentials received');
       navigate('/login', { replace: true });
     };

@@ -67,6 +67,52 @@ export const logout = createAsyncThunk('auth/logout', async (_, thunkAPI) => {
   }
 });
 
+// Update profile
+export const updateProfile = createAsyncThunk('auth/updateProfile', async (profileData, thunkAPI) => {
+  try {
+    const state = thunkAPI.getState();
+    const token = state.auth.token;
+    
+    const response = await axios.put(`${API_URL}/auth/profile`, profileData, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    if (response.data.success) {
+      const updatedUser = { ...state.auth.user, profile: response.data.data };
+      const authData = {
+        user: updatedUser,
+        token: state.auth.token
+      };
+      localStorage.setItem('user', JSON.stringify(authData));
+      return updatedUser;
+    }
+    return thunkAPI.rejectWithValue('Profile update failed');
+  } catch (error) {
+    const message = error.response?.data?.message || error.response?.data?.error || error.message;
+    return thunkAPI.rejectWithValue(message);
+  }
+});
+
+// Change password
+export const changePassword = createAsyncThunk('auth/changePassword', async ({ currentPassword, newPassword }, thunkAPI) => {
+  try {
+    const state = thunkAPI.getState();
+    const token = state.auth.token;
+    
+    const response = await axios.put(`${API_URL}/auth/change-password`, {
+      current_password: currentPassword,
+      new_password: newPassword
+    }, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    return response.data;
+  } catch (error) {
+    const message = error.response?.data?.message || error.response?.data?.error || error.message;
+    return thunkAPI.rejectWithValue(message);
+  }
+});
+
 export const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -84,6 +130,9 @@ export const authSlice = createSlice({
       state.isError = false;
       state.message = '';
       localStorage.setItem('user', JSON.stringify(action.payload));
+    },
+    updateToken: (state, action) => {
+      state.token = action.payload;
     },
     clearAuth: (state) => {
       state.user = null;
@@ -136,9 +185,40 @@ export const authSlice = createSlice({
         state.user = null;
         state.token = null;
         state.isSuccess = false;
+      })
+      // Update Profile
+      .addCase(updateProfile.pending, (state) => {
+        state.isLoading = true;
+        state.isError = false;
+        state.message = '';
+      })
+      .addCase(updateProfile.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+        state.user = action.payload;
+      })
+      .addCase(updateProfile.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      // Change Password
+      .addCase(changePassword.pending, (state) => {
+        state.isLoading = true;
+        state.isError = false;
+        state.message = '';
+      })
+      .addCase(changePassword.fulfilled, (state) => {
+        state.isLoading = false;
+        state.isSuccess = true;
+      })
+      .addCase(changePassword.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
       });
   },
 });
 
-export const { reset, setCredentials, clearAuth } = authSlice.actions;
+export const { reset, setCredentials, updateToken, clearAuth } = authSlice.actions;
 export default authSlice.reducer;

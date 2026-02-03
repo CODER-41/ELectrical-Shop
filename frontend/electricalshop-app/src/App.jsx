@@ -31,6 +31,8 @@ import FAQs from './pages/FAQs';
 import ReturnsPolicy from './pages/ReturnsPolicy';
 import WarrantyInfo from './pages/WarrantyInfo';
 import ContactUs from './pages/ContactUs';
+import EditProfile from './pages/EditProfile';
+import Settings from './pages/Settings';
 
 // Supplier Pages
 import SupplierDashboard from './pages/Supplier/SupplierDashboard';
@@ -85,6 +87,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile/edit"
+              element={
+                <ProtectedRoute>
+                  <EditProfile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
                 </ProtectedRoute>
               }
             />

@@ -145,29 +145,24 @@ const Cart = () => {
               </h2>
               <div className="space-y-2 mb-4">
                 <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Subtotal</span>
+                  <span className="text-gray-600">Subtotal ({totalItems} items)</span>
                   <span className="font-medium">
                     KSh {totalPrice.toLocaleString()}
                   </span>
                 </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Shipping</span>
-                  <span className="font-medium">KSh 0.00</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Tax</span>
-                  <span className="font-medium">
-                    KSh {(totalPrice * 0.16).toLocaleString()}
-                  </span>
+                <div className="flex justify-between text-sm text-gray-500">
+                  <span>Delivery fee</span>
+                  <span>Calculated at checkout</span>
                 </div>
               </div>
               <div className="border-t border-gray-200 pt-4 mb-4">
                 <div className="flex justify-between text-lg font-semibold">
                   <span>Total</span>
                   <span>
-                    KSh {(totalPrice * 1.16).toLocaleString()}
+                    KSh {totalPrice.toLocaleString()}
                   </span>
                 </div>
+                <p className="text-xs text-gray-500 mt-1">+ delivery fee (calculated at checkout)</p>
               </div>
               <button
                 onClick={handleCheckout}
