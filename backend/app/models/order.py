@@ -68,6 +68,7 @@ class Order(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     # Relationships
+    delivery_address = db.relationship('Address', foreign_keys=[delivery_address_id], lazy='select')
     items = db.relationship('OrderItem', backref='order', lazy='dynamic', cascade='all, delete-orphan')
     
     def generate_order_number(self):
@@ -87,11 +88,15 @@ class Order(db.Model):
     
     def to_dict(self, include_items=True):
         """Convert order to dictionary."""
+        # Get delivery address manually
+        from app.models.address import Address
+        delivery_address = Address.query.get(self.delivery_address_id) if self.delivery_address_id else None
+        
         data = {
             'id': self.id,
             'order_number': self.order_number,
             'customer_id': self.customer_id,
-            'delivery_address': self.delivery_address.to_dict() if self.delivery_address else None,
+            'delivery_address': delivery_address.to_dict() if delivery_address else None,
             'delivery_zone': self.delivery_zone,
             'delivery_fee': float(self.delivery_fee),
             'subtotal': float(self.subtotal),
@@ -150,8 +155,10 @@ class OrderItem(db.Model):
         
         # Calculate warranty expiry
         if self.warranty_period_months:
-            from dateutil.relativedelta import relativedelta
-            self.warranty_expires_at = datetime.utcnow() + relativedelta(months=self.warranty_period_months)
+            from datetime import datetime, timedelta
+            # Approximate months as 30 days each
+            days = self.warranty_period_months * 30
+            self.warranty_expires_at = datetime.utcnow() + timedelta(days=days)
     
     def to_dict(self):
         """Convert order item to dictionary."""
