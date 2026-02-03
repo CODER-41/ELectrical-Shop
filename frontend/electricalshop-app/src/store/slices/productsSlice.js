@@ -9,15 +9,16 @@ const initialState = {
   categories: [],
   brands: [],
   filters: {},
+  pagination: null,
   isLoading: false,
   isError: false,
   isSuccess: false,
   message: '',
 };
 
-export const getProducts = createAsyncThunk('products/getProducts', async (_, thunkAPI) => {
+export const getProducts = createAsyncThunk('products/getProducts', async (params = {}, thunkAPI) => {
   try {
-    const response = await axios.get(`${API_URL}/products`);
+    const response = await axios.get(`${API_URL}/products`, { params });
     return response.data;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
@@ -44,7 +45,7 @@ export const getProduct = createAsyncThunk('products/getProduct', async (id, thu
 
 export const getCategories = createAsyncThunk('products/getCategories', async (_, thunkAPI) => {
   try {
-    const response = await axios.get(`${API_URL}/categories`);
+    const response = await axios.get(`${API_URL}/products/categories`);
     return response.data;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
@@ -53,7 +54,7 @@ export const getCategories = createAsyncThunk('products/getCategories', async (_
 
 export const getBrands = createAsyncThunk('products/getBrands', async (_, thunkAPI) => {
   try {
-    const response = await axios.get(`${API_URL}/brands`);
+    const response = await axios.get(`${API_URL}/products/brands`);
     return response.data;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
@@ -88,24 +89,26 @@ const productsSlice = createSlice({
       .addCase(getProducts.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isSuccess = true;
-        state.products = action.payload;
+        state.products = action.payload?.data?.products || [];
+        state.pagination = action.payload?.data?.pagination || null;
       })
       .addCase(getProducts.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;
+        state.products = [];
       })
       .addCase(getProductBySlug.fulfilled, (state, action) => {
-        state.currentProduct = action.payload;
+        state.currentProduct = action.payload?.data || null;
       })
       .addCase(getProduct.fulfilled, (state, action) => {
-        state.currentProduct = action.payload;
+        state.currentProduct = action.payload?.data || null;
       })
       .addCase(getCategories.fulfilled, (state, action) => {
-        state.categories = action.payload;
+        state.categories = action.payload?.data || [];
       })
       .addCase(getBrands.fulfilled, (state, action) => {
-        state.brands = action.payload;
+        state.brands = action.payload?.data || [];
       });
   },
 });

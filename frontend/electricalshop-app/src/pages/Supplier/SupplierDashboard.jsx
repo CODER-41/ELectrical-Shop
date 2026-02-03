@@ -78,7 +78,7 @@ const SupplierDashboard = () => {
           {dashboard?.products?.low_stock > 0 && (
             <div className="mt-4 pt-4 border-t border-gray-200">
               <p className="text-sm text-orange-600">
-                ⚠️ {dashboard.products.low_stock} low stock items
+                {dashboard.products.low_stock} low stock items - attention needed
               </p>
             </div>
           )}

@@ -20,8 +20,9 @@ from app.utils.validation import (
     validate_required_fields
 )
 from app.utils.responses import success_response, error_response, validation_error_response
-from app.services.email_service import send_email
+from app.services.email_service import send_email, send_otp_email, send_welcome_email
 from app.services.google_oauth_service import google_oauth_service
+from app.models.otp import OTP
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
@@ -105,17 +106,125 @@ def register():
         db.session.add(profile)
         db.session.commit()
 
+        # Send OTP for email verification
+        try:
+            otp = OTP.create_otp(email, purpose='verification')
+            send_otp_email(email, otp.code, purpose='verification')
+        except Exception as e:
+            current_app.logger.error(f'Failed to send OTP: {str(e)}')
+
         return success_response(
-            data = user.to_dict(include_profile=True),
-            message=f'{role.capitalize()} registered successfully. Please verify your email.',
+            data=user.to_dict(include_profile=True),
+            message=f'{role.capitalize()} registered successfully. Please check your email for the verification code.',
             status_code=201
         )
 
     except Exception as e:
         db.session.rollback()
         return error_response(f'Registration failed: {str(e)}', 500)
-    
 
+
+@auth_bp.route('/send-otp', methods=['POST'])
+@validate_required_fields(['email'])
+def send_otp():
+    """Send or resend OTP to email."""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        purpose = data.get('purpose', 'verification')
+
+        if not validate_email(email):
+            return validation_error_response({'email': 'Invalid email format'})
+
+        # Check if user exists
+        user = User.query.filter_by(email=email).first()
+
+        if purpose == 'verification':
+            if not user:
+                return error_response('Email not registered', 404)
+            if user.is_verified:
+                return error_response('Email is already verified', 400)
+
+        elif purpose == 'password_reset':
+            if not user:
+                # Don't reveal if email exists for security
+                return success_response(
+                    message='If the email exists, an OTP has been sent.'
+                )
+
+        # Create and send OTP
+        otp = OTP.create_otp(email, purpose=purpose)
+        send_otp_email(email, otp.code, purpose=purpose)
+
+        return success_response(
+            message='OTP sent successfully. Please check your email.',
+            data={'email': email, 'expires_in_minutes': 10}
+        )
+
+    except Exception as e:
+        return error_response(f'Failed to send OTP: {str(e)}', 500)
+
+
+@auth_bp.route('/verify-otp', methods=['POST'])
+@validate_required_fields(['email', 'otp'])
+def verify_otp():
+    """Verify OTP code."""
+    try:
+        data = request.get_json()
+        email = data.get('email', '').strip().lower()
+        code = data.get('otp', '').strip()
+        purpose = data.get('purpose', 'verification')
+
+        if not validate_email(email):
+            return validation_error_response({'email': 'Invalid email format'})
+
+        if not code or len(code) != 6:
+            return validation_error_response({'otp': 'OTP must be 6 digits'})
+
+        # Verify OTP
+        success, message = OTP.verify_otp(email, code, purpose)
+
+        if not success:
+            return error_response(message, 400)
+
+        # If verification OTP, mark user as verified
+        if purpose == 'verification':
+            user = User.query.filter_by(email=email).first()
+            if user:
+                user.is_verified = True
+                db.session.commit()
+
+                # Send welcome email
+                first_name = 'there'
+                if user.customer_profile:
+                    first_name = user.customer_profile.first_name
+                elif user.supplier_profile:
+                    first_name = user.supplier_profile.contact_person
+
+                try:
+                    send_welcome_email(email, first_name)
+                except Exception as e:
+                    current_app.logger.error(f'Failed to send welcome email: {str(e)}')
+
+        # For password reset, return a reset token
+        if purpose == 'password_reset':
+            reset_token = secrets.token_urlsafe(32)
+            # Store reset token temporarily (you could use Redis or DB)
+            # For simplicity, we'll use a new OTP entry
+            user = User.query.filter_by(email=email).first()
+            if user:
+                return success_response(
+                    message='OTP verified. You can now reset your password.',
+                    data={'reset_token': reset_token, 'email': email}
+                )
+
+        return success_response(
+            message='Email verified successfully!',
+            data={'verified': True}
+        )
+
+    except Exception as e:
+        return error_response(f'Failed to verify OTP: {str(e)}', 500)
 
 
 @auth_bp.route('/login', methods=['POST'])
@@ -135,8 +244,8 @@ def login():
         return error_response('Account is deactivated. Please contact support.', 401)
     
     if user.role == UserRole.SUPPLIER and user.supplier_profile:
-        if not user.supplier_profile.is_active:
-            return error_response('Your supplier account is pending approval. Please wait for admin approval ')
+        if not user.supplier_profile.is_approved:
+            return error_response('Your supplier account is pending approval. Please wait for admin approval.', 403)
 
 
     try:
@@ -704,22 +813,34 @@ def google_callback():
     error = request.args.get('error')
 
     frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+    callback_url = f'{frontend_url}/auth/callback'
 
+    current_app.logger.info(f'Google OAuth callback received - Code: {code is not None}, State: {state}, Error: {error}')
+
+    # Handle OAuth errors from Google
     if error:
-        return redirect(f'{frontend_url}/auth/callback?error={error}')
+        current_app.logger.error(f'Google OAuth error: {error}')
+        return redirect(f'{callback_url}?error={error}')
 
     if not code:
-        return redirect(f'{frontend_url}/auth/callback?error=no_code')
+        current_app.logger.error('No authorization code received')
+        return redirect(f'{callback_url}?error=no_code')
 
     # Exchange code for tokens
+    current_app.logger.info('Exchanging authorization code for tokens')
     token_result = google_oauth_service.exchange_code_for_tokens(code)
     if not token_result['success']:
-        return redirect(f'{frontend_url}/auth/callback?error=token_exchange_failed')
+        current_app.logger.error(f'Token exchange failed: {token_result.get("error")}')
+        return redirect(f'{callback_url}?error=token_exchange_failed')
 
     # Get user info
+    current_app.logger.info('Fetching user info from Google')
     user_info = google_oauth_service.get_user_info(token_result['access_token'])
     if not user_info['success']:
-        return redirect(f'{frontend_url}/auth/callback?error=user_info_failed')
+        current_app.logger.error(f'Failed to get user info: {user_info.get("error")}')
+        return redirect(f'{callback_url}?error=user_info_failed')
+
+    current_app.logger.info(f'User info received: {user_info["email"]}')
 
     try:
         # Check if user exists by Google ID
@@ -731,6 +852,7 @@ def google_callback():
 
             if user:
                 # Link Google account to existing user
+                current_app.logger.info(f'Linking Google account to existing user: {user.email}')
                 user.google_id = user_info['google_id']
                 user.auth_provider = AuthProvider.GOOGLE
                 if user_info.get('picture'):
@@ -739,6 +861,7 @@ def google_callback():
                     user.is_verified = True
             else:
                 # Create new user
+                current_app.logger.info(f'Creating new user: {user_info["email"]}')
                 user = User(
                     email=user_info['email'],
                     role=UserRole.CUSTOMER,
@@ -763,6 +886,8 @@ def google_callback():
         user.last_login = datetime.now(timezone.utc)
         db.session.commit()
 
+        current_app.logger.info(f'User authentication successful: {user.email}')
+
         # Create JWT tokens
         access_token = create_access_token(identity=user.id)
         refresh_token = create_refresh_token(identity=user.id)
@@ -779,19 +904,28 @@ def google_callback():
         db.session.add(session)
         db.session.commit()
 
+        current_app.logger.info(f'OAuth flow completed successfully for user: {user.email}')
+
         # Redirect to frontend with tokens
         # Note: In production, consider using httpOnly cookies instead of URL params
-        return redirect(
-            f'{frontend_url}/auth/callback?'
-            f'access_token={access_token}&'
-            f'refresh_token={refresh_token}&'
-            f'user_id={user.id}'
-        )
+        from urllib.parse import urlencode
+        
+        redirect_params = {
+            'access_token': access_token,
+            'refresh_token': refresh_token,
+            'user_id': str(user.id),
+            'success': 'true'
+        }
+        
+        redirect_url = f'{callback_url}?{urlencode(redirect_params)}'
+        
+        current_app.logger.info(f'Redirecting to: {redirect_url}')
+        return redirect(redirect_url)
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f'Google OAuth callback error: {str(e)}')
-        return redirect(f'{frontend_url}/auth/callback?error=server_error')
+        current_app.logger.error(f'Google OAuth callback error: {str(e)}', exc_info=True)
+        return redirect(f'{callback_url}?error=server_error')
 
 
 @auth_bp.route('/google/token', methods=['POST'])

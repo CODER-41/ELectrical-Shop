@@ -8,7 +8,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const AdminUsers = () => {
   const { user } = useSelector((state) => state.auth);
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState(searchParams.get('filter') || 'all');
@@ -216,11 +216,11 @@ const AdminUsers = () => {
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex flex-col gap-1">
                         <span className={`text-sm ${u.is_active ? 'text-green-600' : 'text-red-600'}`}>
-                          {u.is_active ? '✓ Active' : '✗ Suspended'}
+                          {u.is_active ? 'Active' : 'Suspended'}
                         </span>
                         {u.role === 'supplier' && u.supplier_profile && (
                           <span className={`text-xs ${u.supplier_profile.is_approved ? 'text-green-600' : 'text-orange-600'}`}>
-                            {u.supplier_profile.is_approved ? '✓ Approved' : '⏳ Pending'}
+                            {u.supplier_profile.is_approved ? 'Approved' : 'Pending'}
                           </span>
                         )}
                       </div>

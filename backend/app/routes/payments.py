@@ -8,7 +8,10 @@ from datetime import datetime
 from app.models import db
 from app.models.user import User, UserRole
 from app.models.order import Order, OrderStatus, PaymentMethod, PaymentStatus
+from app.models.user import SupplierProfile
+from app.models.returns import SupplierPayout
 from app.utils.responses import success_response, error_response
+from app.utils.decorators import admin_required
 from app.services.mpesa_service import mpesa_service
 from app.services.email_service import send_payment_confirmation_email
 
@@ -419,3 +422,258 @@ def get_payment_methods():
             }
         ]
     })
+
+
+# ==================== Supplier Payout Routes (B2C) ====================
+
+@payments_bp.route('/supplier/payout', methods=['POST'])
+@jwt_required()
+@admin_required
+def initiate_supplier_payout():
+    """
+    Initiate M-Pesa B2C payment to supplier.
+    Only admins can initiate supplier payouts.
+
+    Expected payload:
+    {
+        "supplier_id": "uuid",
+        "amount": 1000.00,
+        "notes": "Payout for order #123"
+    }
+    """
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+
+        # Validate required fields
+        if not data.get('supplier_id'):
+            return error_response('Supplier ID is required', 400)
+        if not data.get('amount') or float(data['amount']) <= 0:
+            return error_response('Valid amount is required', 400)
+
+        # Get supplier profile
+        supplier = SupplierProfile.query.get(data['supplier_id'])
+        if not supplier:
+            return error_response('Supplier not found', 404)
+
+        # Check if supplier has M-Pesa number
+        if not supplier.mpesa_number:
+            return error_response('Supplier has no M-Pesa number configured', 400)
+
+        # Validate phone number
+        is_valid, formatted_phone = mpesa_service.validate_phone_number(supplier.mpesa_number)
+        if not is_valid:
+            return error_response(f'Invalid supplier M-Pesa number: {formatted_phone}', 400)
+
+        amount = float(data['amount'])
+        notes = data.get('notes', f'Supplier payout - {supplier.business_name}')
+
+        # Create payout record
+        payout = SupplierPayout(
+            supplier_id=supplier.user_id,
+            amount=amount,
+            status='pending',
+            notes=notes
+        )
+        db.session.add(payout)
+        db.session.flush()  # Get payout ID
+
+        # Initiate B2C payment
+        result = mpesa_service.b2c_payment(
+            phone_number=formatted_phone,
+            amount=amount,
+            remarks=f'Payout-{payout.id[:8]}',
+            occasion=notes[:100] if notes else ''
+        )
+
+        if result.get('success'):
+            payout.status = 'processing'
+            payout.reference = result.get('conversation_id')
+            db.session.commit()
+
+            return success_response(
+                data={
+                    'payout_id': payout.id,
+                    'conversation_id': result.get('conversation_id'),
+                    'status': 'processing'
+                },
+                message=f'Payout of KES {amount} initiated to {supplier.business_name}'
+            )
+        else:
+            payout.status = 'failed'
+            payout.notes = (payout.notes or '') + f'\nFailed: {result.get("error", "Unknown error")}'
+            db.session.commit()
+
+            return error_response(
+                result.get('error', 'Failed to initiate payout'),
+                500
+            )
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Supplier payout error: {str(e)}')
+        return error_response(f'Payout failed: {str(e)}', 500)
+
+
+@payments_bp.route('/b2c/result', methods=['POST'])
+def b2c_result_callback():
+    """
+    Handle B2C result callback from M-Pesa.
+    Called when B2C payment completes or fails.
+    """
+    try:
+        data = request.get_json()
+        current_app.logger.info(f'B2C result callback: {data}')
+
+        result = data.get('Result', {})
+        conversation_id = result.get('ConversationID')
+        result_code = result.get('ResultCode')
+        result_desc = result.get('ResultDesc')
+
+        # Find payout by conversation ID
+        payout = SupplierPayout.query.filter_by(reference=conversation_id).first()
+
+        if payout:
+            if result_code == 0:
+                # Payment successful
+                payout.status = 'completed'
+                payout.paid_at = datetime.utcnow()
+
+                # Extract transaction details from ResultParameters
+                result_params = result.get('ResultParameters', {}).get('ResultParameter', [])
+                for param in result_params:
+                    if param.get('Key') == 'TransactionReceipt':
+                        payout.reference = param.get('Value')
+                        break
+
+                current_app.logger.info(f'B2C payout successful: {payout.id}')
+            else:
+                # Payment failed
+                payout.status = 'failed'
+                payout.notes = (payout.notes or '') + f'\nFailed: {result_desc}'
+                current_app.logger.warning(f'B2C payout failed: {payout.id} - {result_desc}')
+
+            db.session.commit()
+
+        return {'ResultCode': 0, 'ResultDesc': 'Accepted'}
+
+    except Exception as e:
+        current_app.logger.error(f'B2C result callback error: {str(e)}')
+        return {'ResultCode': 0, 'ResultDesc': 'Accepted'}
+
+
+@payments_bp.route('/b2c/timeout', methods=['POST'])
+def b2c_timeout_callback():
+    """
+    Handle B2C timeout callback from M-Pesa.
+    Called when B2C request times out.
+    """
+    try:
+        data = request.get_json()
+        current_app.logger.warning(f'B2C timeout callback: {data}')
+
+        # Mark payout as failed due to timeout
+        conversation_id = data.get('Result', {}).get('ConversationID')
+        if conversation_id:
+            payout = SupplierPayout.query.filter_by(reference=conversation_id).first()
+            if payout:
+                payout.status = 'failed'
+                payout.notes = (payout.notes or '') + '\nFailed: Request timed out'
+                db.session.commit()
+
+        return {'ResultCode': 0, 'ResultDesc': 'Accepted'}
+
+    except Exception as e:
+        current_app.logger.error(f'B2C timeout callback error: {str(e)}')
+        return {'ResultCode': 0, 'ResultDesc': 'Accepted'}
+
+
+@payments_bp.route('/supplier/payouts', methods=['GET'])
+@jwt_required()
+@admin_required
+def get_supplier_payouts():
+    """
+    Get all supplier payouts.
+    Admin only endpoint.
+    """
+    try:
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 20, type=int)
+        status = request.args.get('status')
+        supplier_id = request.args.get('supplier_id')
+
+        query = SupplierPayout.query
+
+        if status:
+            query = query.filter_by(status=status)
+        if supplier_id:
+            query = query.filter_by(supplier_id=supplier_id)
+
+        query = query.order_by(SupplierPayout.created_at.desc())
+        paginated = query.paginate(page=page, per_page=per_page, error_out=False)
+
+        return success_response(data={
+            'payouts': [p.to_dict() for p in paginated.items],
+            'total': paginated.total,
+            'pages': paginated.pages,
+            'current_page': page
+        })
+
+    except Exception as e:
+        return error_response(f'Failed to fetch payouts: {str(e)}', 500)
+
+
+@payments_bp.route('/supplier/<supplier_id>/update-mpesa', methods=['PUT'])
+@jwt_required()
+@admin_required
+def update_supplier_mpesa_number(supplier_id):
+    """
+    Update supplier's M-Pesa number.
+    Admin only - used when supplier needs to change their payout number.
+
+    Expected payload:
+    {
+        "mpesa_number": "254XXXXXXXXX",
+        "reason": "Supplier requested change"
+    }
+    """
+    try:
+        data = request.get_json()
+
+        if not data.get('mpesa_number'):
+            return error_response('M-Pesa number is required', 400)
+
+        # Get supplier
+        supplier = SupplierProfile.query.get(supplier_id)
+        if not supplier:
+            return error_response('Supplier not found', 404)
+
+        # Validate new phone number
+        is_valid, formatted_phone = mpesa_service.validate_phone_number(data['mpesa_number'])
+        if not is_valid:
+            return error_response(f'Invalid M-Pesa number: {formatted_phone}', 400)
+
+        old_number = supplier.mpesa_number
+        supplier.mpesa_number = formatted_phone
+
+        # Log the change
+        reason = data.get('reason', 'Admin update')
+        current_app.logger.info(
+            f'Supplier {supplier_id} M-Pesa changed from {old_number} to {formatted_phone}. Reason: {reason}'
+        )
+
+        db.session.commit()
+
+        return success_response(
+            data={
+                'supplier_id': supplier_id,
+                'business_name': supplier.business_name,
+                'old_mpesa_number': old_number,
+                'new_mpesa_number': formatted_phone
+            },
+            message='Supplier M-Pesa number updated successfully'
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to update M-Pesa number: {str(e)}', 500)

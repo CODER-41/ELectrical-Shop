@@ -3,6 +3,16 @@ import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
+// Get token from localStorage
+const getAuthToken = () => {
+  const user = localStorage.getItem('user');
+  if (user) {
+    const userData = JSON.parse(user);
+    return userData.token || userData.access_token;
+  }
+  return null;
+};
+
 const initialState = {
   products: [],
   currentProduct: null,
@@ -127,7 +137,7 @@ export const createProduct = createAsyncThunk(
   'products/create',
   async (productData, thunkAPI) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAuthToken();
       const response = await axios.post(
         `${API_URL}/products`,
         productData,
@@ -151,7 +161,7 @@ export const updateProduct = createAsyncThunk(
   'products/update',
   async ({ productId, productData }, thunkAPI) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAuthToken();
       const response = await axios.put(
         `${API_URL}/products/${productId}`,
         productData,
@@ -175,7 +185,7 @@ export const deleteProduct = createAsyncThunk(
   'products/delete',
   async (productId, thunkAPI) => {
     try {
-      const token = localStorage.getItem('access_token');
+      const token = getAuthToken();
       const response = await axios.delete(
         `${API_URL}/products/${productId}`,
         {

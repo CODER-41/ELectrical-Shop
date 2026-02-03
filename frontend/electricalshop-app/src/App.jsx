@@ -7,6 +7,7 @@ import MainLayout from './layouts/MainLayout';
 
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
+import GoogleCallback from './components/GoogleCallback';
 
 // Pages
 import Home from './pages/Home';
@@ -62,6 +63,7 @@ function App() {
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/auth/callback" element={<GoogleCallback />} />
           
           {/* Routes with Layout */}
           <Route element={<MainLayout />}>

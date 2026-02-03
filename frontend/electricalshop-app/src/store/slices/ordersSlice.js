@@ -8,11 +8,15 @@ const getAuthHeaders = () => {
   const user = localStorage.getItem('user');
   if (user) {
     const userData = JSON.parse(user);
-    return {
-      headers: {
-        Authorization: `Bearer ${userData.access_token}`,
-      },
-    };
+    // authSlice stores as 'token', but also check 'access_token' for backwards compatibility
+    const token = userData.token || userData.access_token;
+    if (token) {
+      return {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      };
+    }
   }
   return {};
 };

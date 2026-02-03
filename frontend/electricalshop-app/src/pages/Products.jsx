@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useSearchParams } from "react-router-dom";
 import { getProducts, getCategories, getBrands, setFilters, reset } from "../store/slices/productsSlice";
 import ProductCard from "../components/ProductCard";
 import ProductFilters from "../components/ProductFilter";
@@ -8,8 +7,7 @@ import { toast } from "react-toastify";
 
 const Products = () => {
     const dispatch = useDispatch();
-    const [searchParams, setSearchParams] = useSearchParams();
-    const { products, pagination, filters, isLoading, isError, message, categories, brands } = useSelector((state) => state.products);
+    const { products, pagination, filters, isLoading, isError, message } = useSelector((state) => state.products);
 
     const [searchTerm, setSearchTerm] = useState(filters.search || "");
     const [sortBy, setSortBy] = useState(filters.sort_by || "newest");
@@ -213,7 +211,9 @@ const Products = () => {
                   <div className="card p-4">
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-gray-600">
-                        Showing <span className="font-medium">{products.length}</span> of{" "}
+                        Showing <span className="font-medium">
+                          {((currentPage - 1) * 20) + 1}-{Math.min(currentPage * 20, pagination?.total_items || 0)}
+                        </span> of{" "}
                         <span className="font-medium">{pagination?.total_items || 0}</span> products
                       </p>
                       {searchTerm && (
