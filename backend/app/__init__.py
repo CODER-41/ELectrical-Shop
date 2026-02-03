@@ -27,14 +27,16 @@ def create_app(config_name=None):
         from app.models.user import User, CustomerProfile, SupplierProfile, AdminProfile
         from app.models.session import Session
         from app.models.address import Address
-        from app.models.notification import Notification
+        from app.models.notifications import Notification
         from app.models.product import Product, Category, Brand
         from app.models.order import Order, OrderItem, DeliveryZone
         from app.models.returns import Return, SupplierPayout
         from app.models.cart import Cart, CartItem
         from app.models.audit_log import AuditLog
+        from app.models.otp import OTP
 
     from app.routes.auth import auth_bp
+    from app.routes.contact import contact_bp
     from app.routes.products import products_bp
     from app.routes.orders import orders_bp
     from app.routes.payments import payments_bp
@@ -54,7 +56,8 @@ def create_app(config_name=None):
     app.register_blueprint(admin_bp)
     app.register_blueprint(uploads_bp)
     app.register_blueprint(cart_bp)
-    
+    app.register_blueprint(contact_bp)
+
     @jwt.unauthorized_loader
     def unauthorized_callback(callback):
         return {'error': 'Missing or invalid token'}, 401

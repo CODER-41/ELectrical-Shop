@@ -66,7 +66,7 @@ const ContactUs = () => {
       icon: "M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
       title: "Email Support",
       description: "Send us a detailed message",
-      contact: "support@electronicsshop.co.ke",
+      contact: "markethubsystem@gmail.com",
       hours: "Response within 24 hours"
     },
     {
@@ -143,7 +143,10 @@ const ContactUs = () => {
               </div>
               
               <form onSubmit={handleSubmit} className="space-y-6">
-                <input type="hidden" name="access_key" value="YOUR_WEB3FORMS_ACCESS_KEY" />
+                <input type="hidden" name="access_key" value={import.meta.env.VITE_WEB3FORMS_ACCESS_KEY} />
+                <input type="hidden" name="subject" value="New Contact Form Submission" />
+                <input type="hidden" name="from_name" value="Electronics Shop Contact Form" />
+                <input type="hidden" name="to" value={import.meta.env.VITE_CONTACT_EMAIL} />
                 
                 <div className="grid sm:grid-cols-2 gap-4">
                   <div>
@@ -380,8 +383,8 @@ const ContactUs = () => {
                 For urgent issues with orders, payments, or security concerns:
               </p>
               <div className="space-y-2">
-                <p className="font-medium text-red-900">📞 Emergency Hotline: +254 700 000 001</p>
-                <p className="font-medium text-red-900">📧 urgent@electronicsshop.co.ke</p>
+                <p className="font-medium text-red-900">Emergency Hotline: +254 700 000 001</p>
+                <p className="font-medium text-red-900">Email: urgent@electronicsshop.co.ke</p>
                 <p className="text-sm text-red-600">Available 24/7 for critical issues</p>
               </div>
             </div>

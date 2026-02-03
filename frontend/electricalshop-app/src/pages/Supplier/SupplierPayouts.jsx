@@ -103,7 +103,7 @@ const SupplierPayouts = () => {
           </div>
           <div className="mt-6 pt-6 border-t border-green-400">
             <p className="text-sm text-green-100">
-              💡 Payouts are processed weekly for delivered orders. Your next payout will include earnings from completed deliveries.
+              Note: Payouts are processed weekly for delivered orders. Your next payout will include earnings from completed deliveries.
             </p>
           </div>
         </div>

@@ -184,11 +184,11 @@ const WarrantyInfo = () => {
                           </div>
                           <div className="grid sm:grid-cols-2 gap-4">
                             <div>
-                              <h4 className="font-medium text-gray-900 mb-2">✅ Covered</h4>
+                              <h4 className="font-medium text-gray-900 mb-2">Covered</h4>
                               <p className="text-gray-600 text-sm">{category.coverage}</p>
                             </div>
                             <div>
-                              <h4 className="font-medium text-gray-900 mb-2">❌ Not Covered</h4>
+                              <h4 className="font-medium text-gray-900 mb-2">Not Covered</h4>
                               <p className="text-gray-600 text-sm">{category.exclusions}</p>
                             </div>
                           </div>
