@@ -16,9 +16,9 @@ const initialState = {
   message: '',
 };
 
-export const getProducts = createAsyncThunk('products/getProducts', async (_, thunkAPI) => {
+export const getProducts = createAsyncThunk('products/getProducts', async (params = {}, thunkAPI) => {
   try {
-    const response = await axios.get(`${API_URL}/products`);
+    const response = await axios.get(`${API_URL}/products`, { params });
     return response.data;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
