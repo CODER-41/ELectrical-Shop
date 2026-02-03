@@ -207,11 +207,14 @@ def create_order():
             return error_response('Only customers can create orders', 403)
         
         data = request.get_json()
+        print(f'Creating order for user {user_id} with data: {data}')
         
         # Validate address
         address = Address.query.get(data['delivery_address_id'])
         if not address or address.user_id != user_id:
             return error_response('Invalid delivery address', 400)
+        
+        print(f'Address validated: {address.id}')
         
         # Calculate delivery fee
         zones = DeliveryZone.query.filter_by(is_active=True).all()
@@ -226,6 +229,8 @@ def create_order():
         
         if not delivery_zone:
             return error_response('Delivery not available to your location', 400)
+        
+        print(f'Delivery zone found: {delivery_zone.name}, fee: {delivery_fee}')
         
         # Validate items and calculate subtotal
         items = data['items']
@@ -263,6 +268,8 @@ def create_order():
             order_items.append(order_item)
             subtotal += float(order_item.subtotal)
         
+        print(f'Order items validated, subtotal: {subtotal}')
+        
         # Create order
         order = Order(
             customer_id=user.customer_profile.id,
@@ -277,6 +284,8 @@ def create_order():
         order.calculate_totals()
         order.generate_order_number()
         
+        print(f'Order created: {order.order_number}')
+        
         # Add order items
         for order_item in order_items:
             order_item.order = order
@@ -290,6 +299,8 @@ def create_order():
         
         db.session.add(order)
         db.session.commit()
+        
+        print(f'Order saved successfully: {order.id}')
         
         # Send order confirmation email
         try:
@@ -306,6 +317,9 @@ def create_order():
         )
     except Exception as e:
         db.session.rollback()
+        print(f'Order creation error: {str(e)}')
+        import traceback
+        traceback.print_exc()
         return error_response(f'Failed to create order: {str(e)}', 500)
 
 

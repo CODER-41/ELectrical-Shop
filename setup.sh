@@ -103,7 +103,15 @@ setup_backend() {
         if [ -f ".env.example" ]; then
             cp .env.example .env
             print_success "Created .env from .env.example"
-            print_warning "Please update .env with your actual credentials"
+            echo ""
+            echo -e "${YELLOW}IMPORTANT: You need to update backend/.env with your credentials!${NC}"
+            echo ""
+            echo "At minimum, update the DATABASE_URL with your PostgreSQL password:"
+            echo "  DATABASE_URL=postgresql://postgres:YOUR_PASSWORD@localhost:5432/electronics_shop"
+            echo ""
+            echo "Open backend/.env in another terminal/editor and update it now."
+            echo ""
+            read -p "Press Enter after updating the DATABASE_URL in .env..."
         else
             print_error ".env.example not found"
             exit 1
@@ -115,31 +123,87 @@ setup_backend() {
     cd "$PROJECT_ROOT"
 }
 
+# Test database connection using .env credentials
+test_db_connection() {
+    cd "$BACKEND_DIR"
+    source venv/bin/activate
+
+    python3 -c "
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
+db_url = os.getenv('DATABASE_URL', '')
+print(f'Testing connection to: {db_url[:db_url.rfind(\"@\")+1]}***')
+
+try:
+    from sqlalchemy import create_engine
+    engine = create_engine(db_url)
+    conn = engine.connect()
+    conn.close()
+    print('SUCCESS')
+    exit(0)
+except Exception as e:
+    print(f'FAILED: {e}')
+    exit(1)
+" 2>&1
+}
+
 # Setup database
 setup_database() {
     print_step "Setting up PostgreSQL database..."
 
-    # Check if database exists
-    if PGPASSWORD=postgres psql -U postgres -h localhost -lqt 2>/dev/null | cut -d \| -f 1 | grep -qw electronics_shop; then
-        print_success "Database 'electronics_shop' already exists"
-    else
-        print_step "Creating database 'electronics_shop'..."
+    # First, check if we need to update .env
+    print_step "Testing database connection..."
 
-        # Try to create database
-        if PGPASSWORD=postgres psql -U postgres -h localhost -c "CREATE DATABASE electronics_shop;" 2>/dev/null; then
-            print_success "Database created"
+    cd "$BACKEND_DIR"
+
+    # Load DATABASE_URL from .env
+    if [ -f ".env" ]; then
+        DB_URL=$(grep "^DATABASE_URL=" .env | cut -d '=' -f2-)
+    fi
+
+    # Test connection
+    if test_db_connection | grep -q "SUCCESS"; then
+        print_success "Database connection successful"
+    else
+        print_warning "Database connection failed!"
+        echo ""
+        echo -e "${YELLOW}The default database credentials in .env may not match your PostgreSQL setup.${NC}"
+        echo ""
+        echo "Current DATABASE_URL in backend/.env:"
+        echo -e "  ${BLUE}$DB_URL${NC}"
+        echo ""
+        echo -e "${YELLOW}Please update backend/.env with your PostgreSQL credentials:${NC}"
+        echo ""
+        echo "  1. Open backend/.env in a text editor"
+        echo "  2. Update DATABASE_URL with your credentials:"
+        echo "     DATABASE_URL=postgresql://YOUR_USER:YOUR_PASSWORD@localhost:5432/electronics_shop"
+        echo ""
+        echo "  Common configurations:"
+        echo "     - If using peer auth: postgresql://postgres@localhost:5432/electronics_shop"
+        echo "     - With password:      postgresql://postgres:yourpassword@localhost:5432/electronics_shop"
+        echo ""
+        echo "  3. Make sure the database 'electronics_shop' exists:"
+        echo "     sudo -u postgres createdb electronics_shop"
+        echo ""
+        read -p "Press Enter after updating .env and creating the database..."
+
+        # Test again
+        if test_db_connection | grep -q "SUCCESS"; then
+            print_success "Database connection successful"
         else
-            print_warning "Could not create database automatically"
+            print_error "Database connection still failing. Please check your credentials."
             echo ""
-            echo "Please create the database manually:"
-            echo "  sudo -u postgres createdb electronics_shop"
+            test_db_connection
             echo ""
-            echo "Or if using password authentication:"
-            echo "  PGPASSWORD=yourpassword psql -U postgres -h localhost -c \"CREATE DATABASE electronics_shop;\""
-            echo ""
-            read -p "Press Enter after creating the database to continue..."
+            read -p "Press Enter to try again, or Ctrl+C to exit..."
+            setup_database  # Recursive retry
+            return
         fi
     fi
+
+    cd "$PROJECT_ROOT"
 }
 
 # Run migrations
