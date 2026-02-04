@@ -1,20 +1,23 @@
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
-import { logout, reset, updateProfile, changePassword } from '../store/slices/authSlice';
+import { logout, reset, updateProfile, changePassword, updateUser } from '../store/slices/authSlice';
+import { toast } from 'react-toastify';
 
 export const useAuth = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  
+
   const { user, token, isLoading, isError, isSuccess, message } = useSelector(
     (state) => state.auth
   );
-  
+
   const isAuthenticated = !!user && !!token;
-  
-  const handleLogout = () => {
-    dispatch(logout());
+
+  const handleLogout = async () => {
+    // Reset state first to clear any stale success/error states
+    dispatch(reset());
+    await dispatch(logout());
+    toast.success('Logged out successfully');
     navigate('/login');
   };
   
@@ -30,6 +33,10 @@ export const useAuth = () => {
     return dispatch(changePassword({ currentPassword, newPassword })).unwrap();
   };
   
+  const handleUpdateUser = (userData) => {
+    dispatch(updateUser(userData));
+  };
+  
   return {
     user,
     token,
@@ -42,5 +49,6 @@ export const useAuth = () => {
     resetAuthState,
     updateProfile: handleUpdateProfile,
     changePassword: handleChangePassword,
+    updateUser: handleUpdateUser,
   };
 };

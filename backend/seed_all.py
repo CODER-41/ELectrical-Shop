@@ -10,7 +10,7 @@ import re
 from decimal import Decimal
 from app import create_app
 from app.models import db
-from app.models.user import User, UserRole, CustomerProfile, SupplierProfile, AdminProfile
+from app.models.user import User, UserRole, CustomerProfile, SupplierProfile, AdminProfile, DeliveryAgentProfile
 from app.models.product import Category, Brand, Product
 from app.models.order import DeliveryZone
 
@@ -66,43 +66,77 @@ def seed_admin_user():
     return admin
 
 
-def seed_sample_supplier():
-    """Create sample supplier for testing."""
-    print("\n--- Seeding Sample Supplier ---")
+def seed_sample_suppliers():
+    """Create sample suppliers for testing."""
+    print("\n--- Seeding Sample Suppliers ---")
 
-    supplier_email = 'supplier@test.com'
+    suppliers = []
 
-    existing = User.query.filter_by(email=supplier_email).first()
-    if existing:
-        print(f"  Supplier already exists: {supplier_email}")
-        return existing
+    # First supplier
+    supplier1_email = 'supplier@test.com'
+    existing1 = User.query.filter_by(email=supplier1_email).first()
+    if existing1:
+        print(f"  Supplier already exists: {supplier1_email}")
+        suppliers.append(existing1)
+    else:
+        supplier1 = User(
+            email=supplier1_email,
+            role=UserRole.SUPPLIER,
+            is_active=True,
+            is_verified=True
+        )
+        supplier1.set_password('Supplier@123')
+        db.session.add(supplier1)
+        db.session.flush()
 
-    supplier = User(
-        email=supplier_email,
-        role=UserRole.SUPPLIER,
-        is_active=True,
-        is_verified=True
-    )
-    supplier.set_password('Supplier@123')
+        supplier1_profile = SupplierProfile(
+            user=supplier1,
+            business_name='Tech Electronics Kenya',
+            business_registration_number='PVT-2024-001',
+            contact_person='John Supplier',
+            phone_number='254712345678',
+            mpesa_number='254712345678',
+            payout_method='phone',
+            is_approved=True,
+            commission_rate=Decimal('0.10')
+        )
+        db.session.add(supplier1_profile)
+        print(f"  Created supplier: {supplier1_email} / Supplier@123")
+        suppliers.append(supplier1)
 
-    db.session.add(supplier)
-    db.session.flush()
+    # Second supplier
+    supplier2_email = 'supplier2@test.com'
+    existing2 = User.query.filter_by(email=supplier2_email).first()
+    if existing2:
+        print(f"  Supplier already exists: {supplier2_email}")
+        suppliers.append(existing2)
+    else:
+        supplier2 = User(
+            email=supplier2_email,
+            role=UserRole.SUPPLIER,
+            is_active=True,
+            is_verified=True
+        )
+        supplier2.set_password('Supplier@123')
+        db.session.add(supplier2)
+        db.session.flush()
 
-    supplier_profile = SupplierProfile(
-        user=supplier,
-        business_name='Tech Electronics Kenya',
-        business_registration_number='PVT-2024-001',
-        contact_person='John Supplier',
-        phone_number='254712345678',
-        mpesa_number='254712345678',
-        payout_method='phone',
-        is_approved=True,
-        commission_rate=Decimal('0.10')
-    )
-    db.session.add(supplier_profile)
+        supplier2_profile = SupplierProfile(
+            user=supplier2,
+            business_name='Digital Gadgets Hub',
+            business_registration_number='PVT-2024-002',
+            contact_person='Mary Vendor',
+            phone_number='254722334455',
+            mpesa_number='254722334455',
+            payout_method='phone',
+            is_approved=True,
+            commission_rate=Decimal('0.10')
+        )
+        db.session.add(supplier2_profile)
+        print(f"  Created supplier: {supplier2_email} / Supplier@123")
+        suppliers.append(supplier2)
 
-    print(f"  Created supplier: {supplier_email} / Supplier@123")
-    return supplier
+    return suppliers
 
 
 def seed_sample_customer():
@@ -302,14 +336,19 @@ def seed_delivery_zones():
         print(f"  + {zone_data['name']} (KES {zone_data['delivery_fee']})")
 
 
-def seed_sample_products(supplier, categories, brands):
+def seed_sample_products(suppliers, categories, brands):
     """Create sample products for testing."""
     print("\n--- Seeding Sample Products ---")
 
-    # Get supplier profile
-    supplier_profile = SupplierProfile.query.filter_by(user_id=supplier.id).first()
-    if not supplier_profile:
-        print("  No supplier profile found")
+    # Get supplier profiles
+    supplier_profiles = []
+    for supplier in suppliers:
+        profile = SupplierProfile.query.filter_by(user_id=supplier.id).first()
+        if profile:
+            supplier_profiles.append(profile)
+
+    if not supplier_profiles:
+        print("  No supplier profiles found")
         return
 
     products_data = [
@@ -785,7 +824,10 @@ def seed_sample_products(supplier, categories, brands):
         }
     ]
 
-    for prod_data in products_data:
+    # Split products between suppliers (first half to supplier1, second half to supplier2)
+    half = len(products_data) // 2
+
+    for idx, prod_data in enumerate(products_data):
         # Check if product exists
         existing = Product.query.filter_by(name=prod_data['name']).first()
         if existing:
@@ -798,6 +840,9 @@ def seed_sample_products(supplier, categories, brands):
         if not category or not brand:
             print(f"  ! Skipping {prod_data['name']} - missing category or brand")
             continue
+
+        # Assign to supplier based on index (first half to supplier1, second half to supplier2)
+        supplier_profile = supplier_profiles[0] if idx < half else supplier_profiles[1] if len(supplier_profiles) > 1 else supplier_profiles[0]
 
         price = Decimal(str(prod_data['price']))
         product = Product(
@@ -818,7 +863,70 @@ def seed_sample_products(supplier, categories, brands):
             is_active=True
         )
         db.session.add(product)
-        print(f"  + {prod_data['name']} - KES {prod_data['price']:,}")
+        print(f"  + {prod_data['name']} - KES {prod_data['price']:,} ({supplier_profile.business_name})")
+
+
+def seed_delivery_agents():
+    """Create sample delivery agents for testing."""
+    print("\n--- Seeding Delivery Agents ---")
+
+    agents_data = [
+        {
+            'email': 'delivery1@test.com',
+            'first_name': 'James',
+            'last_name': 'Mwangi',
+            'phone_number': '254711222333',
+            'mpesa_number': '254711222333',  # For automatic weekly payouts
+            'id_number': '12345678',
+            'vehicle_type': 'motorcycle',
+            'vehicle_registration': 'KMCA 123A',
+            'assigned_zones': ['Nairobi Metro', 'Central Region']
+        },
+        {
+            'email': 'delivery2@test.com',
+            'first_name': 'Grace',
+            'last_name': 'Wanjiku',
+            'phone_number': '254722333444',
+            'mpesa_number': '254722333444',  # For automatic weekly payouts
+            'id_number': '87654321',
+            'vehicle_type': 'bicycle',
+            'vehicle_registration': None,
+            'assigned_zones': ['Nairobi Metro']
+        }
+    ]
+
+    for agent_data in agents_data:
+        existing = User.query.filter_by(email=agent_data['email']).first()
+        if existing:
+            print(f"  Delivery agent already exists: {agent_data['email']}")
+            continue
+
+        # Create user
+        agent = User(
+            email=agent_data['email'],
+            role=UserRole.DELIVERY_AGENT,
+            is_active=True,
+            is_verified=True
+        )
+        agent.set_password('Delivery@123')
+        db.session.add(agent)
+        db.session.flush()
+
+        # Create profile
+        profile = DeliveryAgentProfile(
+            user=agent,
+            first_name=agent_data['first_name'],
+            last_name=agent_data['last_name'],
+            phone_number=agent_data['phone_number'],
+            mpesa_number=agent_data['mpesa_number'],  # For automatic payouts
+            id_number=agent_data['id_number'],
+            vehicle_type=agent_data['vehicle_type'],
+            vehicle_registration=agent_data['vehicle_registration'],
+            assigned_zones=agent_data['assigned_zones'],
+            is_available=True
+        )
+        db.session.add(profile)
+        print(f"  Created delivery agent: {agent_data['email']} / Delivery@123")
 
 
 def main():
@@ -832,12 +940,13 @@ def main():
 
         # Seed data
         admin = seed_admin_user()
-        supplier = seed_sample_supplier()
+        suppliers = seed_sample_suppliers()
         seed_sample_customer()
+        seed_delivery_agents()
         categories = seed_categories()
         brands = seed_brands()
         seed_delivery_zones()
-        seed_sample_products(supplier, categories, brands)
+        seed_sample_products(suppliers, categories, brands)
 
         # Commit all changes
         db.session.commit()
@@ -854,9 +963,12 @@ def main():
 
         print("\n  Test Accounts:")
         print("  -" * 25)
-        print("  Admin:    admin@electronics.shop / Admin@123")
-        print("  Supplier: supplier@test.com / Supplier@123")
-        print("  Customer: customer@test.com / Customer@123")
+        print("  Admin:      admin@electronics.shop / Admin@123")
+        print("  Supplier1:  supplier@test.com / Supplier@123")
+        print("  Supplier2:  supplier2@test.com / Supplier@123")
+        print("  Customer:   customer@test.com / Customer@123")
+        print("  Delivery1:  delivery1@test.com / Delivery@123")
+        print("  Delivery2:  delivery2@test.com / Delivery@123")
         print("")
 
 

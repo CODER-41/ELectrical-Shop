@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { toast } from 'react-toastify';
+import PaymentPhoneManager from '../components/PaymentPhoneManager';
 
 const Settings = () => {
   const { user, changePassword, logout } = useAuth();
@@ -142,6 +143,16 @@ const Settings = () => {
               </div>
             </div>
           </div>
+
+          {/* Payment Phone Management for Suppliers */}
+          {user?.role === 'supplier' && (
+            <PaymentPhoneManager userType="supplier" />
+          )}
+
+          {/* Payment Phone Management for Delivery Agents */}
+          {user?.role === 'delivery_agent' && (
+            <PaymentPhoneManager userType="delivery_agent" />
+          )}
 
           {/* Preferences */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-200">
