@@ -1,7 +1,5 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+import api from '../../utils/api';
 
 const initialState = {
   products: [],
@@ -15,7 +13,41 @@ const initialState = {
 
 export const getProducts = createAsyncThunk('supplierProducts/getProducts', async (params, thunkAPI) => {
   try {
-    const response = await axios.get(`${API_URL}/products`, { params });
+    const response = await api.get('/products', { params });
+    return response.data;
+  } catch (error) {
+    return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
+  }
+});
+
+export const createProduct = createAsyncThunk('supplierProducts/createProduct', async (productData, thunkAPI) => {
+  try {
+    const response = await api.post('/supplier/products', productData);
+    return response.data;
+  } catch (error) {
+    return thunkAPI.rejectWithValue(error.response?.data?.error || error.response?.data?.message || error.message);
+  }
+});
+
+export const updateProduct = createAsyncThunk('supplierProducts/updateProduct', async ({ id, productData }, thunkAPI) => {
+  try {
+    const response = await api.put(`/supplier/products/${id}`, productData);
+    return response.data;
+  } catch (error) {
+    return thunkAPI.rejectWithValue(error.response?.data?.error || error.response?.data?.message || error.message);
+  }
+});
+
+export const uploadProductImage = createAsyncThunk('supplierProducts/uploadProductImage', async (imageFile, thunkAPI) => {
+  try {
+    const formData = new FormData();
+    formData.append('image', imageFile);
+    
+    const response = await api.post('/uploads/product', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    });
     return response.data;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
@@ -24,7 +56,7 @@ export const getProducts = createAsyncThunk('supplierProducts/getProducts', asyn
 
 export const getCategories = createAsyncThunk('supplierProducts/getCategories', async (_, thunkAPI) => {
   try {
-    const response = await axios.get(`${API_URL}/categories`);
+    const response = await api.get('/products/categories');
     return response.data;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
@@ -33,7 +65,7 @@ export const getCategories = createAsyncThunk('supplierProducts/getCategories', 
 
 export const getBrands = createAsyncThunk('supplierProducts/getBrands', async (_, thunkAPI) => {
   try {
-    const response = await axios.get(`${API_URL}/brands`);
+    const response = await api.get('/products/brands');
     return response.data;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
@@ -60,18 +92,51 @@ const supplierProductsSlice = createSlice({
       })
       .addCase(getProducts.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.products = action.payload;
+        state.products = action.payload?.data?.products || [];
       })
       .addCase(getProducts.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;
       })
+      .addCase(createProduct.pending, (state) => {
+        state.isLoading = true;
+        state.isError = false;
+      })
+      .addCase(createProduct.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.message = 'Product created successfully';
+      })
+      .addCase(createProduct.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      .addCase(updateProduct.pending, (state) => {
+        state.isLoading = true;
+        state.isError = false;
+      })
+      .addCase(updateProduct.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.message = 'Product updated successfully';
+      })
+      .addCase(updateProduct.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      .addCase(uploadProductImage.fulfilled, (state, action) => {
+        // Image upload success handled in component
+      })
+      .addCase(uploadProductImage.rejected, (state, action) => {
+        state.isError = true;
+        state.message = action.payload;
+      })
       .addCase(getCategories.fulfilled, (state, action) => {
-        state.categories = action.payload;
+        state.categories = action.payload?.data || [];
       })
       .addCase(getBrands.fulfilled, (state, action) => {
-        state.brands = action.payload;
+        state.brands = action.payload?.data || [];
       });
   },
 });

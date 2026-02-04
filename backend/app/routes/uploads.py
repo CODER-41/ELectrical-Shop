@@ -4,6 +4,7 @@ Image upload routes for Cloudinary integration.
 
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
+from app.models import db
 from app.models.user import User, UserRole
 from app.utils.responses import success_response, error_response
 from app.services.cloudinary_service import cloudinary_service, validate_cloudinary_config
@@ -210,6 +211,74 @@ def upload_brand_logo():
 
     except Exception as e:
         current_app.logger.error(f'Brand logo upload error: {str(e)}')
+        return error_response(f'Image upload failed: {str(e)}', 500)
+
+
+@uploads_bp.route('/profile', methods=['POST'])
+@jwt_required()
+def upload_profile_photo():
+    """
+    Upload a profile photo for the authenticated user.
+    """
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if not user:
+            return error_response('User not found', 404)
+
+        # Check Cloudinary configuration
+        config_check = validate_cloudinary_config()
+        if not config_check['configured']:
+            return error_response(config_check['message'], 500)
+
+        # Get the image
+        if 'image' in request.files:
+            file = request.files['image']
+
+            if file.filename == '':
+                return error_response('No file selected', 400)
+
+            # Validate file size (2MB max for profile photos)
+            file.seek(0, 2)
+            file_size = file.tell()
+            file.seek(0)
+
+            if file_size > 2 * 1024 * 1024:
+                return error_response('File size must be less than 2MB', 400)
+
+            # Validate file type
+            allowed_extensions = {'jpg', 'jpeg', 'png', 'webp'}
+            ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+            if ext not in allowed_extensions:
+                return error_response(f'File type not allowed. Allowed: {", ".join(allowed_extensions)}', 400)
+
+            image = file
+        elif request.is_json and request.json.get('image'):
+            image = request.json.get('image')
+        else:
+            return error_response('No image provided', 400)
+
+        # Upload to Cloudinary
+        result = cloudinary_service.upload_profile_image(image, user_id)
+
+        if result['success']:
+            # Update user's profile picture URL
+            user.profile_picture = result['url']
+            db.session.commit()
+
+            return success_response(
+                data={
+                    'url': result['url'],
+                    'public_id': result['public_id']
+                },
+                message='Profile photo uploaded successfully'
+            )
+        else:
+            return error_response(result.get('error', 'Upload failed'), 500)
+
+    except Exception as e:
+        current_app.logger.error(f'Profile photo upload error: {str(e)}')
         return error_response(f'Image upload failed: {str(e)}', 500)
 
 

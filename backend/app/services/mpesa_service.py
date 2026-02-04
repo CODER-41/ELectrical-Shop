@@ -203,23 +203,22 @@ class MPesaService:
     def validate_phone_number(phone_number):
         """Validate Kenyan phone number format."""
         formatted = MPesaService.format_phone_number(phone_number)
-        
+
         # Should be 12 digits starting with 254
         if len(formatted) != 12:
             return False, 'Phone number must be 9 digits after 0'
-        
+
         if not formatted.startswith('254'):
             return False, 'Phone number must be a Kenyan number'
-        
+
         # Check if valid Kenyan operator prefix
         valid_prefixes = ['2547', '2541', '2542']  # Safaricom, Airtel, Telkom
         if not any(formatted.startswith(prefix) for prefix in valid_prefixes):
             return False, 'Invalid phone number prefix'
-        
+
         return True, formatted
 
-
-def b2c_payment(self, phone_number, amount, remarks, occasion=''):
+    def b2c_payment(self, phone_number, amount, remarks, occasion=''):
         """
         Send B2C (Business to Customer) payment to supplier.
         Used to pay suppliers their earnings.

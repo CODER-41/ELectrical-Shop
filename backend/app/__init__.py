@@ -7,6 +7,7 @@ from flask_swagger_ui import get_swaggerui_blueprint
 from app.config.config import config
 from app.models import db
 from app.services.email_service import mail
+from app.services.scheduler_service import init_scheduler
 
 
 def create_app(config_name=None):
@@ -25,13 +26,13 @@ def create_app(config_name=None):
     mail.init_app(app)
     
     with app.app_context():
-        from app.models.user import User, CustomerProfile, SupplierProfile, AdminProfile
+        from app.models.user import User, CustomerProfile, SupplierProfile, AdminProfile, DeliveryAgentProfile, DeliveryCompany
         from app.models.session import Session
         from app.models.address import Address
         from app.models.notifications import Notification
         from app.models.product import Product, Category, Brand
         from app.models.order import Order, OrderItem, DeliveryZone
-        from app.models.returns import Return, SupplierPayout
+        from app.models.returns import Return, SupplierPayout, DeliveryPayout
         from app.models.cart import Cart, CartItem
         from app.models.audit_log import AuditLog
         from app.models.otp import OTP
@@ -46,6 +47,7 @@ def create_app(config_name=None):
     from app.routes.admin import admin_bp
     from app.routes.uploads import uploads_bp
     from app.routes.cart import cart_bp
+    from app.routes.delivery import delivery_bp
 
 
     app.register_blueprint(auth_bp)
@@ -58,6 +60,7 @@ def create_app(config_name=None):
     app.register_blueprint(uploads_bp)
     app.register_blueprint(cart_bp)
     app.register_blueprint(contact_bp)
+    app.register_blueprint(delivery_bp)
 
     @jwt.unauthorized_loader
     def unauthorized_callback(callback):
@@ -168,5 +171,8 @@ def create_app(config_name=None):
         config={'app_name': 'Electronics Shop API'}
     )
     app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
+
+    # Initialize the scheduler for automated tasks (payouts, confirmations)
+    init_scheduler(app)
 
     return app

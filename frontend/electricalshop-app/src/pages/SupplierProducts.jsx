@@ -1,41 +1,46 @@
-import { useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
-import { getProductBySlug, clearCurrentProduct, reset } from '../store/slices/productsSlice';
-import { addToCart } from '../store/slices/cartSlice';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import api from '../utils/api';
 import { toast } from 'react-toastify';
 
-const ProductDetail = () => {
-  const { slug } = useParams();
-  const dispatch = useDispatch();
-  const navigate = useNavigate();
-  const { currentProduct: product, isLoading, isError, message } = useSelector(
-    (state) => state.products
-  );
-  
+const SupplierProducts = () => {
+  const { token } = useSelector((state) => state.auth);
+  const [products, setProducts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+
   useEffect(() => {
-    dispatch(getProductBySlug(slug));
-    
-    return () => {
-      dispatch(clearCurrentProduct());
-    };
-  }, [dispatch, slug]);
-  
-  useEffect(() => {
-    if (isError) {
-      toast.error(message);
-      dispatch(reset());
+    if (token) {
+      fetchProducts();
     }
-  }, [isError, message, dispatch]);
-  
-  const handleAddToCart = () => {
-    dispatch(addToCart(product));
-    toast.success('Added to cart!', {
-      position: 'bottom-right',
-      autoClose: 2000,
-    });
+  }, [token]);
+
+  const fetchProducts = async () => {
+    try {
+      const response = await api.get('/supplier/products');
+      setProducts(response.data.data || []);
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to load products');
+    } finally {
+      setIsLoading(false);
+    }
   };
-  
+
+  const handleToggleStatus = async (productId, currentStatus) => {
+    try {
+      await api.patch(
+        `/supplier/products/${productId}/status`,
+        { is_active: !currentStatus }
+      );
+      toast.success(`Product ${currentStatus ? 'deactivated' : 'activated'} successfully`);
+      fetchProducts();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to update product status');
+    }
+  };
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-KE', {
       style: 'currency',
@@ -43,208 +48,172 @@ const ProductDetail = () => {
       minimumFractionDigits: 0,
     }).format(price);
   };
-  
+
+  const filteredProducts = products.filter(product => {
+    const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' ||
+      (statusFilter === 'active' && product.is_active) ||
+      (statusFilter === 'inactive' && !product.is_active);
+    return matchesSearch && matchesStatus;
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">
-          <svg
-            className="animate-spin h-12 w-12 text-primary mx-auto"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
-          >
-            <circle
-              className="opacity-25"
-              cx="12"
-              cy="12"
-              r="10"
-              stroke="currentColor"
-              strokeWidth="4"
-            ></circle>
-            <path
-              className="opacity-75"
-              fill="currentColor"
-              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-            ></path>
+          <svg className="animate-spin h-12 w-12 text-primary mx-auto" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
-          <p className="mt-4 text-gray-600">Loading product...</p>
+          <p className="mt-4 text-gray-600">Loading products...</p>
         </div>
       </div>
     );
   }
-  
-  if (!product) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-16 text-center">
-        <h2 className="text-2xl font-bold text-gray-900">Product not found</h2>
-        <Link to="/products" className="mt-4 inline-block btn btn-primary">
-          Back to Products
-        </Link>
-      </div>
-    );
-  }
-  
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-      {/* Breadcrumb */}
-      <nav className="mb-6 text-sm">
-        <ol className="flex items-center space-x-2">
-          <li><Link to="/" className="text-gray-500 hover:text-primary">Home</Link></li>
-          <li className="text-gray-400">/</li>
-          <li><Link to="/products" className="text-gray-500 hover:text-primary">Products</Link></li>
-          <li className="text-gray-400">/</li>
-          <li><Link to={`/products?category=${product.category?.slug}`} className="text-gray-500 hover:text-primary">{product.category?.name}</Link></li>
-          <li className="text-gray-400">/</li>
-          <li className="text-gray-900 font-medium">{product.name}</li>
-        </ol>
-      </nav>
-      
-      {/* Main Product Section */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
-        {/* Product Image */}
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
         <div>
-          <div className="aspect-w-1 aspect-h-1 w-full bg-gray-100 rounded-lg overflow-hidden">
-            {product.image_url ? (
-              <img
-                src={product.image_url}
-                alt={product.name}
-                className="w-full h-full object-cover"
-              />
-            ) : (
-              <div className="w-full h-96 flex items-center justify-center text-gray-400">
-                <svg className="w-32 h-32" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                </svg>
-              </div>
-            )}
-          </div>
+          <h1 className="text-3xl font-bold text-gray-900">My Products</h1>
+          <p className="mt-2 text-gray-600">Manage your product listings</p>
         </div>
-        
-        {/* Product Info */}
-        <div className="space-y-6">
-          {/* Brand & Category */}
-          <div>
-            <p className="text-sm text-gray-500">
-              <Link to={`/products?brand=${product.brand?.name}`} className="hover:text-primary">
-                {product.brand?.name}
-              </Link>
-              {' • '}
-              <Link to={`/products?category=${product.category?.slug}`} className="hover:text-primary">
-                {product.category?.name}
-              </Link>
-            </p>
-          </div>
-          
-          {/* Product Name */}
-          <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
-          
-          {/* Short Description */}
-          <p className="text-lg text-gray-600">{product.short_description}</p>
-          
-          {/* Price */}
-          <div>
-            <p className="text-4xl font-bold text-primary">{formatPrice(product.price)}</p>
-          </div>
-          
-          {/* Status Badges */}
-          <div className="flex items-center space-x-3">
-            {product.is_in_stock ? (
-              <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-semibold rounded-full">
-                In Stock ({product.stock_quantity} available)
-              </span>
-            ) : (
-              <span className="px-3 py-1 bg-red-100 text-red-800 text-sm font-semibold rounded-full">
-                Out of Stock
-              </span>
-            )}
-            
-            {product.condition === 'refurbished' && (
-              <span className="px-3 py-1 bg-blue-100 text-blue-800 text-sm font-semibold rounded-full">
-                Refurbished
-              </span>
-            )}
-            
-            <span className="px-3 py-1 bg-gray-100 text-gray-800 text-sm font-semibold rounded-full">
-              {product.warranty_period_months} Months Warranty
-            </span>
-          </div>
-          
-          {/* Add to Cart Button */}
-          <div className="flex space-x-4">
-            <button
-              onClick={handleAddToCart}
-              disabled={!product.is_in_stock}
-              className="btn btn-primary flex-1 py-3 text-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {product.is_in_stock ? 'Add to Cart' : 'Out of Stock'}
-            </button>
-            <button
-              onClick={() => navigate('/cart')}
-              className="btn btn-outline py-3 px-6"
-            >
-              View Cart
-            </button>
-          </div>
-          
-          {/* Key Features */}
-          <div className="border-t pt-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-3">Key Features</h3>
-            <ul className="space-y-2">
-              <li className="flex items-start">
-                <svg className="w-5 h-5 text-green-500 mt-0.5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                <span className="text-gray-700">{product.warranty_period_months} months manufacturer warranty</span>
-              </li>
-              <li className="flex items-start">
-                <svg className="w-5 h-5 text-green-500 mt-0.5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                <span className="text-gray-700">Quality checked before delivery</span>
-              </li>
-              <li className="flex items-start">
-                <svg className="w-5 h-5 text-green-500 mt-0.5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                </svg>
-                <span className="text-gray-700">7-day return policy</span>
-              </li>
-            </ul>
-          </div>
-        </div>
+        <Link
+          to="/add-product"
+          className="mt-4 sm:mt-0 btn btn-primary inline-flex items-center"
+        >
+          <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+          </svg>
+          Add New Product
+        </Link>
       </div>
-      
-      {/* Product Details Tabs */}
-      <div className="border-t pt-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Description */}
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">Description</h2>
-            <div className="prose prose-sm text-gray-700 whitespace-pre-line">
-              {product.long_description}
-            </div>
-          </div>
-          
-          {/* Specifications */}
-          {product.specifications && Object.keys(product.specifications).length > 0 && (
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Specifications</h2>
-              <div className="bg-gray-50 rounded-lg p-6">
-                <dl className="space-y-3">
-                  {Object.entries(product.specifications).map(([key, value]) => (
-                    <div key={key} className="flex justify-between py-2 border-b border-gray-200 last:border-0">
-                      <dt className="font-medium text-gray-700">{key}</dt>
-                      <dd className="text-gray-900">{value}</dd>
-                    </div>
-                  ))}
-                </dl>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-6">
+        <div className="flex-1">
+          <input
+            type="text"
+            placeholder="Search products..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+        >
+          <option value="all">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+        </select>
+      </div>
+
+      {/* Products Grid */}
+      {filteredProducts.length === 0 ? (
+        <div className="text-center py-16">
+          <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+          </svg>
+          <h3 className="mt-2 text-lg font-medium text-gray-900">No products found</h3>
+          <p className="mt-1 text-gray-500">Get started by adding your first product.</p>
+          <Link to="/add-product" className="mt-4 inline-block btn btn-primary">
+            Add Product
+          </Link>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredProducts.map((product) => (
+            <div key={product.id} className="card overflow-hidden">
+              {/* Product Image */}
+              <div className="aspect-w-16 aspect-h-9 bg-gray-100">
+                {product.image_url ? (
+                  <img
+                    src={product.image_url}
+                    alt={product.name}
+                    className="w-full h-48 object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-48 flex items-center justify-center text-gray-400">
+                    <svg className="w-16 h-16" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+
+              {/* Product Info */}
+              <div className="p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h3 className="font-semibold text-gray-900 truncate">{product.name}</h3>
+                    <p className="text-sm text-gray-500">{product.category?.name}</p>
+                  </div>
+                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                    product.is_active
+                      ? 'bg-green-100 text-green-800'
+                      : 'bg-red-100 text-red-800'
+                  }`}>
+                    {product.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+
+                <div className="mt-3 flex items-center justify-between">
+                  <p className="text-lg font-bold text-primary">{formatPrice(product.price)}</p>
+                  <p className="text-sm text-gray-500">
+                    Stock: <span className={product.stock_quantity <= 10 ? 'text-orange-600 font-semibold' : ''}>
+                      {product.stock_quantity}
+                    </span>
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="mt-4 flex gap-2">
+                  <Link
+                    to={`/supplier/products/edit/${product.id}`}
+                    className="flex-1 btn btn-outline btn-sm text-center"
+                  >
+                    Edit
+                  </Link>
+                  <button
+                    onClick={() => handleToggleStatus(product.id, product.is_active)}
+                    className={`flex-1 btn btn-sm ${
+                      product.is_active
+                        ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                        : 'bg-green-100 text-green-700 hover:bg-green-200'
+                    }`}
+                  >
+                    {product.is_active ? 'Deactivate' : 'Activate'}
+                  </button>
+                </div>
               </div>
             </div>
-          )}
+          ))}
+        </div>
+      )}
+
+      {/* Summary */}
+      <div className="mt-8 p-4 bg-gray-50 rounded-lg">
+        <div className="flex flex-wrap gap-4 text-sm">
+          <span className="text-gray-600">
+            Total Products: <strong>{products.length}</strong>
+          </span>
+          <span className="text-gray-600">
+            Active: <strong className="text-green-600">{products.filter(p => p.is_active).length}</strong>
+          </span>
+          <span className="text-gray-600">
+            Inactive: <strong className="text-red-600">{products.filter(p => !p.is_active).length}</strong>
+          </span>
+          <span className="text-gray-600">
+            Low Stock: <strong className="text-orange-600">{products.filter(p => p.stock_quantity <= 10).length}</strong>
+          </span>
         </div>
       </div>
     </div>
   );
 };
 
-export default ProductDetail;
+export default SupplierProducts;

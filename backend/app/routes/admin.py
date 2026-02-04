@@ -1,14 +1,15 @@
-from flask import Blueprint, request
+from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 from sqlalchemy import func, desc
 from app.models import db
-from app.models.user import User, UserRole, SupplierProfile
-from app.models.order import Order, OrderItem, OrderStatus, DeliveryZone
+from app.models.user import User, UserRole, SupplierProfile, PaymentPhoneChangeStatus
+from app.models.order import Order, OrderItem, OrderStatus, DeliveryZone, PaymentMethod, PaymentStatus
 from app.models.product import Product, Category, Brand
 from app.models.returns import Return, SupplierPayout
 from app.utils.validation import validate_required_fields
 from app.utils.responses import success_response, error_response
+from app.services.mpesa_service import mpesa_service
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/api/admin')
 
@@ -566,23 +567,23 @@ def get_all_payouts():
 @jwt_required()
 @require_admin
 def process_payout(payout_id):
-    """Mark payout as processed."""
+    """Mark payout as processed (manual processing)."""
     try:
         payout = SupplierPayout.query.get(payout_id)
         if not payout:
             return error_response('Payout not found', 404)
-        
+
         data = request.get_json()
-        
+
         payout.status = 'completed'
         payout.payment_reference = data.get('payment_reference')
         payout.paid_at = datetime.utcnow()
-        
+
         if 'notes' in data:
             payout.notes = data['notes']
-        
+
         db.session.commit()
-        
+
         return success_response(
             data=payout.to_dict(),
             message='Payout processed successfully'
@@ -590,3 +591,416 @@ def process_payout(payout_id):
     except Exception as e:
         db.session.rollback()
         return error_response(f'Failed to process payout: {str(e)}', 500)
+
+
+@admin_bp.route('/payouts/<payout_id>/mpesa', methods=['POST'])
+@jwt_required()
+@require_admin
+def initiate_mpesa_payout(payout_id):
+    """Initiate M-Pesa B2C payment for a supplier payout."""
+    try:
+        payout = SupplierPayout.query.get(payout_id)
+        if not payout:
+            return error_response('Payout not found', 404)
+
+        if payout.status == 'completed':
+            return error_response('Payout already completed', 400)
+
+        if payout.status == 'processing':
+            return error_response('Payout is already being processed', 400)
+
+        # Get supplier details
+        supplier = SupplierProfile.query.get(payout.supplier_id)
+        if not supplier:
+            return error_response('Supplier not found', 404)
+
+        if not supplier.mpesa_number:
+            return error_response('Supplier has no M-Pesa number configured', 400)
+
+        # Validate phone number
+        is_valid, result = mpesa_service.validate_phone_number(supplier.mpesa_number)
+        if not is_valid:
+            return error_response(f'Invalid M-Pesa number: {result}', 400)
+
+        # Mark payout as processing
+        payout.status = 'processing'
+        db.session.commit()
+
+        # Initiate B2C payment
+        response = mpesa_service.b2c_payment(
+            phone_number=supplier.mpesa_number,
+            amount=float(payout.net_amount),
+            remarks=f'Payout {payout.payout_number} - {supplier.business_name}',
+            occasion=f'Supplier Payout {payout.payout_number}'
+        )
+
+        if response.get('success'):
+            payout.payment_reference = response.get('conversation_id')
+            payout.notes = f"M-Pesa B2C initiated. ConversationID: {response.get('conversation_id')}"
+            db.session.commit()
+
+            return success_response(
+                data={
+                    'payout': payout.to_dict(),
+                    'mpesa_response': response
+                },
+                message='M-Pesa payout initiated successfully'
+            )
+        else:
+            # Revert to pending if failed
+            payout.status = 'pending'
+            payout.notes = f"M-Pesa B2C failed: {response.get('error', 'Unknown error')}"
+            db.session.commit()
+
+            return error_response(
+                f"M-Pesa payout failed: {response.get('error', 'Unknown error')}",
+                400
+            )
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'M-Pesa payout error: {str(e)}')
+        return error_response(f'Failed to initiate M-Pesa payout: {str(e)}', 500)
+
+
+@admin_bp.route('/payouts/batch-mpesa', methods=['POST'])
+@jwt_required()
+@require_admin
+def batch_mpesa_payouts():
+    """Initiate M-Pesa B2C payments for multiple pending payouts."""
+    try:
+        data = request.get_json() or {}
+        payout_ids = data.get('payout_ids', [])
+
+        if not payout_ids:
+            # If no specific IDs, process all pending payouts
+            payouts = SupplierPayout.query.filter_by(status='pending').all()
+        else:
+            payouts = SupplierPayout.query.filter(
+                SupplierPayout.id.in_(payout_ids),
+                SupplierPayout.status == 'pending'
+            ).all()
+
+        results = {
+            'successful': [],
+            'failed': []
+        }
+
+        for payout in payouts:
+            supplier = SupplierProfile.query.get(payout.supplier_id)
+
+            if not supplier or not supplier.mpesa_number:
+                results['failed'].append({
+                    'payout_id': payout.id,
+                    'payout_number': payout.payout_number,
+                    'error': 'Supplier has no M-Pesa number'
+                })
+                continue
+
+            # Validate phone
+            is_valid, result = mpesa_service.validate_phone_number(supplier.mpesa_number)
+            if not is_valid:
+                results['failed'].append({
+                    'payout_id': payout.id,
+                    'payout_number': payout.payout_number,
+                    'error': f'Invalid phone: {result}'
+                })
+                continue
+
+            # Mark as processing
+            payout.status = 'processing'
+            db.session.commit()
+
+            # Initiate payment
+            response = mpesa_service.b2c_payment(
+                phone_number=supplier.mpesa_number,
+                amount=float(payout.net_amount),
+                remarks=f'Payout {payout.payout_number}',
+                occasion=f'Supplier Payout'
+            )
+
+            if response.get('success'):
+                payout.payment_reference = response.get('conversation_id')
+                results['successful'].append({
+                    'payout_id': payout.id,
+                    'payout_number': payout.payout_number,
+                    'conversation_id': response.get('conversation_id')
+                })
+            else:
+                payout.status = 'pending'
+                results['failed'].append({
+                    'payout_id': payout.id,
+                    'payout_number': payout.payout_number,
+                    'error': response.get('error', 'Unknown error')
+                })
+
+        db.session.commit()
+
+        return success_response(
+            data=results,
+            message=f"Processed {len(results['successful'])} payouts, {len(results['failed'])} failed"
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Batch payout error: {str(e)}')
+        return error_response(f'Failed to process batch payouts: {str(e)}', 500)
+
+
+# =============================================================================
+# Payment Phone Change Management
+# =============================================================================
+
+@admin_bp.route('/payment-phone-requests', methods=['GET'])
+@jwt_required()
+@require_admin
+def get_payment_phone_requests():
+    """Get all pending payment phone change requests."""
+    try:
+        status = request.args.get('status', 'pending')
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+
+        query = SupplierProfile.query.filter(
+            SupplierProfile.payment_phone_pending.isnot(None)
+        )
+
+        if status == 'pending':
+            query = query.filter(
+                SupplierProfile.payment_phone_change_status == PaymentPhoneChangeStatus.PENDING
+            )
+        elif status == 'all':
+            pass  # Show all requests
+        else:
+            query = query.filter(
+                SupplierProfile.payment_phone_change_status == status
+            )
+
+        suppliers = query.order_by(
+            SupplierProfile.payment_phone_change_requested_at.desc()
+        ).paginate(page=page, per_page=per_page, error_out=False)
+
+        return success_response(data={
+            'requests': [
+                {
+                    'supplier_id': s.id,
+                    'business_name': s.business_name,
+                    'contact_person': s.contact_person,
+                    'current_phone': s.mpesa_number,
+                    'requested_phone': s.payment_phone_pending,
+                    'status': s.payment_phone_change_status.value if s.payment_phone_change_status else None,
+                    'reason': s.payment_phone_change_reason,
+                    'requested_at': s.payment_phone_change_requested_at.isoformat() if s.payment_phone_change_requested_at else None,
+                }
+                for s in suppliers.items
+            ],
+            'pagination': {
+                'page': suppliers.page,
+                'per_page': suppliers.per_page,
+                'total': suppliers.total,
+                'pages': suppliers.pages
+            }
+        })
+    except Exception as e:
+        return error_response(f'Failed to fetch requests: {str(e)}', 500)
+
+
+@admin_bp.route('/payment-phone-requests/<supplier_id>/approve', methods=['POST'])
+@jwt_required()
+@require_admin
+def approve_payment_phone_change(supplier_id):
+    """Approve a supplier's payment phone change request."""
+    try:
+        user_id = get_jwt_identity()
+        supplier = SupplierProfile.query.get(supplier_id)
+
+        if not supplier:
+            return error_response('Supplier not found', 404)
+
+        if not supplier.payment_phone_pending:
+            return error_response('No pending phone change request', 400)
+
+        if supplier.approve_payment_phone_change(user_id):
+            db.session.commit()
+            return success_response(
+                data=supplier.to_dict(),
+                message=f'Payment phone changed to {supplier.mpesa_number}'
+            )
+        else:
+            return error_response('Failed to approve change', 400)
+
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to approve: {str(e)}', 500)
+
+
+@admin_bp.route('/payment-phone-requests/<supplier_id>/reject', methods=['POST'])
+@jwt_required()
+@require_admin
+def reject_payment_phone_change(supplier_id):
+    """Reject a supplier's payment phone change request."""
+    try:
+        user_id = get_jwt_identity()
+        supplier = SupplierProfile.query.get(supplier_id)
+
+        if not supplier:
+            return error_response('Supplier not found', 404)
+
+        data = request.get_json() or {}
+        reason = data.get('reason', 'Request rejected by admin')
+
+        if supplier.reject_payment_phone_change(user_id, reason):
+            db.session.commit()
+            return success_response(
+                data=supplier.to_dict(),
+                message='Payment phone change rejected'
+            )
+        else:
+            return error_response('No pending request to reject', 400)
+
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to reject: {str(e)}', 500)
+
+
+# =============================================================================
+# COD (Cash on Delivery) Payment Management
+# =============================================================================
+
+@admin_bp.route('/orders/cod-pending', methods=['GET'])
+@jwt_required()
+@require_admin
+def get_cod_pending_orders():
+    """Get all COD orders pending verification."""
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+
+        # Get COD orders that are delivered but payment not yet verified
+        query = Order.query.filter(
+            Order.payment_method == PaymentMethod.CASH,
+            Order.status == OrderStatus.DELIVERED,
+            Order.payment_status == PaymentStatus.PENDING
+        )
+
+        orders = query.order_by(Order.updated_at.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False)
+
+        return success_response(data={
+            'orders': [o.to_dict(include_items=False) for o in orders.items],
+            'pagination': {
+                'page': orders.page,
+                'per_page': orders.per_page,
+                'total': orders.total,
+                'pages': orders.pages
+            }
+        })
+    except Exception as e:
+        return error_response(f'Failed to fetch COD orders: {str(e)}', 500)
+
+
+@admin_bp.route('/orders/<order_id>/cod-collect', methods=['POST'])
+@jwt_required()
+@require_admin
+def record_cod_collection(order_id):
+    """Record that cash was collected for a COD order (by delivery person)."""
+    try:
+        user_id = get_jwt_identity()
+        order = Order.query.get(order_id)
+
+        if not order:
+            return error_response('Order not found', 404)
+
+        if order.payment_method != PaymentMethod.CASH:
+            return error_response('This is not a COD order', 400)
+
+        data = request.get_json()
+        amount = data.get('amount')
+
+        if not amount:
+            return error_response('Amount is required', 400)
+
+        if float(amount) != float(order.total):
+            return error_response(
+                f'Amount mismatch. Expected {order.total}, got {amount}',
+                400
+            )
+
+        if order.confirm_cod_collection(user_id, amount):
+            db.session.commit()
+            return success_response(
+                data=order.to_dict(),
+                message='COD collection recorded. Pending admin verification.'
+            )
+        else:
+            return error_response('Failed to record collection', 400)
+
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to record collection: {str(e)}', 500)
+
+
+@admin_bp.route('/orders/<order_id>/cod-verify', methods=['POST'])
+@jwt_required()
+@require_admin
+def verify_cod_payment(order_id):
+    """Admin verifies COD payment was received and reconciled."""
+    try:
+        user_id = get_jwt_identity()
+        order = Order.query.get(order_id)
+
+        if not order:
+            return error_response('Order not found', 404)
+
+        if order.payment_method != PaymentMethod.CASH:
+            return error_response('This is not a COD order', 400)
+
+        if not order.cod_collected_at:
+            return error_response(
+                'Cash collection must be recorded before verification',
+                400
+            )
+
+        if order.verify_cod_payment(user_id):
+            db.session.commit()
+            return success_response(
+                data=order.to_dict(),
+                message='COD payment verified and marked as completed'
+            )
+        else:
+            return error_response('Failed to verify payment', 400)
+
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to verify payment: {str(e)}', 500)
+
+
+@admin_bp.route('/orders/cod-collected', methods=['GET'])
+@jwt_required()
+@require_admin
+def get_cod_collected_orders():
+    """Get all COD orders where cash was collected but not yet verified."""
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+
+        query = Order.query.filter(
+            Order.payment_method == PaymentMethod.CASH,
+            Order.cod_collected_at.isnot(None),
+            Order.cod_verified_at.is_(None)
+        )
+
+        orders = query.order_by(Order.cod_collected_at.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False)
+
+        return success_response(data={
+            'orders': [o.to_dict(include_items=False) for o in orders.items],
+            'pagination': {
+                'page': orders.page,
+                'per_page': orders.per_page,
+                'total': orders.total,
+                'pages': orders.pages
+            }
+        })
+    except Exception as e:
+        return error_response(f'Failed to fetch orders: {str(e)}', 500)

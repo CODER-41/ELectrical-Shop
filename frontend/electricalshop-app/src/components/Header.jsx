@@ -4,7 +4,7 @@ import {useSelector } from 'react-redux';
 import { useState } from 'react';
 
 const Header = () => {
-  const { isAuthenticated, user, handleLogout } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
   const { totalItems } = useSelector((state) => state.cart);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
@@ -65,9 +65,24 @@ const Header = () => {
                     <Link to="/supplier/products" className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-green-50">Products</Link>
                   </>
                 )}
-                
+
+                {user?.role === 'delivery_agent' && (
+                  <>
+                    <Link to="/delivery/dashboard" className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-green-50">Dashboard</Link>
+                    <Link to="/delivery/orders" className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-green-50">My Deliveries</Link>
+                  </>
+                )}
+
+                {(user?.role === 'admin' || user?.role === 'support_admin') && (
+                  <>
+                    <Link to="/admin/dashboard" className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-green-50">Dashboard</Link>
+                    <Link to="/admin/orders" className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-green-50">Orders</Link>
+                    <Link to="/admin/delivery" className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-green-50">Delivery</Link>
+                  </>
+                )}
+
                 <Link to="/profile" className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-green-50">Profile</Link>
-                <button onClick={handleLogout} className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white font-medium rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-200">Logout</button>
+                <button onClick={logout} className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white font-medium rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-200">Logout</button>
               </>
             ) : (
               <>
@@ -133,16 +148,25 @@ const Header = () => {
                     <Link to="/supplier/orders" className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Orders</Link>
                   </>
                 )}
-                
-                {(user?.role === 'admin' || user?.role?.includes('manager') || user?.role === 'support') && (
+
+                {user?.role === 'delivery_agent' && (
+                  <>
+                    <Link to="/delivery/dashboard" className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Dashboard</Link>
+                    <Link to="/delivery/orders" className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>My Deliveries</Link>
+                    <Link to="/delivery/payouts" className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Payouts</Link>
+                  </>
+                )}
+
+                {(user?.role === 'admin' || user?.role === 'support_admin' || user?.role?.includes('manager')) && (
                   <>
                     <Link to="/admin/dashboard" className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Dashboard</Link>
                     <Link to="/admin/orders" className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Orders</Link>
+                    <Link to="/admin/delivery" className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Delivery Management</Link>
                   </>
                 )}
                 
                 <Link to="/profile" className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Profile</Link>
-                <button onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }} className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200">Logout</button>
+                <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200">Logout</button>
               </>
             ) : (
               <>
