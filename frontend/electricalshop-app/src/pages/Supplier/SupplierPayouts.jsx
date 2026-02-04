@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const SupplierPayouts = () => {
-  const { user } = useSelector((state) => state.auth);
+  const { token } = useSelector((state) => state.auth);
   const [payouts, setPayouts] = useState([]);
   const [pendingPayout, setPendingPayout] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -19,10 +19,10 @@ const SupplierPayouts = () => {
     try {
       const [payoutsRes, pendingRes] = await Promise.all([
         axios.get(`${API_URL}/supplier/payouts`, {
-          headers: { Authorization: `Bearer ${user.token}` }
+          headers: { Authorization: `Bearer ${token}` }
         }),
         axios.get(`${API_URL}/supplier/payouts/pending`, {
-          headers: { Authorization: `Bearer ${user.token}` }
+          headers: { Authorization: `Bearer ${token}` }
         })
       ]);
 

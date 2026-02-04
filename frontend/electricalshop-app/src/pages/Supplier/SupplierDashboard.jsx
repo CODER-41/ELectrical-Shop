@@ -1,24 +1,23 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import axios from 'axios';
+import { useSelector } from 'react-redux';
+import api from '../../utils/api';
 import { toast } from 'react-toastify';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
 const SupplierDashboard = () => {
+  const { token } = useSelector((state) => state.auth);
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    fetchDashboard();
-  }, []);
+    if (token) {
+      fetchDashboard();
+    }
+  }, [token]);
   
   const fetchDashboard = async () => {
     try {
-      const user = JSON.parse(localStorage.getItem('user'));
-      const response = await axios.get(`${API_URL}/supplier/dashboard`, {
-        headers: { Authorization: `Bearer ${user.token}` }
-      });
+      const response = await api.get('/supplier/dashboard');
       setDashboard(response.data.data);
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to load dashboard');
@@ -165,7 +164,7 @@ const SupplierDashboard = () => {
       
       {/* Quick Actions */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <Link to="/supplier/products/add" className="card hover:shadow-lg transition-shadow">
+        <Link to="/add-product" className="card hover:shadow-lg transition-shadow">
           <div className="flex items-center">
             <div className="p-3 bg-primary rounded-lg">
               <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -179,7 +178,7 @@ const SupplierDashboard = () => {
           </div>
         </Link>
         
-        <Link to="/supplier/orders" className="card hover:shadow-lg transition-shadow">
+        <Link to="/supplier-products" className="card hover:shadow-lg transition-shadow">
           <div className="flex items-center">
             <div className="p-3 bg-purple-600 rounded-lg">
               <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -187,8 +186,8 @@ const SupplierDashboard = () => {
               </svg>
             </div>
             <div className="ml-4">
-              <h3 className="font-semibold text-gray-900">View Orders</h3>
-              <p className="text-sm text-gray-600">Manage your orders</p>
+              <h3 className="font-semibold text-gray-900">View Products</h3>
+              <p className="text-sm text-gray-600">Manage your products</p>
             </div>
           </div>
         </Link>
@@ -227,7 +226,7 @@ const SupplierDashboard = () => {
               <span className="font-semibold text-orange-600">{dashboard?.products?.low_stock || 0}</span>
             </div>
           </div>
-          <Link to="/supplier/products" className="mt-4 btn btn-outline w-full">
+          <Link to="/supplier-products" className="mt-4 btn btn-outline w-full">
             Manage Products
           </Link>
         </div>

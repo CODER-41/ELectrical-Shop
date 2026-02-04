@@ -65,7 +65,7 @@ const GoogleCallback = () => {
             token: accessToken
           }));
 
-          toast.success('Google authentication successful!');
+          toast.success('Login successful');
 
           // Redirect based on user role
           const role = data.data.role;
