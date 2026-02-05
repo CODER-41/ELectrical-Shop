@@ -1,31 +1,88 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import axios from 'axios';
+import { logout } from './authSlice';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
-// Get token from localStorage
-const getAuthHeaders = () => {
-  const user = localStorage.getItem('user');
-  if (user) {
-    const userData = JSON.parse(user);
-    // authSlice stores as 'token', but also check 'access_token' for backwards compatibility
-    const token = userData.token || userData.access_token;
-    if (token) {
-      return {
+// Helper function to refresh token
+const refreshToken = async (thunkAPI) => {
+  try {
+    const state = thunkAPI.getState();
+    const refreshToken = state.auth.user ? JSON.parse(localStorage.getItem('user'))?.refresh_token : null;
+    
+    if (refreshToken) {
+      const response = await axios.post(`${API_URL}/auth/refresh`, {}, {
         headers: {
-          Authorization: `Bearer ${token}`,
+          Authorization: `Bearer ${refreshToken}`,
         },
-      };
+      });
+      
+      if (response.data.success) {
+        const userData = JSON.parse(localStorage.getItem('user'));
+        const newAuthData = {
+          user: userData.user,
+          token: response.data.data.access_token,
+          refresh_token: refreshToken
+        };
+        localStorage.setItem('user', JSON.stringify(newAuthData));
+        
+        // Update Redux state by dispatching to auth slice
+        thunkAPI.dispatch({ type: 'auth/updateToken', payload: response.data.data.access_token });
+        
+        return response.data.data.access_token;
+      }
     }
+  } catch (error) {
+    console.error('Token refresh failed:', error);
   }
-  return {};
+  return null;
+};
+
+// Helper function to make authenticated requests with token refresh
+const makeAuthenticatedRequest = async (requestFn, thunkAPI) => {
+  const state = thunkAPI.getState();
+  let token = state.auth.token;
+  
+  if (!token) {
+    return thunkAPI.rejectWithValue('Authentication required');
+  }
+  
+  try {
+    return await requestFn(token);
+  } catch (error) {
+    if (error.response?.status === 401 && error.response?.data?.error === 'Token has expired') {
+      // Try to refresh token
+      const newToken = await refreshToken(thunkAPI);
+      if (newToken) {
+        // Retry request with new token
+        try {
+          return await requestFn(newToken);
+        } catch (retryError) {
+          throw retryError;
+        }
+      } else {
+        // Refresh failed, logout user
+        thunkAPI.dispatch(logout());
+        return thunkAPI.rejectWithValue('Session expired. Please log in again.');
+      }
+    }
+    throw error;
+  }
 };
 
 // Address Actions
 export const getAddresses = createAsyncThunk('orders/getAddresses', async (_, thunkAPI) => {
   try {
-    const response = await axios.get(`${API_URL}/orders/addresses`, getAuthHeaders());
-    return response.data.data;
+    const result = await makeAuthenticatedRequest(async (token) => {
+      const response = await axios.get(`${API_URL}/orders/addresses`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return response.data.data;
+    }, thunkAPI);
+    
+    return result;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to fetch addresses');
   }
@@ -33,8 +90,16 @@ export const getAddresses = createAsyncThunk('orders/getAddresses', async (_, th
 
 export const createAddress = createAsyncThunk('orders/createAddress', async (addressData, thunkAPI) => {
   try {
-    const response = await axios.post(`${API_URL}/orders/addresses`, addressData, getAuthHeaders());
-    return response.data.data;
+    const result = await makeAuthenticatedRequest(async (token) => {
+      const response = await axios.post(`${API_URL}/orders/addresses`, addressData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return response.data.data;
+    }, thunkAPI);
+    
+    return result;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to create address');
   }
@@ -42,7 +107,18 @@ export const createAddress = createAsyncThunk('orders/createAddress', async (add
 
 export const updateAddress = createAsyncThunk('orders/updateAddress', async ({ addressId, addressData }, thunkAPI) => {
   try {
-    const response = await axios.put(`${API_URL}/orders/addresses/${addressId}`, addressData, getAuthHeaders());
+    const state = thunkAPI.getState();
+    const token = state.auth.token;
+    
+    if (!token) {
+      return thunkAPI.rejectWithValue('Authentication required');
+    }
+    
+    const response = await axios.put(`${API_URL}/orders/addresses/${addressId}`, addressData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     return response.data.data;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to update address');
@@ -51,7 +127,18 @@ export const updateAddress = createAsyncThunk('orders/updateAddress', async ({ a
 
 export const deleteAddress = createAsyncThunk('orders/deleteAddress', async (addressId, thunkAPI) => {
   try {
-    await axios.delete(`${API_URL}/orders/addresses/${addressId}`, getAuthHeaders());
+    const state = thunkAPI.getState();
+    const token = state.auth.token;
+    
+    if (!token) {
+      return thunkAPI.rejectWithValue('Authentication required');
+    }
+    
+    await axios.delete(`${API_URL}/orders/addresses/${addressId}`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
     return addressId;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to delete address');
@@ -80,8 +167,16 @@ export const calculateDeliveryFee = createAsyncThunk('orders/calculateDeliveryFe
 // Order Actions
 export const createOrder = createAsyncThunk('orders/createOrder', async (orderData, thunkAPI) => {
   try {
-    const response = await axios.post(`${API_URL}/orders`, orderData, getAuthHeaders());
-    return response.data.data;
+    const result = await makeAuthenticatedRequest(async (token) => {
+      const response = await axios.post(`${API_URL}/orders`, orderData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return response.data.data;
+    }, thunkAPI);
+    
+    return result;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to create order');
   }
@@ -89,8 +184,16 @@ export const createOrder = createAsyncThunk('orders/createOrder', async (orderDa
 
 export const getOrders = createAsyncThunk('orders/getOrders', async (_, thunkAPI) => {
   try {
-    const response = await axios.get(`${API_URL}/orders`, getAuthHeaders());
-    return response.data.data;
+    const result = await makeAuthenticatedRequest(async (token) => {
+      const response = await axios.get(`${API_URL}/orders`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return response.data.data;
+    }, thunkAPI);
+    
+    return result;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to fetch orders');
   }
@@ -98,8 +201,16 @@ export const getOrders = createAsyncThunk('orders/getOrders', async (_, thunkAPI
 
 export const getOrder = createAsyncThunk('orders/getOrder', async (orderId, thunkAPI) => {
   try {
-    const response = await axios.get(`${API_URL}/orders/${orderId}`, getAuthHeaders());
-    return response.data.data;
+    const result = await makeAuthenticatedRequest(async (token) => {
+      const response = await axios.get(`${API_URL}/orders/${orderId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return response.data.data;
+    }, thunkAPI);
+    
+    return result;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to fetch order');
   }
@@ -107,8 +218,16 @@ export const getOrder = createAsyncThunk('orders/getOrder', async (orderId, thun
 
 export const cancelOrder = createAsyncThunk('orders/cancelOrder', async ({ orderId, reason }, thunkAPI) => {
   try {
-    const response = await axios.post(`${API_URL}/orders/${orderId}/cancel`, { reason }, getAuthHeaders());
-    return response.data.data;
+    const result = await makeAuthenticatedRequest(async (token) => {
+      const response = await axios.post(`${API_URL}/orders/${orderId}/cancel`, { reason }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      return response.data.data;
+    }, thunkAPI);
+    
+    return result;
   } catch (error) {
     return thunkAPI.rejectWithValue(error.response?.data?.error || 'Failed to cancel order');
   }

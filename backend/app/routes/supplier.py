@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import func
 from app.models import db
 from app.models.user import User, UserRole
-from app.models.order import Order, OrderItem, OrderStatus
+from app.models.order import Order, OrderItem, OrderStatus, PaymentStatus
 from app.models.product import Product
 from app.models.returns import Return, SupplierPayout
 from app.utils.responses import success_response, error_response
@@ -23,6 +23,9 @@ def get_dashboard():
         if user.role != UserRole.SUPPLIER:
             return error_response('Only suppliers can access this', 403)
         
+        if not user.supplier_profile:
+            return error_response('Supplier profile not found. Please complete your profile setup.', 404)
+        
         supplier_id = user.supplier_profile.id
         
         # Total products
@@ -35,21 +38,14 @@ def get_dashboard():
             .filter(OrderItem.supplier_id == supplier_id)\
             .distinct().count()
         
-        # Total earnings (paid orders only)
-        total_earnings = db.session.query(func.sum(OrderItem.supplier_earnings))\
-            .join(Order)\
-            .filter(
-                OrderItem.supplier_id == supplier_id,
-                Order.payment_status == 'completed'
-            ).scalar() or 0
+        # Get supplier profile for accurate balance info
+        supplier_profile = user.supplier_profile
         
-        # Pending earnings (unpaid orders)
-        pending_earnings = db.session.query(func.sum(OrderItem.supplier_earnings))\
-            .join(Order)\
-            .filter(
-                OrderItem.supplier_id == supplier_id,
-                Order.payment_status == 'pending'
-            ).scalar() or 0
+        # Total earnings (lifetime)
+        total_earnings = float(supplier_profile.total_sales)
+        
+        # Pending earnings (outstanding balance)
+        pending_earnings = float(supplier_profile.outstanding_balance)
         
         # This month's sales
         month_start = datetime.utcnow().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
@@ -57,23 +53,24 @@ def get_dashboard():
             .join(Order)\
             .filter(
                 OrderItem.supplier_id == supplier_id,
-                Order.payment_status == 'completed',
+                Order.payment_status == PaymentStatus.COMPLETED,
                 Order.created_at >= month_start
             ).scalar() or 0
-        
+
         # Total items sold
         items_sold = db.session.query(func.sum(OrderItem.quantity))\
             .join(Order)\
             .filter(
                 OrderItem.supplier_id == supplier_id,
-                Order.payment_status == 'completed'
+                Order.payment_status == PaymentStatus.COMPLETED
             ).scalar() or 0
         
         # Returns
         total_returns = db.session.query(Return)\
-            .join(OrderItem)\
+            .join(Order, Return.order_id == Order.id)\
+            .join(OrderItem, OrderItem.order_id == Order.id)\
             .filter(OrderItem.supplier_id == supplier_id)\
-            .count()
+            .distinct().count()
         
         # Low stock products
         low_stock = Product.query.filter(
@@ -100,7 +97,217 @@ def get_dashboard():
             'returns': total_returns
         })
     except Exception as e:
+        import traceback
+        print(f"Dashboard error: {str(e)}")
+        print(traceback.format_exc())
         return error_response(f'Failed to fetch dashboard: {str(e)}', 500)
+
+
+@supplier_bp.route('/products', methods=['GET'])
+@jwt_required()
+def get_supplier_products():
+    """Get supplier's products."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if user.role != UserRole.SUPPLIER:
+            return error_response('Only suppliers can access this', 403)
+
+        if not user.supplier_profile:
+            return error_response('Supplier profile not found', 404)
+
+        supplier_id = user.supplier_profile.id
+
+        # Get all products for this supplier
+        products = Product.query.filter_by(supplier_id=supplier_id)\
+            .order_by(Product.created_at.desc()).all()
+
+        return success_response(data=[p.to_dict() for p in products])
+    except Exception as e:
+        return error_response(f'Failed to fetch products: {str(e)}', 500)
+
+
+@supplier_bp.route('/products', methods=['POST'])
+@jwt_required()
+def create_supplier_product():
+    """Create a new product for the supplier."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if user.role != UserRole.SUPPLIER:
+            return error_response('Only suppliers can access this', 403)
+
+        if not user.supplier_profile:
+            return error_response('Supplier profile not found', 404)
+
+        supplier_id = user.supplier_profile.id
+        data = request.get_json()
+
+        # Validate required fields
+        required_fields = ['name', 'category_id', 'brand_id', 'price', 'stock_quantity']
+        for field in required_fields:
+            if field not in data or data[field] is None:
+                return error_response(f'{field} is required', 400)
+
+        # Create slug from name
+        import re
+        slug = re.sub(r'[^a-z0-9]+', '-', data['name'].lower().strip())
+        slug = slug.strip('-')
+
+        # Make slug unique by appending number if needed
+        base_slug = slug
+        counter = 1
+        while Product.query.filter_by(slug=slug).first():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+
+        # Create new product
+        product = Product(
+            name=data['name'].strip(),
+            slug=slug,
+            supplier_id=supplier_id,
+            category_id=data['category_id'],
+            brand_id=data['brand_id'],
+            price=float(data['price']),
+            stock_quantity=int(data['stock_quantity']),
+            low_stock_threshold=int(data.get('low_stock_threshold', 10)),
+            warranty_period_months=int(data.get('warranty_period_months', 12)),
+            condition=data.get('condition', 'new'),
+            short_description=data.get('short_description', '')[:200] if data.get('short_description') else '',
+            long_description=data.get('long_description', ''),
+            image_url=data.get('image_url', ''),
+            specifications=data.get('specifications'),
+            is_active=True
+        )
+
+        # Calculate commission
+        product.calculate_commission()
+
+        db.session.add(product)
+        db.session.commit()
+
+        return success_response(data=product.to_dict(include_supplier=True), message='Product created successfully'), 201
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        print(f"Create product error: {str(e)}")
+        print(traceback.format_exc())
+        return error_response(f'Failed to create product: {str(e)}', 500)
+
+
+@supplier_bp.route('/products/<product_id>', methods=['GET'])
+@jwt_required()
+def get_supplier_product(product_id):
+    """Get a specific product for the supplier (including inactive)."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if user.role != UserRole.SUPPLIER:
+            return error_response('Only suppliers can access this', 403)
+
+        if not user.supplier_profile:
+            return error_response('Supplier profile not found', 404)
+
+        supplier_id = user.supplier_profile.id
+
+        # Find product and verify ownership (include inactive products)
+        product = Product.query.filter_by(id=product_id, supplier_id=supplier_id).first()
+        if not product:
+            return error_response('Product not found', 404)
+
+        return success_response(data=product.to_dict(include_supplier=True))
+    except Exception as e:
+        return error_response(f'Failed to fetch product: {str(e)}', 500)
+
+
+@supplier_bp.route('/products/<product_id>', methods=['PUT'])
+@jwt_required()
+def update_supplier_product(product_id):
+    """Update a supplier's product."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if user.role != UserRole.SUPPLIER:
+            return error_response('Only suppliers can access this', 403)
+
+        if not user.supplier_profile:
+            return error_response('Supplier profile not found', 404)
+
+        supplier_id = user.supplier_profile.id
+
+        # Find product and verify ownership
+        product = Product.query.filter_by(id=product_id, supplier_id=supplier_id).first()
+        if not product:
+            return error_response('Product not found', 404)
+
+        data = request.get_json()
+
+        # Update allowed fields
+        if 'name' in data:
+            product.name = data['name'].strip()
+        if 'short_description' in data:
+            product.short_description = data['short_description'].strip()[:200]
+        if 'long_description' in data:
+            product.long_description = data['long_description'].strip()
+        if 'price' in data:
+            product.price = float(data['price'])
+            product.calculate_commission()
+        if 'stock_quantity' in data:
+            product.stock_quantity = int(data['stock_quantity'])
+        if 'specifications' in data:
+            product.specifications = data['specifications']
+        if 'warranty_period_months' in data:
+            product.warranty_period_months = int(data['warranty_period_months'])
+        if 'image_url' in data:
+            product.image_url = data['image_url']
+        if 'category_id' in data:
+            product.category_id = data['category_id']
+        if 'brand_id' in data:
+            product.brand_id = data['brand_id']
+        if 'is_active' in data:
+            product.is_active = data['is_active']
+
+        db.session.commit()
+
+        return success_response(data=product.to_dict(include_supplier=True), message='Product updated successfully')
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to update product: {str(e)}', 500)
+
+
+@supplier_bp.route('/products/<product_id>/status', methods=['PATCH'])
+@jwt_required()
+def update_product_status(product_id):
+    """Toggle product active status."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if user.role != UserRole.SUPPLIER:
+            return error_response('Only suppliers can access this', 403)
+
+        if not user.supplier_profile:
+            return error_response('Supplier profile not found', 404)
+
+        supplier_id = user.supplier_profile.id
+
+        # Find product and verify ownership
+        product = Product.query.filter_by(id=product_id, supplier_id=supplier_id).first()
+        if not product:
+            return error_response('Product not found', 404)
+
+        data = request.get_json()
+        if 'is_active' in data:
+            product.is_active = data['is_active']
+            db.session.commit()
+
+        return success_response(data=product.to_dict(include_supplier=True), message='Product status updated')
+    except Exception as e:
+        return error_response(f'Failed to update product: {str(e)}', 500)
 
 
 @supplier_bp.route('/orders', methods=['GET'])
@@ -186,7 +393,7 @@ def get_analytics():
         ).join(Order)\
             .filter(
                 OrderItem.supplier_id == supplier_id,
-                Order.payment_status == 'completed',
+                Order.payment_status == PaymentStatus.COMPLETED,
                 Order.created_at >= start_date
             ).group_by(func.date(Order.created_at))\
             .order_by(func.date(Order.created_at)).all()
@@ -200,7 +407,7 @@ def get_analytics():
             .join(Order)\
             .filter(
                 OrderItem.supplier_id == supplier_id,
-                Order.payment_status == 'completed'
+                Order.payment_status == PaymentStatus.COMPLETED
             ).group_by(Product.id, Product.name)\
             .order_by(func.sum(OrderItem.quantity).desc())\
             .limit(10).all()
@@ -216,7 +423,7 @@ def get_analytics():
                 .join(Order)\
                 .filter(
                     OrderItem.supplier_id == supplier_id,
-                    Order.payment_status == 'completed',
+                    Order.payment_status == PaymentStatus.COMPLETED,
                     Order.created_at >= month_start,
                     Order.created_at < month_end
                 ).scalar() or 0
@@ -289,19 +496,19 @@ def get_pending_payout():
             .join(Order)\
             .filter(
                 OrderItem.supplier_id == supplier_id,
-                Order.payment_status == 'completed',
+                Order.payment_status == PaymentStatus.COMPLETED,
                 Order.status.in_([OrderStatus.DELIVERED])  # Only paid out after delivery
             ).scalar() or 0
         
         # Subtract already paid amounts
-        paid_amount = db.session.query(func.sum(SupplierPayout.net_amount))\
+        paid_amount = db.session.query(func.sum(SupplierPayout.amount))\
             .filter(
                 SupplierPayout.supplier_id == supplier_id,
                 SupplierPayout.status == 'completed'
             ).scalar() or 0
         
         pending = float(pending_amount) - float(paid_amount)
-        
+
         return success_response(data={
             'pending_amount': max(0, pending),
             'total_earned': float(pending_amount),
@@ -309,3 +516,115 @@ def get_pending_payout():
         })
     except Exception as e:
         return error_response(f'Failed to fetch pending payout: {str(e)}', 500)
+
+
+@supplier_bp.route('/profile', methods=['GET'])
+@jwt_required()
+def get_supplier_profile():
+    """Get supplier's own profile including payment details."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if user.role != UserRole.SUPPLIER:
+            return error_response('Only suppliers can access this', 403)
+
+        if not user.supplier_profile:
+            return error_response('Supplier profile not found', 404)
+
+        return success_response(data=user.supplier_profile.to_dict())
+    except Exception as e:
+        return error_response(f'Failed to fetch profile: {str(e)}', 500)
+
+
+@supplier_bp.route('/profile/payment-phone', methods=['PUT'])
+@jwt_required()
+def request_payment_phone_change():
+    """Request a change to the payment phone number (requires admin approval)."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if user.role != UserRole.SUPPLIER:
+            return error_response('Only suppliers can access this', 403)
+
+        if not user.supplier_profile:
+            return error_response('Supplier profile not found', 404)
+
+        data = request.get_json()
+        new_phone = data.get('new_phone')
+        reason = data.get('reason', '')
+
+        if not new_phone:
+            return error_response('New phone number is required', 400)
+
+        # Validate phone format (basic validation for Kenyan numbers)
+        import re
+        if not re.match(r'^(\+254|254|0)?[17]\d{8}$', new_phone):
+            return error_response('Invalid phone number format', 400)
+
+        # Normalize phone number
+        if new_phone.startswith('+'):
+            new_phone = new_phone[1:]
+        if new_phone.startswith('0'):
+            new_phone = '254' + new_phone[1:]
+        if not new_phone.startswith('254'):
+            new_phone = '254' + new_phone
+
+        # Check if same as current
+        if new_phone == user.supplier_profile.mpesa_number:
+            return error_response('New phone is same as current phone', 400)
+
+        # Check if there's already a pending request
+        from app.models.user import PaymentPhoneChangeStatus
+        if user.supplier_profile.payment_phone_change_status == PaymentPhoneChangeStatus.PENDING:
+            return error_response(
+                'You already have a pending phone change request. Please wait for admin review.',
+                400
+            )
+
+        # Submit request
+        user.supplier_profile.request_payment_phone_change(new_phone, reason)
+        db.session.commit()
+
+        return success_response(
+            data=user.supplier_profile.to_dict(),
+            message='Phone change request submitted. Awaiting admin approval.'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to submit request: {str(e)}', 500)
+
+
+@supplier_bp.route('/profile/payment-phone/cancel', methods=['POST'])
+@jwt_required()
+def cancel_payment_phone_request():
+    """Cancel a pending payment phone change request."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if user.role != UserRole.SUPPLIER:
+            return error_response('Only suppliers can access this', 403)
+
+        if not user.supplier_profile:
+            return error_response('Supplier profile not found', 404)
+
+        from app.models.user import PaymentPhoneChangeStatus
+        if user.supplier_profile.payment_phone_change_status != PaymentPhoneChangeStatus.PENDING:
+            return error_response('No pending request to cancel', 400)
+
+        user.supplier_profile.payment_phone_pending = None
+        user.supplier_profile.payment_phone_change_status = None
+        user.supplier_profile.payment_phone_change_requested_at = None
+        user.supplier_profile.payment_phone_change_reason = None
+
+        db.session.commit()
+
+        return success_response(
+            data=user.supplier_profile.to_dict(),
+            message='Phone change request cancelled'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to cancel request: {str(e)}', 500)

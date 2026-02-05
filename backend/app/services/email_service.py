@@ -37,14 +37,35 @@ def send_order_confirmation_email(order, customer_email):
     """Send order confirmation email."""
     subject = f'Order Confirmation - {order.order_number}'
     
+    # Determine payment status display
+    payment_status = {
+        'pending': {'text': 'Payment Pending', 'color': '#eab308', 'bg': '#fef3c7'},
+        'paid': {'text': 'Payment Confirmed', 'color': '#10b981', 'bg': '#d1fae5'},
+        'failed': {'text': 'Payment Failed', 'color': '#ef4444', 'bg': '#fee2e2'}
+    }.get(order.payment_status.value if order.payment_status else 'pending', 
+          {'text': 'Payment Pending', 'color': '#eab308', 'bg': '#fef3c7'})
+    
+    # Calculate order summary
+    subtotal = sum(item.subtotal for item in order.items)
+    delivery_fee = order.delivery_fee or 0
+    
     text_body = f"""
-    Hi,
+    Hi {order.customer.first_name if order.customer else 'Customer'},
     
     Thank you for your order!
     
     Order Number: {order.order_number}
     Order Date: {order.created_at.strftime('%B %d, %Y')}
+    Payment Status: {payment_status['text']}
     Total: KES {order.total:,.2f}
+    
+    Order Items:
+    {''.join([f'• {item.product_name} x {item.quantity} - KES {item.subtotal:,.2f}\n    ' for item in order.items])}
+    
+    Delivery Address:
+    {order.delivery_address.full_name if order.delivery_address else 'N/A'}
+    {order.delivery_address.address_line_1 if order.delivery_address else ''}
+    {order.delivery_address.city if order.delivery_address else ''}, {order.delivery_address.county if order.delivery_address else ''}
     
     We'll send you another email when your order ships.
     
@@ -52,37 +73,135 @@ def send_order_confirmation_email(order, customer_email):
     Electronics Shop Team
     """
     
+    # Frontend URL for order tracking
+    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+    track_url = f"{frontend_url}/orders/{order.id}"
+    # Use Cloudinary hosted favicon
+    cloudinary_name = os.getenv('CLOUDINARY_CLOUD_NAME')
+    logo_url = f"https://res.cloudinary.com/{cloudinary_name}/image/upload/v1/fav.png"
+    logo_html = f'''<img src="{logo_url}" alt="Electronics Shop" style="height: 50px; width: auto; margin-bottom: 15px;">'''
+    
     html_body = f"""
+    <!DOCTYPE html>
     <html>
-    <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: #f97316; color: white; padding: 20px; text-align: center;">
-            <h1>Order Confirmed!</h1>
-        </div>
-        
-        <div style="padding: 20px;">
-            <p>Hi,</p>
-            <p>Thank you for your order! We're getting it ready for you.</p>
-            
-            <div style="background: #f3f4f6; padding: 15px; margin: 20px 0; border-radius: 8px;">
-                <h3 style="margin-top: 0;">Order Details</h3>
-                <p><strong>Order Number:</strong> {order.order_number}</p>
-                <p><strong>Order Date:</strong> {order.created_at.strftime('%B %d, %Y')}</p>
-                <p><strong>Total:</strong> KES {order.total:,.2f}</p>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Order Confirmation</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <!-- Header with Logo -->
+            <div style="background: linear-gradient(135deg, #f97316 0%, #ea580c 100%); color: white; padding: 30px 20px; text-align: center;">
+                {logo_html}
+                <h1 style="margin: 0; font-size: 28px; font-weight: bold;">Order Confirmed!</h1>
+                <p style="margin: 10px 0 0 0; font-size: 16px; opacity: 0.9;">Thank you for shopping with us</p>
             </div>
             
-            <h3>Order Items</h3>
-            {''.join([f'<p>• {item.product_name} x {item.quantity} - KES {item.subtotal:,.2f}</p>' for item in order.items])}
+            <!-- Order Status -->
+            <div style="padding: 20px; text-align: center; border-bottom: 1px solid #e5e7eb;">
+                <div style="display: inline-block; background: {payment_status['bg']}; color: {payment_status['color']}; padding: 8px 16px; border-radius: 20px; font-weight: bold; font-size: 14px;">
+                    {payment_status['text']}
+                </div>
+            </div>
             
-            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
-                <p>We'll send you another email when your order ships.</p>
-                <p style="color: #6b7280; font-size: 14px;">
-                    If you have any questions, please contact our support team.
+            <!-- Main Content -->
+            <div style="padding: 30px 20px;">
+                <p style="font-size: 16px; color: #374151; margin-bottom: 25px;">Hi {order.customer.first_name if order.customer else 'Customer'},</p>
+                <p style="font-size: 16px; color: #374151; margin-bottom: 30px;">Thank you for your order! We're getting it ready for you.</p>
+                
+                <!-- Order Details Card -->
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 25px; margin-bottom: 30px;">
+                    <h3 style="margin: 0 0 20px 0; color: #1f2937; font-size: 18px;">Order Details</h3>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span style="color: #6b7280;">Order Number:</span>
+                        <span style="font-weight: bold; color: #1f2937;">{order.order_number}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span style="color: #6b7280;">Order Date:</span>
+                        <span style="color: #1f2937;">{order.created_at.strftime('%B %d, %Y at %I:%M %p')}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span style="color: #6b7280;">Payment Method:</span>
+                        <span style="color: #1f2937; text-transform: capitalize;">{order.payment_method.value if order.payment_method else 'N/A'}</span>
+                    </div>
+                    {f'<div style="display: flex; justify-content: space-between;"><span style="color: #6b7280;">Payment Reference:</span><span style="color: #1f2937; font-family: monospace;">{order.payment_reference}</span></div>' if order.payment_reference else ''}
+                </div>
+                
+                <!-- Order Items -->
+                <div style="margin-bottom: 30px;">
+                    <h3 style="color: #1f2937; font-size: 18px; margin-bottom: 20px;">Order Items</h3>
+                    <div style="border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                        {''.join([f'''<div style="padding: 15px; border-bottom: 1px solid #f3f4f6; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <div style="font-weight: bold; color: #1f2937; margin-bottom: 5px;">{item.product_name}</div>
+                                <div style="color: #6b7280; font-size: 14px;">Quantity: {item.quantity}</div>
+                            </div>
+                            <div style="font-weight: bold; color: #1f2937;">KES {item.subtotal:,.2f}</div>
+                        </div>''' for item in order.items])}
+                    </div>
+                </div>
+                
+                <!-- Order Summary -->
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+                    <h3 style="margin: 0 0 15px 0; color: #1f2937; font-size: 16px;">Order Summary</h3>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #6b7280;">Subtotal:</span>
+                        <span style="color: #1f2937;">KES {subtotal:,.2f}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span style="color: #6b7280;">Delivery Fee:</span>
+                        <span style="color: #1f2937;">KES {delivery_fee:,.2f}</span>
+                    </div>
+                    <div style="border-top: 1px solid #e5e7eb; padding-top: 8px; margin-top: 8px;">
+                        <div style="display: flex; justify-content: space-between;">
+                            <span style="font-weight: bold; color: #1f2937; font-size: 18px;">Total:</span>
+                            <span style="font-weight: bold; color: #f97316; font-size: 18px;">KES {order.total:,.2f}</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Delivery Information -->
+                {f'''<div style="background: #f0f9ff; border: 1px solid #bae6fd; border-radius: 12px; padding: 20px; margin-bottom: 30px;">
+                    <h3 style="margin: 0 0 15px 0; color: #1f2937; font-size: 16px;">Delivery Information</h3>
+                    <div style="color: #374151; line-height: 1.6;">
+                        <strong>{order.delivery_address.full_name}</strong><br>
+                        {order.delivery_address.phone_number}<br>
+                        {order.delivery_address.address_line_1}<br>
+                        {order.delivery_address.address_line_2 + '<br>' if order.delivery_address.address_line_2 else ''}
+                        {order.delivery_address.city}, {order.delivery_address.county}<br>
+                        <strong>Delivery Zone:</strong> {order.delivery_zone or 'Standard'}
+                    </div>
+                </div>''' if order.delivery_address else ''}
+                
+                <!-- Action Buttons -->
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <a href="{track_url}" style="display: inline-block; background: #f97316; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; margin-right: 10px;">Track Your Order</a>
+                    <a href="{frontend_url}/contact" style="display: inline-block; background: transparent; color: #f97316; padding: 14px 28px; text-decoration: none; border: 2px solid #f97316; border-radius: 8px; font-weight: bold;">Contact Support</a>
+                </div>
+                
+                <!-- Next Steps -->
+                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin-bottom: 30px;">
+                    <h4 style="margin: 0 0 10px 0; color: #92400e;">What's Next?</h4>
+                    <ul style="margin: 0; padding-left: 20px; color: #92400e;">
+                        {f'<li>Complete your payment to process the order</li>' if order.payment_status and order.payment_status.value == 'pending' else '<li>Your order is being prepared for shipment</li>'}
+                        <li>We'll send you a shipping confirmation with tracking details</li>
+                        <li>Estimated delivery: 2-5 business days</li>
+                    </ul>
+                </div>
+                
+                <div style="text-align: center; color: #6b7280; font-size: 14px;">
+                    <p>Questions? Contact our support team at <a href="mailto:support@electronicsshop.com" style="color: #f97316;">support@electronicsshop.com</a></p>
+                </div>
+            </div>
+            
+            <!-- Footer -->
+            <div style="background: #f3f4f6; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+                <p style="margin: 0; color: #6b7280; font-size: 12px;">© 2026 Electronics Shop. All rights reserved.</p>
+                <p style="margin: 10px 0 0 0; color: #9ca3af; font-size: 11px;">
+                    This email was sent to {customer_email}. If you have any questions, please contact our support team.
                 </p>
             </div>
-        </div>
-        
-        <div style="background: #f3f4f6; padding: 15px; text-align: center; font-size: 12px; color: #6b7280;">
-            <p>© 2026 Electronics Shop. All rights reserved.</p>
         </div>
     </body>
     </html>

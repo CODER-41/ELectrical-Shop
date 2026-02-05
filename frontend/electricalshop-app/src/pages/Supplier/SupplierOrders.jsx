@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const SupplierOrders = () => {
-  const { user } = useSelector((state) => state.auth);
+  const { token } = useSelector((state) => state.auth);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -29,7 +29,7 @@ const SupplierOrders = () => {
       }
 
       const response = await axios.get(`${API_URL}/supplier/orders`, {
-        headers: { Authorization: `Bearer ${user.token}` },
+        headers: { Authorization: `Bearer ${token}` },
         params
       });
 

@@ -1,11 +1,11 @@
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getCategories, getBrands } from '../store/slices/productsSlice';
+import { getCategories, getBrands } from '../store/slices/supplierProductsSlice';
 import ProductForm from '../components/ProductForm';
 
 const AddProduct = () => {
   const dispatch = useDispatch();
-  const { categories, brands } = useSelector((state) => state.products);
+  const { categories, brands } = useSelector((state) => state.supplierProducts);
   
   useEffect(() => {
     // Fetch categories and brands if not already loaded

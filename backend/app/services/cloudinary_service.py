@@ -186,6 +186,33 @@ class CloudinaryService:
             transformation=transformation
         )
 
+    def upload_profile_image(self, file, user_id):
+        """
+        Upload a profile image.
+
+        Args:
+            file: Image file
+            user_id: User ID for naming
+
+        Returns:
+            dict: Upload result
+        """
+        transformation = {
+            'width': 300,
+            'height': 300,
+            'crop': 'fill',
+            'gravity': 'face',
+            'quality': 'auto:good',
+            'fetch_format': 'auto'
+        }
+
+        return self.upload_image(
+            file,
+            folder='users',
+            public_id=f'profile-{user_id}',
+            transformation=transformation
+        )
+
     def delete_image(self, public_id):
         """
         Delete an image from Cloudinary.

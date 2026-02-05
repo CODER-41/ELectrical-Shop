@@ -808,51 +808,51 @@ def google_callback():
     Handle Google OAuth callback.
     Exchanges code for tokens and creates/logs in user.
     """
-    code = request.args.get('code')
-    state = request.args.get('state')
-    error = request.args.get('error')
-
-    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
-    callback_url = f'{frontend_url}/auth/callback'
-
-    current_app.logger.info(f'Google OAuth callback received - Code: {code is not None}, State: {state}, Error: {error}')
-
-    # Handle OAuth errors from Google
-    if error:
-        current_app.logger.error(f'Google OAuth error: {error}')
-        return redirect(f'{callback_url}?error={error}')
-
-    if not code:
-        current_app.logger.error('No authorization code received')
-        return redirect(f'{callback_url}?error=no_code')
-
-    # Exchange code for tokens
-    current_app.logger.info('Exchanging authorization code for tokens')
-    token_result = google_oauth_service.exchange_code_for_tokens(code)
-    if not token_result['success']:
-        current_app.logger.error(f'Token exchange failed: {token_result.get("error")}')
-        return redirect(f'{callback_url}?error=token_exchange_failed')
-
-    # Get user info
-    current_app.logger.info('Fetching user info from Google')
-    user_info = google_oauth_service.get_user_info(token_result['access_token'])
-    if not user_info['success']:
-        current_app.logger.error(f'Failed to get user info: {user_info.get("error")}')
-        return redirect(f'{callback_url}?error=user_info_failed')
-
-    current_app.logger.info(f'User info received: {user_info["email"]}')
-
     try:
+        code = request.args.get('code')
+        state = request.args.get('state')
+        error = request.args.get('error')
+
+        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+        callback_url = f'{frontend_url}/auth/callback'
+
+        print(f'Google callback - Code: {code is not None}, State: {state}, Error: {error}')
+
+        # Handle OAuth errors from Google
+        if error:
+            print(f'Google OAuth error: {error}')
+            return redirect(f'{callback_url}?error={error}')
+
+        if not code:
+            print('No authorization code received')
+            return redirect(f'{callback_url}?error=no_code')
+
+        print('Exchanging authorization code for tokens')
+        token_result = google_oauth_service.exchange_code_for_tokens(code)
+        if not token_result['success']:
+            print(f'Token exchange failed: {token_result.get("error")}')
+            return redirect(f'{callback_url}?error=token_exchange_failed')
+
+        print('Fetching user info from Google')
+        user_info = google_oauth_service.get_user_info(token_result['access_token'])
+        if not user_info['success']:
+            print(f'Failed to get user info: {user_info.get("error")}')
+            return redirect(f'{callback_url}?error=user_info_failed')
+
+        print(f'User info received: {user_info["email"]}')
+
         # Check if user exists by Google ID
         user = User.query.filter_by(google_id=user_info['google_id']).first()
+        print(f'User found by Google ID: {user is not None}')
 
         if not user:
             # Check if user exists by email
             user = User.query.filter_by(email=user_info['email']).first()
+            print(f'User found by email: {user is not None}')
 
             if user:
                 # Link Google account to existing user
-                current_app.logger.info(f'Linking Google account to existing user: {user.email}')
+                print(f'Linking Google account to existing user: {user.email}')
                 user.google_id = user_info['google_id']
                 user.auth_provider = AuthProvider.GOOGLE
                 if user_info.get('picture'):
@@ -861,7 +861,7 @@ def google_callback():
                     user.is_verified = True
             else:
                 # Create new user
-                current_app.logger.info(f'Creating new user: {user_info["email"]}')
+                print(f'Creating new user: {user_info["email"]}')
                 user = User(
                     email=user_info['email'],
                     role=UserRole.CUSTOMER,
@@ -883,31 +883,16 @@ def google_callback():
                 db.session.add(profile)
 
         # Update last login
-        user.last_login = datetime.now(timezone.utc)
+        user.last_login = datetime.utcnow()
         db.session.commit()
-
-        current_app.logger.info(f'User authentication successful: {user.email}')
+        print(f'User authentication successful: {user.email}')
 
         # Create JWT tokens
         access_token = create_access_token(identity=user.id)
         refresh_token = create_refresh_token(identity=user.id)
-
-        # Create session
-        session = Session(
-            user_id=user.id,
-            token=access_token,
-            refresh_token=refresh_token,
-            ip_address=request.remote_addr,
-            user_agent=request.headers.get('User-Agent', ''),
-            expires_at=datetime.now(timezone.utc) + timedelta(days=7)
-        )
-        db.session.add(session)
-        db.session.commit()
-
-        current_app.logger.info(f'OAuth flow completed successfully for user: {user.email}')
+        print('JWT tokens created successfully')
 
         # Redirect to frontend with tokens
-        # Note: In production, consider using httpOnly cookies instead of URL params
         from urllib.parse import urlencode
         
         redirect_params = {
@@ -918,13 +903,14 @@ def google_callback():
         }
         
         redirect_url = f'{callback_url}?{urlencode(redirect_params)}'
-        
-        current_app.logger.info(f'Redirecting to: {redirect_url}')
+        print(f'Redirecting to: {redirect_url}')
         return redirect(redirect_url)
 
     except Exception as e:
         db.session.rollback()
-        current_app.logger.error(f'Google OAuth callback error: {str(e)}', exc_info=True)
+        print(f'Google OAuth callback error: {str(e)}')
+        import traceback
+        traceback.print_exc()
         return redirect(f'{callback_url}?error=server_error')
 
 
@@ -996,12 +982,15 @@ def google_token_auth():
                 # Note: Supplier profile requires more info, handled separately
 
         # Update last login
-        user.last_login = datetime.now(timezone.utc)
+        user.last_login = datetime.utcnow()
 
         # Create JWT tokens
         access_token = create_access_token(identity=user.id)
         refresh_token = create_refresh_token(identity=user.id)
 
+        # Delete any existing sessions for this user to avoid conflicts
+        Session.query.filter_by(user_id=user.id).delete()
+        
         # Create session
         session = Session(
             user_id=user.id,
@@ -1009,7 +998,7 @@ def google_token_auth():
             refresh_token=refresh_token,
             ip_address=request.remote_addr,
             user_agent=request.headers.get('User-Agent', ''),
-            expires_at=datetime.now(timezone.utc) + timedelta(days=7)
+            expires_at=datetime.utcnow() + timedelta(days=7)
         )
         db.session.add(session)
         db.session.commit()

@@ -1,13 +1,14 @@
 import { useState, useEffect } from "react";
 import { useNavigate} from "react-router-dom";
 import {useDispatch, useSelector} from "react-redux";
-// import { createProduct, updateProduct } from "../actions/productActions";
+import { createProduct, updateProduct, uploadProductImage, getCategories, getBrands } from "../store/slices/supplierProductsSlice";
 import {toast} from "react-toastify";
+import ImageUpload from './ImageUpload';
 
 const ProductForm = ({ product = null, isEdit = false }) => {
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    const { categories, brands, isLoading } = useSelector((state) => state.appData);
+    const { categories, brands, isLoading } = useSelector((state) => state.supplierProducts);
 
     const [formData, setFormData] = useState({
         name: product?.name || "",
@@ -28,8 +29,17 @@ const ProductForm = ({ product = null, isEdit = false }) => {
     );
 
     const [newSpec, setNewSpec] = useState({ key: "", value: "" });
-    const [uploading, setUploading] = useState(false);
     const [suggestedSpecs, setSuggestedSpecs] = useState([]);
+
+    useEffect(() => {
+        // Fetch categories and brands if not already loaded
+        if (categories.length === 0) {
+            dispatch(getCategories());
+        }
+        if (brands.length === 0) {
+            dispatch(getBrands());
+        }
+    }, [dispatch, categories.length, brands.length]);
 
     useEffect(() => {
         // Fetch suggested specifications based on category
@@ -61,42 +71,8 @@ const ProductForm = ({ product = null, isEdit = false }) => {
         });
     };
     
-    const handleImageUpload = () => {
-        // Simulate image upload
-        setUploading(true);
-
-        // Cloudinary upload widget code
-        if (window.cloudinary) {
-            window.cloudinary.openUploadWidget(
-                {
-                    cloudName: import.meta.env.VITE_CLOUDINARY_CLOUD_NAME || "demo",
-                    uploadPreset: import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || "ml_default",
-                    sources: ["local", "url", "camera"],
-                    multiple: false,
-                    maxFileSize: 5000000, // 5MB
-                    clientAllowedFormats: ["png", "jpeg", "jpg", "webp"],
-                    cropping: true,
-                    croppingAspectRatio: 1,
-                    folder: "electricalshop_products",
-                    context: { alt: formData.name || "product" },
-                },
-                (error, result) => {
-                    setUploading(false);
-                    if (error) {
-                        toast.error("Image upload failed. Please try again.");
-                        return;
-                    }
-                    if (result.event === "success") {
-                        const imageUrl = result.info.secure_url;
-                        setFormData(prev => ({ ...prev, image_url: imageUrl }));
-                        toast.success("Image uploaded successfully!");
-                    }
-                }
-            );
-        } else {
-            setUploading(false);
-            toast.error("Cloudinary widget not loaded. Please refresh the page.");
-        }
+    const handleImageUploaded = (imageUrl) => {
+        setFormData(prev => ({ ...prev, image_url: imageUrl }));
     };
 
     const handleSubmit = async (e) => {
@@ -132,17 +108,16 @@ const ProductForm = ({ product = null, isEdit = false }) => {
         try {
             // Dispatch createProduct or updateProduct action based on isEdit prop
             if (isEdit) {
-                await dispatch(updateProduct(product.id, productData));
+                await dispatch(updateProduct({ id: product.id, productData })).unwrap();
                 toast.success("Product updated successfully!");
             } else {
-                await dispatch(createProduct(productData)).unWrap();
+                await dispatch(createProduct(productData)).unwrap();
                 toast.success("Product created successfully!");
             }
             navigate("/supplier/products");
         } catch (error) {
             console.error("Error submitting product form:", error);
-            // toast.error("Failed to create product. Please try again.");
-            // error toast handled by Redux slice
+            toast.error(error || "Failed to save product. Please try again.");
         }
     };
 
@@ -225,7 +200,7 @@ const ProductForm = ({ product = null, isEdit = false }) => {
                     >
                         <option value="">Select a condition</option>
                         <option value="new">New</option>
-                        <option value="used">Used</option>
+                        <option value="refurbished">Refurbished</option>
                     </select>
                  </div>
                  {/* Warranty Period */}
@@ -315,48 +290,44 @@ const ProductForm = ({ product = null, isEdit = false }) => {
             {/* Product Image */}
             <div className="card">
                 <h2 className="text-xl font-bold text-gray-900 mb-6">Product Image</h2>
-                <div className="space-y-4">
-                    {/* Image Preview */}
-                    {formData.image_url ? (
-                        <div className="relative w-48 h-48 border rounded-md overflow-hidden">
-                            <img
-                                src={formData.image_url}
-                                alt="Product-preview"
-                                className="w-full h-full object-cover"
-                            />
-                            <button
-                                type="button"
-                                onClick={() => setFormData(prev => ({ ...prev, image_url: "" }))}
-                                className="absolute top-2 right-2 bg-red-600 text-white rounded-full p-1 hover:bg-red-700"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                                    </svg>
-                            </button>
-                        </div>
-                    ) : (
-                        <div className="w-full h-64 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <div className="text-center">
-                                <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                </svg>
-                                <p className="mt-2 text-sm text-gray-500">No image uploaded</p>
-                            </div>
-                        </div>
-                    )}
-                    {/* Upload Button */}
-                    <button
-                        type="button"
-                        onClick={handleImageUpload}
-                        disabled={uploading}
-                        className="btn btn-outline w-full"
-                        >
-                            {uploading ? "Uploading..." : (formData.image_url ? "Change Image" : "Upload Image")}
-                        </button>
-                        <p className="text-sm text-gray-500">
-                            Maximum file size: 5MB. Allowed formats: PNG, JPEG, JPG, WEBP.
-                        </p>    
-                </div>  
+                
+                {/* Image URL Input */}
+                <div className="mb-4">
+                    <label htmlFor="image_url" className="form-label">
+                        Image URL (Optional)
+                    </label>
+                    <input
+                        type="url"
+                        id="image_url"
+                        name="image_url"
+                        value={formData.image_url}
+                        onChange={handleChange}
+                        className="input"
+                        placeholder="https://example.com/image.jpg"
+                    />
+                    <p className="text-sm text-gray-500 mt-1">
+                        You can provide a direct image URL or upload a file below
+                    </p>
+                </div>
+                
+                {/* Divider */}
+                <div className="relative mb-4">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-300" />
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                        <span className="px-2 bg-white text-gray-500">OR</span>
+                    </div>
+                </div>
+                
+                {/* File Upload */}
+                <ImageUpload
+                    currentImageUrl={formData.image_url}
+                    onImageUploaded={handleImageUploaded}
+                    maxSize={5 * 1024 * 1024} // 5MB
+                    acceptedTypes={['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif']}
+                    showPreview={true}
+                />
             </div>
             {/* Descriptions Section */}
             <div className="card">
@@ -413,7 +384,7 @@ const ProductForm = ({ product = null, isEdit = false }) => {
                                 <button
                                     key={spec}
                                     type="button"
-                                    onClick={() => setNewSpec({ ...prev, key: spec })}
+                                    onClick={() => setNewSpec(prev => ({ ...prev, key: spec }))}
                                     className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full hover:bg-blue-200"
                                 >
                                     {spec}

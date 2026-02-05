@@ -32,8 +32,9 @@ const Checkout = () => {
   const dispatch = useDispatch();
   const { initiateMpesaPayment, isProcessing: isPaymentProcessing } = usePayment();
   
-  const { items, subtotal } = useSelector((state) => state.cart);
+  const { items, totalPrice } = useSelector((state) => state.cart);
   const { addresses, selectedAddress, deliveryFee, isLoading } = useSelector((state) => state.orders);
+  const { user, token } = useSelector((state) => state.auth);
   
   const [step, setStep] = useState(1); // 1: Address, 2: Payment, 3: Review
   const [showAddressForm, setShowAddressForm] = useState(false);
@@ -55,6 +56,13 @@ const Checkout = () => {
   });
   
   useEffect(() => {
+    // Check authentication
+    if (!user || !token) {
+      toast.error('Please log in to continue');
+      navigate('/login');
+      return;
+    }
+    
     if (items.length === 0) {
       toast.info('Your cart is empty');
       navigate('/products');
@@ -62,7 +70,7 @@ const Checkout = () => {
     }
     
     dispatch(getAddresses());
-  }, [dispatch, items.length, navigate]);
+  }, [dispatch, items.length, navigate, user, token]);
   
   useEffect(() => {
     return () => {
@@ -178,7 +186,7 @@ const Checkout = () => {
     }
   };
   
-  const total = deliveryFee ? subtotal + deliveryFee.delivery_fee : subtotal;
+  const total = deliveryFee ? totalPrice + deliveryFee.delivery_fee : totalPrice;
   
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -552,52 +560,137 @@ const Checkout = () => {
           {/* Step 3: Review Order */}
           {step === 3 && (
             <div className="space-y-6">
-              <div className="card">
-                <button onClick={() => setStep(2)} className="mb-4 text-primary hover:text-primary-700">
-                  ← Back to Payment
+              <div className="bg-white shadow-xl rounded-2xl overflow-hidden border border-gray-100">
+                <button onClick={() => setStep(2)} className="m-6 mb-4 text-primary hover:text-primary-700 flex items-center transition-colors duration-200">
+                  <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                  </svg>
+                  Back to Payment
                 </button>
                 
-                <h2 className="text-xl font-bold text-gray-900 mb-6">Review Your Order</h2>
-                
-                {/* Items */}
-                <div className="space-y-4 mb-6">
-                  <h3 className="font-semibold text-gray-900">Items ({items.length})</h3>
-                  {items.map((item) => (
-                    <div key={item.id} className="flex items-center space-x-4 pb-4 border-b">
-                      <img
-                        src={item.image_url || '/placeholder.png'}
-                        alt={item.name}
-                        className="w-16 h-16 object-cover rounded"
-                      />
-                      <div className="flex-1">
-                        <p className="font-medium text-gray-900">{item.name}</p>
-                        <p className="text-sm text-gray-600">Qty: {item.quantity}</p>
-                      </div>
-                      <p className="font-semibold text-gray-900">
-                        {formatPrice(item.price * item.quantity)}
-                      </p>
+                <div className="px-6 pb-6">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-6 pb-4 border-b border-gray-200">Review Your Order</h2>
+                  
+                  {/* Items Section */}
+                  <div className="mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900">Order Items</h3>
+                      <span className="bg-primary-100 text-primary-800 px-3 py-1 rounded-full text-sm font-medium">
+                        {items.length} {items.length === 1 ? 'item' : 'items'}
+                      </span>
                     </div>
-                  ))}
-                </div>
-                
-                {/* Delivery Address */}
-                <div className="mb-6">
-                  <h3 className="font-semibold text-gray-900 mb-2">Delivery Address</h3>
-                  <div className="text-sm text-gray-600">
-                    <p className="font-medium text-gray-900">{selectedAddress?.full_name}</p>
-                    <p>{selectedAddress?.phone_number}</p>
-                    <p>{selectedAddress?.address_line_1}</p>
-                    {selectedAddress?.address_line_2 && <p>{selectedAddress.address_line_2}</p>}
-                    <p>{selectedAddress?.city}, {selectedAddress?.county}</p>
+                    <div className="bg-gray-50 rounded-xl p-4 space-y-4">
+                      {items.map((item) => (
+                        <div key={item.id} className="flex items-center space-x-4 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                          <div className="relative">
+                            <img
+                              src={item.image_url || '/placeholder.png'}
+                              alt={item.name}
+                              className="w-20 h-20 object-cover rounded-lg border border-gray-200"
+                            />
+                            <span className="absolute -top-2 -right-2 bg-primary text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center">
+                              {item.quantity}
+                            </span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 text-lg truncate">{item.name}</p>
+                            <p className="text-sm text-gray-600 mt-1">Quantity: {item.quantity}</p>
+                            <p className="text-xs text-gray-500 mt-1">{item.brand} • {item.category}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-gray-900 text-lg">
+                              {formatPrice(item.price * item.quantity)}
+                            </p>
+                            <p className="text-sm text-gray-500">
+                              {formatPrice(item.price)} each
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                </div>
-                
-                {/* Payment Method */}
-                <div>
-                  <h3 className="font-semibold text-gray-900 mb-2">Payment Method</h3>
-                  <p className="text-sm text-gray-600 capitalize">{paymentMethod}</p>
-                  {paymentMethod === 'mpesa' && (
-                    <p className="text-sm text-gray-600">{mpesaNumber}</p>
+                  
+                  {/* Delivery Address Section */}
+                  <div className="mb-8">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Delivery Address
+                    </h3>
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6">
+                      <div className="flex items-start space-x-4">
+                        <div className="bg-blue-100 p-2 rounded-lg">
+                          <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                          </svg>
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <p className="font-bold text-gray-900 text-lg">{selectedAddress?.full_name}</p>
+                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-medium">
+                              {selectedAddress?.label}
+                            </span>
+                          </div>
+                          <p className="text-gray-700 font-medium">{selectedAddress?.phone_number}</p>
+                          <div className="mt-2 text-gray-600">
+                            <p>{selectedAddress?.address_line_1}</p>
+                            {selectedAddress?.address_line_2 && <p>{selectedAddress.address_line_2}</p>}
+                            <p className="font-medium">{selectedAddress?.city}, {selectedAddress?.county}</p>
+                            {selectedAddress?.postal_code && <p>Postal Code: {selectedAddress.postal_code}</p>}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Payment Method Section */}
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                      </svg>
+                      Payment Method
+                    </h3>
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
+                      <div className="flex items-center space-x-4">
+                        <div className="bg-green-100 p-2 rounded-lg">
+                          {paymentMethod === 'mpesa' ? (
+                            <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                            </svg>
+                          ) : (
+                            <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-bold text-gray-900 text-lg capitalize">{paymentMethod}</p>
+                          {paymentMethod === 'mpesa' && (
+                            <p className="text-gray-700 font-medium">{mpesaNumber}</p>
+                          )}
+                          {paymentMethod === 'cash' && (
+                            <p className="text-gray-600">Pay when your order is delivered</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Order Notes */}
+                  {orderNotes && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                        <svg className="w-5 h-5 mr-2 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z" />
+                        </svg>
+                        Order Notes
+                      </h3>
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4">
+                        <p className="text-gray-700 italic">"{orderNotes}"</p>
+                      </div>
+                    </div>
                   )}
                 </div>
               </div>
@@ -605,9 +698,24 @@ const Checkout = () => {
               <button
                 onClick={handlePlaceOrder}
                 disabled={isLoading || isPaymentProcessing}
-                className="btn btn-primary w-full py-4 text-lg"
+                className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-4 px-6 rounded-xl font-bold text-lg shadow-lg hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 transform hover:scale-[1.02] flex items-center justify-center space-x-3"
               >
-                {isLoading || isPaymentProcessing ? 'Processing...' : 'Place Order'}
+                {isLoading || isPaymentProcessing ? (
+                  <>
+                    <svg className="animate-spin h-6 w-6" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span>Processing Order...</span>
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    <span>Place Order</span>
+                  </>
+                )}
               </button>
             </div>
           )}
@@ -615,50 +723,108 @@ const Checkout = () => {
         
         {/* Order Summary Sidebar */}
         <div className="lg:col-span-1">
-          <div className="card sticky top-4">
-            <h2 className="text-xl font-bold text-gray-900 mb-6">Order Summary</h2>
+          <div className="bg-white shadow-xl rounded-2xl p-6 sticky top-4 border border-gray-100">
+            <h2 className="text-xl font-bold text-gray-900 mb-6 pb-3 border-b border-gray-200">Order Summary</h2>
             
             <div className="space-y-4">
-              <div className="flex justify-between text-gray-700">
-                <span>Subtotal ({items.length} items)</span>
-                <span className="font-semibold">{formatPrice(subtotal)}</span>
-              </div>
-              
-              {deliveryFee && (
-                <>
-                  <div className="flex justify-between text-gray-700">
-                    <span>Delivery ({deliveryFee.zone_name})</span>
-                    <span className="font-semibold">{formatPrice(deliveryFee.delivery_fee)}</span>
+              {/* Items List */}
+              <div className="space-y-3 mb-4">
+                {items.map((item) => (
+                  <div key={item.id} className="flex items-center space-x-3 py-2">
+                    <img
+                      src={item.image_url || '/placeholder.png'}
+                      alt={item.name}
+                      className="w-12 h-12 object-cover rounded-lg border border-gray-200"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
+                      <p className="text-xs text-gray-500">Qty: {item.quantity}</p>
+                    </div>
+                    <p className="text-sm font-semibold text-gray-900">
+                      {formatPrice(item.price * item.quantity)}
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-500">
-                    Estimated delivery: {deliveryFee.estimated_days} {deliveryFee.estimated_days === 1 ? 'day' : 'days'}
-                  </p>
-                </>
-              )}
+                ))}
+              </div>
               
-              {!deliveryFee && selectedAddress && (
-                <div className="flex items-center text-sm text-gray-500">
-                  <svg className="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  Calculating delivery fee...
+              <div className="border-t border-gray-200 pt-4 space-y-3">
+                <div className="flex justify-between text-gray-700">
+                  <span className="text-sm">Subtotal ({items.length} {items.length === 1 ? 'item' : 'items'})</span>
+                  <span className="font-semibold">{formatPrice(totalPrice)}</span>
                 </div>
-              )}
+                
+                {deliveryFee ? (
+                  <>
+                    <div className="flex justify-between text-gray-700">
+                      <span className="text-sm">Delivery ({deliveryFee.zone_name})</span>
+                      <span className="font-semibold">{formatPrice(deliveryFee.delivery_fee)}</span>
+                    </div>
+                    <div className="flex items-center text-xs text-gray-500">
+                      <svg className="w-4 h-4 mr-1 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Estimated delivery: {deliveryFee.estimated_days} {deliveryFee.estimated_days === 1 ? 'day' : 'days'}
+                    </div>
+                  </>
+                ) : selectedAddress ? (
+                  <div className="flex items-center justify-between text-gray-500">
+                    <span className="text-sm">Delivery fee</span>
+                    <div className="flex items-center text-sm">
+                      <svg className="animate-spin h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Calculating...
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex justify-between text-gray-500">
+                    <span className="text-sm">Delivery fee</span>
+                    <span className="text-sm">Select address first</span>
+                  </div>
+                )}
+              </div>
               
-              <div className="border-t border-gray-200 pt-4">
-                <div className="flex justify-between text-lg font-bold text-gray-900">
-                  <span>Total</span>
-                  <span className="text-primary">{formatPrice(total)}</span>
+              <div className="border-t-2 border-gray-200 pt-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-lg font-bold text-gray-900">Total</span>
+                  <div className="text-right">
+                    <span className="text-2xl font-bold text-primary">
+                      {deliveryFee ? formatPrice(totalPrice + deliveryFee.delivery_fee) : formatPrice(totalPrice)}
+                    </span>
+                    {!deliveryFee && selectedAddress && (
+                      <p className="text-xs text-gray-500 mt-1">+ delivery fee</p>
+                    )}
+                  </div>
                 </div>
               </div>
+              
+              {/* Savings badge */}
+              {totalPrice > 5000 && (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                  <div className="flex items-center">
+                    <svg className="w-5 h-5 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <p className="text-sm font-medium text-green-800">Great choice!</p>
+                      <p className="text-xs text-green-600">Free delivery on orders over KES 5,000</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               
               {/* Security Badge */}
-              <div className="flex items-center justify-center text-sm text-gray-600 pt-4 border-t">
+              <div className="flex items-center justify-center text-sm text-gray-600 pt-4 border-t border-gray-100">
                 <svg className="w-5 h-5 mr-2 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                 </svg>
-                Secure checkout
+                <span className="font-medium">Secure checkout</span>
+              </div>
+              
+              {/* Return policy */}
+              <div className="text-center text-xs text-gray-500 pt-2">
+                <p>30-day return policy • Customer support available</p>
               </div>
             </div>
           </div>

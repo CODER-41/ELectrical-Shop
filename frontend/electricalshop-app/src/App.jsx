@@ -31,12 +31,19 @@ import FAQs from './pages/FAQs';
 import ReturnsPolicy from './pages/ReturnsPolicy';
 import WarrantyInfo from './pages/WarrantyInfo';
 import ContactUs from './pages/ContactUs';
+import EditProfile from './pages/EditProfile';
+import Settings from './pages/Settings';
 
 // Supplier Pages
 import SupplierDashboard from './pages/Supplier/SupplierDashboard';
 import SupplierOrders from './pages/Supplier/SupplierOrders';
 import SupplierAnalytics from './pages/Supplier/SupplierAnalytics';
 import SupplierPayouts from './pages/Supplier/SupplierPayouts';
+
+// Delivery Agent Pages
+import DeliveryDashboard from './pages/Delivery/DeliveryDashboard';
+import DeliveryOrders from './pages/Delivery/DeliveryOrders';
+import DeliveryPayouts from './pages/Delivery/DeliveryPayouts';
 
 // Admin Pages
 import AdminDashboard from './pages/Admin/AdminDashboard';
@@ -47,6 +54,7 @@ import AdminReturns from './pages/Admin/AdminReturns';
 import AdminPayouts from './pages/Admin/AdminPayouts';
 import AdminDeliveryZones from './pages/Admin/AdminDeliveryZones';
 import AdminCategories from './pages/Admin/AdminCategories';
+import AdminDeliveryManagement from './pages/Admin/AdminDeliveryManagement';
 
 // Returns Pages
 import RequestReturn from './pages/Returns/RequestReturn';
@@ -85,6 +93,22 @@ function App() {
               element={
                 <ProtectedRoute>
                   <Profile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile/edit"
+              element={
+                <ProtectedRoute>
+                  <EditProfile />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <Settings />
                 </ProtectedRoute>
               }
             />
@@ -145,6 +169,22 @@ function App() {
               }
             />
             <Route
+              path="/supplier-products"
+              element={
+                <ProtectedRoute allowedRoles={['supplier']}>
+                  <SupplierProducts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/add-product"
+              element={
+                <ProtectedRoute allowedRoles={['supplier']}>
+                  <AddProduct />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/supplier/products/new"
               element={
                 <ProtectedRoute allowedRoles={['supplier']}>
@@ -184,7 +224,33 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            
+
+            {/* Delivery Agent Routes */}
+            <Route
+              path="/delivery/dashboard"
+              element={
+                <ProtectedRoute allowedRoles={['delivery_agent']}>
+                  <DeliveryDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/delivery/orders"
+              element={
+                <ProtectedRoute allowedRoles={['delivery_agent']}>
+                  <DeliveryOrders />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/delivery/payouts"
+              element={
+                <ProtectedRoute allowedRoles={['delivery_agent']}>
+                  <DeliveryPayouts />
+                </ProtectedRoute>
+              }
+            />
+
             {/* Admin Routes */}
             <Route
               path="/admin/dashboard"
@@ -247,6 +313,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['admin', 'product_manager']}>
                   <AdminCategories />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/delivery"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'support_admin']}>
+                  <AdminDeliveryManagement />
                 </ProtectedRoute>
               }
             />
