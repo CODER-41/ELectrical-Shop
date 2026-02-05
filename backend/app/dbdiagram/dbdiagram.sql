@@ -5,6 +5,8 @@ CREATE TABLE "users" (
   "role" varchar,
   "is_active" boolean,
   "is_verified" boolean,
+  "two_fa_enabled" boolean,
+  "two_fa_secret" varchar,
   "auth_provider" varchar,
   "google_id" varchar,
   "profile_picture" varchar,
@@ -21,7 +23,8 @@ CREATE TABLE "customer_profiles" (
   "phone_number" varchar,
   "mpesa_number" varchar,
   "default_address_id" uuid,
-  "created_at" timestamp
+  "created_at" timestamp,
+  "updated_at" timestamp
 );
 
 CREATE TABLE "supplier_profiles" (
@@ -43,7 +46,8 @@ CREATE TABLE "supplier_profiles" (
   "payment_phone_change_reviewed_at" timestamp,
   "payment_phone_change_reviewed_by" uuid,
   "payment_phone_change_reason" varchar,
-  "created_at" timestamp
+  "created_at" timestamp,
+  "updated_at" timestamp
 );
 
 CREATE TABLE "admin_profiles" (
@@ -53,7 +57,8 @@ CREATE TABLE "admin_profiles" (
   "last_name" varchar,
   "phone_number" varchar,
   "permissions" json,
-  "created_at" timestamp
+  "created_at" timestamp,
+  "updated_at" timestamp
 );
 
 CREATE TABLE "delivery_agent_profiles" (
@@ -180,6 +185,8 @@ CREATE TABLE "orders" (
   "order_number" varchar UNIQUE,
   "customer_id" uuid,
   "delivery_address_id" uuid,
+  "assigned_delivery_agent" uuid,
+  "assigned_delivery_company" uuid,
   "delivery_fee" decimal,
   "subtotal" decimal,
   "total" decimal,
@@ -192,8 +199,6 @@ CREATE TABLE "orders" (
   "cod_amount_collected" decimal,
   "cod_verified_by" uuid,
   "cod_verified_at" timestamp,
-  "assigned_delivery_agent" uuid,
-  "assigned_delivery_company" uuid,
   "delivery_confirmed_by_agent" boolean,
   "delivery_confirmed_at" timestamp,
   "delivery_proof_photo" varchar,
@@ -334,66 +339,99 @@ CREATE TABLE "delivery_zone_requests" (
   "reviewed_by" uuid
 );
 
-ALTER TABLE "users" ADD FOREIGN KEY ("id") REFERENCES "customer_profiles" ("user_id");
+CREATE TABLE "audit_logs" (
+  "id" uuid PRIMARY KEY,
+  "user_id" uuid,
+  "action" varchar,
+  "entity_type" varchar,
+  "entity_id" uuid,
+  "old_values" json,
+  "new_values" json,
+  "description" text,
+  "ip_address" varchar,
+  "user_agent" varchar,
+  "created_at" timestamp
+);
 
-ALTER TABLE "users" ADD FOREIGN KEY ("id") REFERENCES "supplier_profiles" ("user_id");
+CREATE TABLE "otps" (
+  "id" uuid PRIMARY KEY,
+  "email" varchar,
+  "code" varchar,
+  "purpose" varchar,
+  "is_used" boolean,
+  "attempts" int,
+  "expires_at" timestamp,
+  "created_at" timestamp
+);
 
-ALTER TABLE "users" ADD FOREIGN KEY ("id") REFERENCES "admin_profiles" ("user_id");
+ALTER TABLE "customer_profiles" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
 
-ALTER TABLE "users" ADD FOREIGN KEY ("id") REFERENCES "delivery_agent_profiles" ("user_id");
+ALTER TABLE "supplier_profiles" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
 
-ALTER TABLE "users" ADD FOREIGN KEY ("id") REFERENCES "addresses" ("user_id");
+ALTER TABLE "supplier_profiles" ADD FOREIGN KEY ("payment_phone_change_reviewed_by") REFERENCES "users" ("id");
 
-ALTER TABLE "delivery_zones" ADD FOREIGN KEY ("id") REFERENCES "addresses" ("delivery_zone_id");
+ALTER TABLE "admin_profiles" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
 
-ALTER TABLE "supplier_profiles" ADD FOREIGN KEY ("id") REFERENCES "products" ("supplier_id");
+ALTER TABLE "delivery_agent_profiles" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
 
-ALTER TABLE "categories" ADD FOREIGN KEY ("id") REFERENCES "products" ("category_id");
+ALTER TABLE "addresses" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
 
-ALTER TABLE "brands" ADD FOREIGN KEY ("id") REFERENCES "products" ("brand_id");
+ALTER TABLE "addresses" ADD FOREIGN KEY ("delivery_zone_id") REFERENCES "delivery_zones" ("id");
 
-ALTER TABLE "customer_profiles" ADD FOREIGN KEY ("id") REFERENCES "cart" ("customer_id");
+ALTER TABLE "products" ADD FOREIGN KEY ("supplier_id") REFERENCES "supplier_profiles" ("id");
 
-ALTER TABLE "cart" ADD FOREIGN KEY ("id") REFERENCES "cart_items" ("cart_id");
+ALTER TABLE "products" ADD FOREIGN KEY ("category_id") REFERENCES "categories" ("id");
 
-ALTER TABLE "products" ADD FOREIGN KEY ("id") REFERENCES "cart_items" ("product_id");
+ALTER TABLE "products" ADD FOREIGN KEY ("brand_id") REFERENCES "brands" ("id");
 
-ALTER TABLE "customer_profiles" ADD FOREIGN KEY ("id") REFERENCES "orders" ("customer_id");
+ALTER TABLE "cart" ADD FOREIGN KEY ("customer_id") REFERENCES "customer_profiles" ("id");
 
-ALTER TABLE "addresses" ADD FOREIGN KEY ("id") REFERENCES "orders" ("delivery_address_id");
+ALTER TABLE "cart_items" ADD FOREIGN KEY ("cart_id") REFERENCES "cart" ("id");
 
-ALTER TABLE "delivery_agent_profiles" ADD FOREIGN KEY ("id") REFERENCES "orders" ("assigned_delivery_agent");
+ALTER TABLE "cart_items" ADD FOREIGN KEY ("product_id") REFERENCES "products" ("id");
 
-ALTER TABLE "delivery_companies" ADD FOREIGN KEY ("id") REFERENCES "orders" ("assigned_delivery_company");
+ALTER TABLE "orders" ADD FOREIGN KEY ("customer_id") REFERENCES "customer_profiles" ("id");
 
-ALTER TABLE "orders" ADD FOREIGN KEY ("id") REFERENCES "order_items" ("order_id");
+ALTER TABLE "orders" ADD FOREIGN KEY ("delivery_address_id") REFERENCES "addresses" ("id");
 
-ALTER TABLE "products" ADD FOREIGN KEY ("id") REFERENCES "order_items" ("product_id");
+ALTER TABLE "orders" ADD FOREIGN KEY ("assigned_delivery_agent") REFERENCES "delivery_agent_profiles" ("id");
 
-ALTER TABLE "supplier_profiles" ADD FOREIGN KEY ("id") REFERENCES "order_items" ("supplier_id");
+ALTER TABLE "orders" ADD FOREIGN KEY ("assigned_delivery_company") REFERENCES "delivery_companies" ("id");
 
-ALTER TABLE "orders" ADD FOREIGN KEY ("id") REFERENCES "transactions" ("order_id");
+ALTER TABLE "orders" ADD FOREIGN KEY ("cod_collected_by") REFERENCES "users" ("id");
 
-ALTER TABLE "supplier_profiles" ADD FOREIGN KEY ("id") REFERENCES "supplier_payouts" ("supplier_id");
+ALTER TABLE "orders" ADD FOREIGN KEY ("cod_verified_by") REFERENCES "users" ("id");
 
-ALTER TABLE "users" ADD FOREIGN KEY ("id") REFERENCES "supplier_payouts" ("created_by");
+ALTER TABLE "order_items" ADD FOREIGN KEY ("order_id") REFERENCES "orders" ("id");
 
-ALTER TABLE "delivery_agent_profiles" ADD FOREIGN KEY ("id") REFERENCES "delivery_payouts" ("delivery_agent_id");
+ALTER TABLE "order_items" ADD FOREIGN KEY ("product_id") REFERENCES "products" ("id");
 
-ALTER TABLE "delivery_companies" ADD FOREIGN KEY ("id") REFERENCES "delivery_payouts" ("delivery_company_id");
+ALTER TABLE "order_items" ADD FOREIGN KEY ("supplier_id") REFERENCES "supplier_profiles" ("id");
 
-ALTER TABLE "users" ADD FOREIGN KEY ("id") REFERENCES "delivery_payouts" ("processed_by");
+ALTER TABLE "transactions" ADD FOREIGN KEY ("order_id") REFERENCES "orders" ("id");
 
-ALTER TABLE "orders" ADD FOREIGN KEY ("id") REFERENCES "returns" ("order_id");
+ALTER TABLE "supplier_payouts" ADD FOREIGN KEY ("supplier_id") REFERENCES "supplier_profiles" ("id");
 
-ALTER TABLE "users" ADD FOREIGN KEY ("id") REFERENCES "returns" ("user_id");
+ALTER TABLE "supplier_payouts" ADD FOREIGN KEY ("created_by") REFERENCES "users" ("id");
 
-ALTER TABLE "users" ADD FOREIGN KEY ("id") REFERENCES "notifications" ("user_id");
+ALTER TABLE "delivery_payouts" ADD FOREIGN KEY ("delivery_agent_id") REFERENCES "delivery_agent_profiles" ("id");
 
-ALTER TABLE "users" ADD FOREIGN KEY ("id") REFERENCES "sessions" ("user_id");
+ALTER TABLE "delivery_payouts" ADD FOREIGN KEY ("delivery_company_id") REFERENCES "delivery_companies" ("id");
 
-ALTER TABLE "delivery_agent_profiles" ADD FOREIGN KEY ("id") REFERENCES "delivery_zone_requests" ("delivery_agent_id");
+ALTER TABLE "delivery_payouts" ADD FOREIGN KEY ("processed_by") REFERENCES "users" ("id");
 
-ALTER TABLE "delivery_zones" ADD FOREIGN KEY ("id") REFERENCES "delivery_zone_requests" ("zone_id");
+ALTER TABLE "returns" ADD FOREIGN KEY ("order_id") REFERENCES "orders" ("id");
 
-ALTER TABLE "users" ADD FOREIGN KEY ("id") REFERENCES "delivery_zone_requests" ("reviewed_by");
+ALTER TABLE "returns" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
+
+ALTER TABLE "notifications" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
+
+ALTER TABLE "sessions" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
+
+ALTER TABLE "delivery_zone_requests" ADD FOREIGN KEY ("delivery_agent_id") REFERENCES "delivery_agent_profiles" ("id");
+
+ALTER TABLE "delivery_zone_requests" ADD FOREIGN KEY ("zone_id") REFERENCES "delivery_zones" ("id");
+
+ALTER TABLE "delivery_zone_requests" ADD FOREIGN KEY ("reviewed_by") REFERENCES "users" ("id");
+
+ALTER TABLE "audit_logs" ADD FOREIGN KEY ("user_id") REFERENCES "users" ("id");
