@@ -7,13 +7,13 @@ from app.models import db
 
 class UserRole(str, Enum):
     """User role enumeration matching masterplan."""
-    CUSTOMER = 'customer'
-    SUPPLIER = 'supplier'
-    ADMIN = 'admin'
-    PRODUCT_MANAGER = 'product_manager'
-    FINANCE_ADMIN = 'finance_admin'
-    SUPPORT_ADMIN = 'support_admin'
-    DELIVERY_AGENT = 'delivery_agent'
+    CUSTOMER = 'CUSTOMER'
+    SUPPLIER = 'SUPPLIER'
+    ADMIN = 'ADMIN'
+    PRODUCT_MANAGER = 'PRODUCT_MANAGER'
+    FINANCE_ADMIN = 'FINANCE_ADMIN'
+    SUPPORT_ADMIN = 'SUPPORT_ADMIN'
+    DELIVERY_AGENT = 'DELIVERY_AGENT'
 
 
 class AuthProvider(str, Enum):
