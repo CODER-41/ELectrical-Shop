@@ -91,7 +91,7 @@ const About = () => {
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">Our Story</h2>
               </div>
               <div className="space-y-6 text-gray-700 leading-relaxed">
-                <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4 border-l-4 border-blue-500">
+                <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4">
                   <p className="font-medium text-blue-900 mb-2">The Beginning (2024)</p>
                   <p>
                     Electrical Shop was founded in 2024 with a mission to revolutionize how electrical
@@ -100,7 +100,7 @@ const About = () => {
                     at competitive prices.
                   </p>
                 </div>
-                <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-4 border-l-4 border-green-500">
+                <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-4">
                   <p className="font-medium text-green-900 mb-2">Our Platform</p>
                   <p>
                     Our platform connects verified suppliers with customers across Kenya, offering a
@@ -108,14 +108,14 @@ const About = () => {
                     equipment and renewable energy solutions.
                   </p>
                 </div>
-                <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg p-4 border-l-4 border-purple-500">
+                <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg p-4">
                   <p className="font-medium text-purple-900 mb-2">Our Commitment</p>
                   <p>
                     We prioritize quality assurance, competitive pricing, and excellent customer service
                     to ensure every electrical project has the right components.
                   </p>
                 </div>
-                <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-4 border-l-4 border-orange-500">
+                <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-4">
                   <p className="font-medium text-orange-900 mb-2">Today & Beyond</p>
                   <p>
                     Today, Electrical Shop serves thousands of customers and hundreds of suppliers across
@@ -216,7 +216,6 @@ const About = () => {
                       <p className="text-gray-600 leading-relaxed">{value.description}</p>
                     </div>
                   </div>
-                  <div className={`h-1 bg-gradient-to-r ${gradients[index]}`}></div>
                 </div>
               );
             })}
