@@ -108,3 +108,12 @@ class CartItem(db.Model):
         return 0
 
     def is_available(self):
+        """Check if the product is available and in stock."""
+        if not self.product:
+            return False
+        return self.product.is_active and self.product.stock_quantity >= self.quantity
+
+    def __repr__(self):
+        return f'<CartItem {self.id} - Product: {self.product_id}, Qty: {self.quantity}>'
+
+    
