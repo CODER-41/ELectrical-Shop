@@ -1,10 +1,172 @@
+import { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
+import api from '../../utils/api';
+import { toast } from 'react-toastify';
+
 const AdminPayouts = () => {
+  const { token } = useSelector((state) => state.auth);
+  const [payouts, setPayouts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState('all');
+  const [showGenerateModal, setShowGenerateModal] = useState(false);
+  const [period, setPeriod] = useState('weekly');
+
+  useEffect(() => {
+    if (token) fetchPayouts();
+  }, [filter, token]);
+
+  const fetchPayouts = async () => {
+    try {
+      setLoading(true);
+      const params = filter !== 'all' ? { status: filter } : {};
+      const response = await api.get('/admin/payouts', { params });
+      setPayouts(response.data.data.payouts || []);
+    } catch (error) {
+      toast.error('Failed to load payouts');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGeneratePayouts = async () => {
+    try {
+      const response = await api.post('/admin/payouts/generate', { period });
+      toast.success(response.data.message);
+      setShowGenerateModal(false);
+      fetchPayouts();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to generate payouts');
+    }
+  };
+
+  const handleProcessPayout = async (payoutId) => {
+    const reference = prompt('Enter payment reference number:');
+    if (!reference) return;
+    try {
+      await api.put(`/admin/payouts/${payoutId}/process`, { payment_reference: reference });
+      toast.success('Payout processed successfully');
+      fetchPayouts();
+    } catch (error) {
+      toast.error('Failed to process payout');
+    }
+  };
+
+  const handleMpesaPayout = async (payoutId) => {
+    if (!window.confirm('Initiate M-Pesa payment for this payout?')) return;
+    try {
+      const response = await api.post(`/admin/payouts/${payoutId}/mpesa`);
+      toast.success(response.data.message);
+      fetchPayouts();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to initiate M-Pesa payout');
+    }
+  };
+
+  const formatPrice = (price) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(price);
+  const formatDate = (date) => date ? new Date(date).toLocaleDateString('en-KE') : 'N/A';
+
+  if (loading) return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Supplier Payouts</h1>
-      <div className="bg-white rounded-lg shadow p-6">
-        <p>Payout management functionality coming soon...</p>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="flex justify-between items-center mb-8">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Supplier Payouts</h1>
+          <p className="mt-2 text-gray-600">Manage and process supplier payments</p>
+        </div>
+        <button onClick={() => setShowGenerateModal(true)} className="btn btn-primary">
+          Generate Payouts
+        </button>
       </div>
+
+      {/* Filters */}
+      <div className="card mb-6">
+        <div className="flex gap-2">
+          <button onClick={() => setFilter('all')} className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === 'all' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>All</button>
+          <button onClick={() => setFilter('pending')} className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === 'pending' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>Pending</button>
+          <button onClick={() => setFilter('processing')} className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === 'processing' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>Processing</button>
+          <button onClick={() => setFilter('completed')} className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === 'completed' ? 'bg-primary text-white' : 'bg-gray-100 text-gray-700'}`}>Completed</button>
+        </div>
+      </div>
+
+      {/* Payouts Table */}
+      <div className="card overflow-x-auto">
+        {payouts.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500">No payouts found. Generate payouts to get started.</p>
+          </div>
+        ) : (
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Payout #</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Supplier</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {payouts.map((payout) => (
+                <tr key={payout.id}>
+                  <td className="px-6 py-4 whitespace-nowrap font-medium">{payout.payout_number}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{payout.supplier?.business_name || 'N/A'}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {formatDate(payout.created_at)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm">
+                      <div className="font-bold text-green-600">{formatPrice(payout.amount)}</div>
+                      {payout.notes && <div className="text-xs text-gray-500">{payout.notes}</div>}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${
+                      payout.status === 'completed' ? 'bg-green-100 text-green-800' : 
+                      payout.status === 'processing' ? 'bg-blue-100 text-blue-800' : 
+                      'bg-yellow-100 text-yellow-800'
+                    }`}>
+                      {payout.status}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    {payout.status === 'pending' && (
+                      <div className="flex gap-2">
+                        <button onClick={() => handleMpesaPayout(payout.id)} className="text-green-600 hover:text-green-700 font-medium">M-Pesa</button>
+                        <button onClick={() => handleProcessPayout(payout.id)} className="text-primary hover:text-primary-dark font-medium">Manual</button>
+                      </div>
+                    )}
+                    {payout.status === 'completed' && (
+                      <span className="text-gray-500">Paid {formatDate(payout.paid_at)}</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
+
+      {/* Generate Modal */}
+      {showGenerateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full">
+            <h3 className="text-lg font-bold mb-4">Generate Payouts</h3>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-2">Period</label>
+              <select value={period} onChange={(e) => setPeriod(e.target.value)} className="input w-full">
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowGenerateModal(false)} className="btn btn-outline flex-1">Cancel</button>
+              <button onClick={handleGeneratePayouts} className="btn btn-primary flex-1">Generate</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

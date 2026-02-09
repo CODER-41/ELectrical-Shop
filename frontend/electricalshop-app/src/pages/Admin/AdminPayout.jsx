@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const AdminPayouts = () => {
-  const { user } = useSelector((state) => state.auth);
+  const { token } = useSelector((state) => state.auth);
   const [payouts, setPayouts] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -17,7 +17,7 @@ const AdminPayouts = () => {
   const fetchPayouts = async () => {
     try {
       const response = await axios.get(`${API_URL}/admin/payouts`, {
-        headers: { Authorization: `Bearer ${user.token}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       setPayouts(response.data.data.payouts);
     } catch (error) {
@@ -31,7 +31,7 @@ const AdminPayouts = () => {
     if (!window.confirm('Generate payouts for all suppliers with completed orders?')) return;
     try {
       const response = await axios.post(`${API_URL}/admin/payouts/generate`, {}, {
-        headers: { Authorization: `Bearer ${user.token}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       toast.success(response.data.message);
       fetchPayouts();
@@ -46,7 +46,7 @@ const AdminPayouts = () => {
     try {
       await axios.put(`${API_URL}/admin/payouts/${payoutId}/process`, 
         { payment_reference: reference },
-        { headers: { Authorization: `Bearer ${user.token}` } }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success('Payout processed successfully');
       fetchPayouts();

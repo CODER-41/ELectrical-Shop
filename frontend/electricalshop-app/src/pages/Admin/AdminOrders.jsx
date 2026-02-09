@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
-import axios from 'axios';
+import { Link, useNavigate } from 'react-router-dom';
+import api from '../../utils/api';
 import { toast } from 'react-toastify';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
-
 const AdminOrders = () => {
-  const { user } = useSelector((state) => state.auth);
+  const navigate = useNavigate();
+  const { token } = useSelector((state) => state.auth);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
@@ -17,8 +16,14 @@ const AdminOrders = () => {
   const [newStatus, setNewStatus] = useState('');
 
   useEffect(() => {
-    fetchOrders();
-  }, [filter, pagination.page]);
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+    if (pagination.page) {
+      fetchOrders();
+    }
+  }, [filter, pagination.page, token, navigate]);
 
   const fetchOrders = async () => {
     try {
@@ -30,15 +35,22 @@ const AdminOrders = () => {
       
       if (filter !== 'all') params.status = filter;
 
-      const response = await axios.get(`${API_URL}/orders`, {
-        headers: { Authorization: `Bearer ${user.token}` },
-        params
-      });
+      const response = await api.get('/orders', { params });
 
-      setOrders(response.data.data.orders);
-      setPagination(response.data.data.pagination);
+      console.log('Orders response:', response.data);
+      console.log('Orders array:', response.data.data.orders);
+      response.data.data.orders?.forEach(order => {
+        console.log(`Order ${order.order_number}: payment_status=${order.payment_status}, status=${order.status}`);
+      });
+      setOrders(response.data.data.orders || []);
+      setPagination(response.data.data.pagination || { page: 1, pages: 1, total: 0 });
     } catch (error) {
-      toast.error(error.response?.data?.error || 'Failed to load orders');
+      if (error.response?.status === 401) {
+        toast.error('Session expired. Please login again.');
+        navigate('/login');
+      } else {
+        toast.error(error.response?.data?.error || 'Failed to load orders');
+      }
     } finally {
       setLoading(false);
     }
@@ -48,11 +60,7 @@ const AdminOrders = () => {
     if (!selectedOrder || !newStatus) return;
 
     try {
-      await axios.put(
-        `${API_URL}/orders/${selectedOrder.id}/status`,
-        { status: newStatus },
-        { headers: { Authorization: `Bearer ${user.token}` } }
-      );
+      await api.put(`/orders/${selectedOrder.id}/status`, { status: newStatus });
       toast.success('Order status updated successfully');
       setShowStatusModal(false);
       setSelectedOrder(null);
@@ -124,16 +132,6 @@ const AdminOrders = () => {
             }`}
           >
             Pending
-          </button>
-          <button
-            onClick={() => setFilter('paid')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              filter === 'paid'
-                ? 'bg-primary text-white'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
-          >
-            Paid
           </button>
           <button
             onClick={() => setFilter('processing')}

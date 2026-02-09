@@ -23,7 +23,7 @@ class Address(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
     # Relationships
-    orders = db.relationship('Order', lazy='dynamic', foreign_keys='Order.delivery_address_id')
+    orders = db.relationship('Order', lazy='dynamic', foreign_keys='Order.delivery_address_id', overlaps="delivery_address")
     
     def to_dict(self):
         """Convert address to dictionary."""
