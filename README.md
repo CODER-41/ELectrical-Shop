@@ -38,7 +38,7 @@ The platform integrates with M-Pesa for mobile payments, Cloudinary for image up
 - Browse products by category, brand, or search
 - Product filtering, sorting, and pagination
 - Shopping cart management
-- Secure checkout with M-Pesa integration
+- Secure checkout with M-Pesa and card payments (Paystack)
 - Order tracking and history
 - Product returns and refunds
 - User profile management
@@ -100,6 +100,7 @@ The platform integrates with M-Pesa for mobile payments, Cloudinary for image up
 | Service | Purpose |
 |---------|---------|
 | M-Pesa Daraja API | Mobile payments |
+| Paystack | Card payments (Visa, Mastercard, local cards) |
 | Google OAuth 2.0 | Social authentication |
 | Cloudinary | Image storage |
 | Web3Forms | Contact form |
@@ -264,6 +265,8 @@ CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
 MPESA_CONSUMER_KEY=your-consumer-key
 MPESA_CONSUMER_SECRET=your-consumer-secret
+PAYSTACK_SECRET_KEY=your-paystack-secret-key
+PAYSTACK_PUBLIC_KEY=your-paystack-public-key
 ```
 
 **Frontend (.env)**
@@ -336,6 +339,7 @@ The backend provides a RESTful API. Key endpoints:
 | `/api/cart` | GET | Get cart |
 | `/api/orders` | GET/POST | Orders |
 | `/api/payments/mpesa/initiate` | POST | M-Pesa payment |
+| `/api/payments/card/initiate` | POST | Card payment (Paystack) |
 
 For complete API documentation, see [Backend README](backend/README.md).
 
