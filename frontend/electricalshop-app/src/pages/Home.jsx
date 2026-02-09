@@ -1,5 +1,10 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import mobileImg from '../assets/mobile phones.jpg';
+import laptopsImg from '../assets/Lpatops.webp';
+import tvsImg from '../assets/TVs.jpeg';
+import kitchenImg from '../assets/Kitchen.jpg';
+import gamingImg from '../assets/Gaming.jpg';
 
 const Home = () => {
   const { isAuthenticated } = useAuth();
@@ -131,28 +136,32 @@ const Home = () => {
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">Explore our wide range of electronic categories</p>
           </div>
           
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-5 justify-items-center">
             {[
-              { name: 'Mobile Phones', icon: 'M12 18h.01M8 21h8a1 1 0 001-1V4a1 1 0 00-1-1H8a1 1 0 00-1 1v16a1 1 0 001 1z', color: 'from-blue-600 to-blue-700' },
-              { name: 'Laptops', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', color: 'from-green-600 to-green-700' },
-              { name: 'TVs', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', color: 'from-purple-600 to-purple-700' },
-              { name: 'Kitchen', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2z', color: 'from-red-600 to-red-700' },
-              { name: 'Gaming', icon: 'M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 011-1h1a2 2 0 100-4H7a1 1 0 01-1-1V7a1 1 0 011-1h3a1 1 0 001-1V4z', color: 'from-indigo-600 to-indigo-700' },
-              { name: 'Accessories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z', color: 'from-pink-600 to-pink-700' }
+              { name: 'Mobile Phones', image: mobileImg, color: 'from-blue-600 to-blue-700' },
+              { name: 'Laptops', image: laptopsImg, color: 'from-green-600 to-green-700' },
+              { name: 'TVs', image: tvsImg, color: 'from-purple-600 to-purple-700' },
+              { name: 'Kitchen', image: kitchenImg, color: 'from-red-600 to-red-700' },
+              { name: 'Gaming', image: gamingImg, color: 'from-indigo-600 to-indigo-700' }
             ].map((category) => (
               <Link
                 key={category.name}
                 to={`/products?category=${category.name.toLowerCase()}`}
-                className="group"
+                className="group w-full max-w-xs"
               >
-                <div className="bg-white shadow-xl rounded-2xl p-6 text-center hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-                  <div className={`w-12 h-12 bg-gradient-to-r ${category.color} rounded-full flex items-center justify-center mx-auto mb-4`}>
-                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={category.icon} />
-                    </svg>
+                <div className="bg-white shadow-xl rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+                  <div className="relative h-40 overflow-hidden">
+                    <img 
+                      src={category.image} 
+                      alt={category.name}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                   </div>
-                  <h3 className="text-sm font-bold text-gray-900 group-hover:text-green-600 transition-colors duration-200">{category.name}</h3>
-                  <div className={`h-1 bg-gradient-to-r ${category.color} mt-4 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300`}></div>
+                  <div className="p-4 text-center">
+                    <h3 className="text-sm font-bold text-gray-900 group-hover:text-green-600 transition-colors duration-200">{category.name}</h3>
+                    <div className={`h-1 bg-gradient-to-r ${category.color} mt-3 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300`}></div>
+                  </div>
                 </div>
               </Link>
             ))}
