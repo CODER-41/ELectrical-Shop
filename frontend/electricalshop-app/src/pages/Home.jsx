@@ -139,10 +139,10 @@ const Home = () => {
           
           <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-6 justify-items-center">
             {[
-              { name: 'Mobile Phones', displayName: 'Mobile Phones', image: mobileImg, slug: 'mobile-phones-tablets', color: 'from-blue-600 to-blue-700' },
-              { name: 'Laptops', displayName: 'Laptops', image: laptopsImg, slug: 'laptops-computers', color: 'from-green-600 to-green-700' },
-              { name: 'TVs', displayName: 'TVs', image: tvsImg, slug: 'tvs-home-entertainment', color: 'from-purple-600 to-purple-700' },
-              { name: 'Kitchen', displayName: 'Kitchen', image: kitchenImg, slug: 'kitchen-appliances', color: 'from-red-600 to-red-700' },
+              { name: 'Mobile Phones', displayName: 'Mobile Phones', image: mobileImg, slug: 'mobile-phones', color: 'from-blue-600 to-blue-700' },
+              { name: 'Laptops', displayName: 'Laptops', image: laptopsImg, slug: 'laptops', color: 'from-green-600 to-green-700' },
+              { name: 'TVs', displayName: 'TVs', image: tvsImg, slug: 'tvs', color: 'from-purple-600 to-purple-700' },
+              { name: 'Kitchen', displayName: 'Kitchen', image: kitchenImg, slug: 'kitchen', color: 'from-red-600 to-red-700' },
               { name: 'Gaming', displayName: 'Gaming', image: gamingImg, slug: 'gaming', color: 'from-indigo-600 to-indigo-700' },
               { name: 'Accessories', displayName: 'Accessories', image: accessoriesImg, slug: 'accessories', color: 'from-pink-600 to-pink-700' }
             ].map((category) => (

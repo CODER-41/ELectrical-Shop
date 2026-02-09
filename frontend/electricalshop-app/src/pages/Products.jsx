@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
-import { getProducts, getCategories, getBrands, setFilters, reset } from "../store/slices/productsSlice";
+import { getProducts, getCategories, getBrands, setFilters, clearFilters, reset } from "../store/slices/productsSlice";
 import ProductCard from "../components/ProductCard";
 import ProductFilters from "../components/ProductFilter";
 import { toast } from "react-toastify";
@@ -17,15 +17,18 @@ const Products = () => {
     const [showFilters, setShowFilters] = useState(false);
    
     useEffect(() => {
+        // Check for category in URL params
+        const categoryParam = searchParams.get('category');
+        
+        if (categoryParam) {
+            // Clear all filters first, then set only the category from URL
+            dispatch(clearFilters());
+            dispatch(setFilters({ category: categoryParam }));
+        }
+        
         // fetch categories and brands on component mount
         dispatch(getCategories());
         dispatch(getBrands());
-        
-        // Check for category in URL params
-        const categoryParam = searchParams.get('category');
-        if (categoryParam) {
-            dispatch(setFilters({ category: categoryParam }));
-        }
     }, [dispatch, searchParams]);
 
     useEffect(() => {
@@ -44,6 +47,7 @@ const Products = () => {
             search: searchTerm,
             sort_by: sortBy,
         };
+        console.log('📦 Fetching products with final params:', params);
         dispatch(getProducts(params));
     }, [dispatch, filters, currentPage, searchTerm, sortBy]);
 

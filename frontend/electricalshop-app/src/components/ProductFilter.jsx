@@ -7,13 +7,25 @@ const ProductFilters = () => {
   const { categories, brands, filters } = useSelector((state) => state.products);
   
   const [localFilters, setLocalFilters] = useState({
-    category: filters.category || '',
-    brand: filters.brand || '',
-    min_price: filters.min_price || '',
-    max_price: filters.max_price || '',
-    condition: filters.condition || '',
-    in_stock: filters.in_stock || false,
+    category: '',
+    brand: '',
+    min_price: '',
+    max_price: '',
+    condition: '',
+    in_stock: false,
   });
+  
+  // Sync local filters with Redux filters
+  useEffect(() => {
+    setLocalFilters({
+      category: filters.category || '',
+      brand: filters.brand || '',
+      min_price: filters.min_price || '',
+      max_price: filters.max_price || '',
+      condition: filters.condition || '',
+      in_stock: filters.in_stock || false,
+    });
+  }, [filters]);
   
   const handleFilterChange = (key, value) => {
     setLocalFilters(prev => ({ ...prev, [key]: value }));
