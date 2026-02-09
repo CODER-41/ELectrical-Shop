@@ -47,9 +47,25 @@ def get_products():
         # Filter by category
         category_slug = request.args.get('category')
         if category_slug:
-            category = Category.query.filter_by(slug=category_slug, is_active=True).first()
-            if category:
-                query = query.filter_by(category_id=category.id)
+            if category_slug == 'accessories':
+                # For accessories, show all products NOT in the main 5 categories
+                main_categories = Category.query.filter(
+                    Category.slug.in_([
+                        'mobile-phones-tablets',
+                        'laptops-computers',
+                        'tvs-home-entertainment',
+                        'kitchen-appliances',
+                        'gaming'
+                    ])
+                ).all()
+                main_category_ids = [cat.id for cat in main_categories]
+                if main_category_ids:
+                    query = query.filter(~Product.category_id.in_(main_category_ids))
+            else:
+                # Normal category filtering
+                category = Category.query.filter_by(slug=category_slug, is_active=True).first()
+                if category:
+                    query = query.filter_by(category_id=category.id)
         
         # Filter by brand
         brand_name = request.args.get('brand')
