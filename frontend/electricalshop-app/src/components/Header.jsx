@@ -30,6 +30,12 @@ const Header = () => {
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center space-x-2">
             <Link
+              to="/"
+              className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-green-50"
+            >
+              Home
+            </Link>
+            <Link
               to="/about"
               className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-green-50"
             >
@@ -124,6 +130,7 @@ const Header = () => {
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
           <div className="lg:hidden border-t border-gray-200 py-4 space-y-2">
+            <Link to="/" className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Home</Link>
             <Link to="/about" className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>About</Link>
             
             {isAuthenticated ? (
