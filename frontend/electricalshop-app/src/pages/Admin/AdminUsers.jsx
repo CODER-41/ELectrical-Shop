@@ -7,7 +7,7 @@ import { toast } from 'react-toastify';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const AdminUsers = () => {
-  const { user } = useSelector((state) => state.auth);
+  const { token } = useSelector((state) => state.auth);
   const [searchParams] = useSearchParams();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,7 +31,7 @@ const AdminUsers = () => {
       if (search) params.search = search;
 
       const response = await axios.get(`${API_URL}/admin/users`, {
-        headers: { Authorization: `Bearer ${user.token}` },
+        headers: { Authorization: `Bearer ${token}` },
         params
       });
 
@@ -56,7 +56,7 @@ const AdminUsers = () => {
       await axios.put(
         `${API_URL}/admin/users/${userId}/status`,
         { action },
-        { headers: { Authorization: `Bearer ${user.token}` } }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
       toast.success(`User ${action}d successfully`);
       fetchUsers();
@@ -78,6 +78,7 @@ const AdminUsers = () => {
       customer: 'bg-blue-100 text-blue-800',
       supplier: 'bg-purple-100 text-purple-800',
       admin: 'bg-red-100 text-red-800',
+      delivery_agent: 'bg-green-100 text-green-800',
     };
     return colors[role] || 'bg-gray-100 text-gray-800';
   };
@@ -133,6 +134,16 @@ const AdminUsers = () => {
               }`}
             >
               Suppliers
+            </button>
+            <button
+              onClick={() => setFilter('delivery_agent')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                filter === 'delivery_agent'
+                  ? 'bg-primary text-white'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Delivery Agents
             </button>
             <button
               onClick={() => setFilter('pending')}

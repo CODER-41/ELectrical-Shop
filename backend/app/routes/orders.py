@@ -331,19 +331,38 @@ def get_orders():
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
+        # Get pagination params
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+        status = request.args.get('status')
+        
         if user.role == UserRole.CUSTOMER:
-            orders = Order.query.filter_by(customer_id=user.customer_profile.id)\
-                .order_by(Order.created_at.desc()).all()
+            query = Order.query.filter_by(customer_id=user.customer_profile.id)
         elif user.role == UserRole.SUPPLIER:
             # Get orders containing supplier's products
-            orders = db.session.query(Order).join(OrderItem)\
-                .filter(OrderItem.supplier_id == user.supplier_profile.id)\
-                .order_by(Order.created_at.desc()).distinct().all()
+            query = db.session.query(Order).join(OrderItem)\
+                .filter(OrderItem.supplier_id == user.supplier_profile.id).distinct()
         else:
             # Admin sees all orders
-            orders = Order.query.order_by(Order.created_at.desc()).all()
+            query = Order.query
         
-        return success_response(data=[order.to_dict(include_items=False) for order in orders])
+        # Apply status filter
+        if status:
+            query = query.filter_by(status=status)
+        
+        # Paginate
+        orders = query.order_by(Order.created_at.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False)
+        
+        return success_response(data={
+            'orders': [order.to_dict(include_items=False) for order in orders.items],
+            'pagination': {
+                'page': orders.page,
+                'per_page': orders.per_page,
+                'total': orders.total,
+                'pages': orders.pages
+            }
+        })
     except Exception as e:
         return error_response(f'Failed to fetch orders: {str(e)}', 500)
 

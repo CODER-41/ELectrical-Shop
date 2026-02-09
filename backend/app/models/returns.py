@@ -11,6 +11,13 @@ class ReturnStatus(str, Enum):
     COMPLETED = 'completed'
 
 
+class RefundPolicy(str, Enum):
+    SUPPLIER_FAULT = 'supplier_fault'  # Defective/wrong product - supplier pays 100%
+    CUSTOMER_CHANGED_MIND = 'customer_changed_mind'  # Customer pays restocking fee
+    SHIPPING_DAMAGE = 'shipping_damage'  # Platform absorbs cost
+    FRAUD = 'fraud'  # Supplier pays + penalty
+
+
 class Return(db.Model):
     __tablename__ = 'returns'
 
@@ -19,19 +26,83 @@ class Return(db.Model):
     user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
     reason = db.Column(db.String(500), nullable=False)
     status = db.Column(db.Enum(ReturnStatus), default=ReturnStatus.PENDING, nullable=False)
+    
+    # Refund policy fields
+    refund_policy = db.Column(db.String(50), default='supplier_fault', nullable=True)
+    refund_amount = db.Column(db.Numeric(12, 2), nullable=True)
+    restocking_fee = db.Column(db.Numeric(12, 2), default=0, nullable=True)
+    supplier_deduction = db.Column(db.Numeric(12, 2), default=0, nullable=True)
+    platform_deduction = db.Column(db.Numeric(12, 2), default=0, nullable=True)
+    customer_refund = db.Column(db.Numeric(12, 2), nullable=True)
+    refund_processed_at = db.Column(db.DateTime, nullable=True)
+    refund_reference = db.Column(db.String(100), nullable=True)
+    admin_notes = db.Column(db.Text, nullable=True)
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # Relationships
     user = db.relationship('User', backref=db.backref('returns', lazy='dynamic'))
+    order = db.relationship('Order', backref=db.backref('returns', lazy='dynamic'))
 
+    def calculate_refund(self, policy=None):
+        """Calculate refund amounts based on policy."""
+        if not self.order:
+            return
+        
+        order_total = float(self.order.total)
+        self.refund_policy = policy or RefundPolicy.SUPPLIER_FAULT.value
+        
+        if self.refund_policy == RefundPolicy.SUPPLIER_FAULT.value:
+            # Supplier pays 100% (including platform commission)
+            self.customer_refund = order_total
+            self.supplier_deduction = order_total
+            self.platform_deduction = 0
+            self.restocking_fee = 0
+            
+        elif self.refund_policy == RefundPolicy.CUSTOMER_CHANGED_MIND.value:
+            # 15% restocking fee, platform keeps commission
+            self.restocking_fee = order_total * 0.15
+            self.customer_refund = order_total - self.restocking_fee
+            # Supplier loses 75% of (order_total - restocking_fee)
+            self.supplier_deduction = (order_total - self.restocking_fee) * 0.75
+            self.platform_deduction = 0  # Platform keeps commission
+            
+        elif self.refund_policy == RefundPolicy.SHIPPING_DAMAGE.value:
+            # Platform absorbs full cost
+            self.customer_refund = order_total
+            self.supplier_deduction = 0
+            self.platform_deduction = order_total
+            self.restocking_fee = 0
+            
+        elif self.refund_policy == RefundPolicy.FRAUD.value:
+            # Supplier pays 100% + 10% penalty
+            penalty = order_total * 0.10
+            self.customer_refund = order_total
+            self.supplier_deduction = order_total + penalty
+            self.platform_deduction = -penalty  # Platform gains penalty
+            self.restocking_fee = 0
+        
+        self.refund_amount = order_total
+    
     def to_dict(self):
+        refund_amount = float(self.refund_amount) if self.refund_amount else (float(self.order.total) if self.order else 0)
+        
         return {
             'id': self.id,
             'order_id': self.order_id,
             'user_id': self.user_id,
             'reason': self.reason,
             'status': self.status.value if self.status else None,
+            'refund_policy': self.refund_policy,
+            'refund_amount': refund_amount,
+            'restocking_fee': float(self.restocking_fee) if self.restocking_fee else 0,
+            'supplier_deduction': float(self.supplier_deduction) if self.supplier_deduction else 0,
+            'platform_deduction': float(self.platform_deduction) if self.platform_deduction else 0,
+            'customer_refund': float(self.customer_refund) if self.customer_refund else 0,
+            'refund_processed_at': self.refund_processed_at.isoformat() if self.refund_processed_at else None,
+            'refund_reference': self.refund_reference,
+            'admin_notes': self.admin_notes,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }

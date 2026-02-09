@@ -13,6 +13,7 @@ from app.models.returns import SupplierPayout
 from app.utils.responses import success_response, error_response
 from app.utils.decorators import admin_required
 from app.services.mpesa_service import mpesa_service
+from app.services.stripe_service import stripe_service
 from app.services.email_service import send_payment_confirmation_email
 
 payments_bp = Blueprint('payments', __name__, url_prefix='/api/payments')
@@ -325,19 +326,19 @@ def confirm_cash_payment():
         return error_response(f'Failed to confirm payment: {str(e)}', 500)
 
 
-# Card payment endpoints (placeholder for Flutterwave/Paystack integration)
+# Card payment endpoints (Stripe integration)
 @payments_bp.route('/card/initiate', methods=['POST'])
 @jwt_required()
 def initiate_card_payment():
     """
-    Initiate card payment via payment gateway.
+    Initiate card payment via Stripe.
 
     Expected payload:
     {
         "order_id": "uuid"
     }
 
-    Returns a redirect URL to the payment gateway.
+    Returns a client secret for Stripe Elements.
     """
     try:
         user_id = get_jwt_identity()
@@ -360,36 +361,115 @@ def initiate_card_payment():
         if order.payment_method != PaymentMethod.CARD:
             return error_response('Order payment method is not card', 400)
 
-        # TODO: Integrate with Flutterwave or Paystack
-        # For now, return a placeholder response
-        return error_response(
-            'Card payment gateway not yet configured. Please use M-Pesa or cash on delivery.',
-            501
+        # Check if Stripe is configured
+        if not stripe_service.is_configured():
+            return error_response(
+                'Card payment is not available at the moment. Please use M-Pesa or cash on delivery.',
+                503
+            )
+
+        # Create Stripe Payment Intent
+        result = stripe_service.create_payment_intent(
+            amount=float(order.total),
+            currency='kes',
+            metadata={
+                'order_id': str(order.id),
+                'order_number': order.order_number,
+                'customer_email': order.customer.user.email
+            }
         )
 
+        if result.get('success'):
+            # Store payment intent ID for callback matching
+            order.payment_reference = result.get('payment_intent_id')
+            db.session.commit()
+
+            return success_response(
+                data={
+                    'client_secret': result.get('client_secret'),
+                    'payment_intent_id': result.get('payment_intent_id'),
+                    'publishable_key': stripe_service.get_publishable_key()
+                },
+                message='Payment intent created successfully'
+            )
+        else:
+            return error_response(
+                result.get('error', 'Failed to initiate card payment'),
+                500
+            )
+
     except Exception as e:
-        return error_response(f'Failed to initiate card payment: {str(e)}', 500)
+        current_app.logger.error(f'Stripe initiation error: {str(e)}')
+        return error_response(f'Payment initiation failed: {str(e)}', 500)
 
 
-@payments_bp.route('/card/callback', methods=['POST'])
-def card_callback():
+@payments_bp.route('/card/webhook', methods=['POST'])
+def card_webhook():
     """
-    Handle card payment callback from payment gateway.
-    This endpoint is called by the payment gateway when payment completes.
+    Handle Stripe webhook events.
+    This endpoint is called by Stripe when payment events occur.
     """
     try:
-        data = request.get_json()
-        current_app.logger.info(f'Card payment callback received: {data}')
+        payload = request.data
+        signature = request.headers.get('Stripe-Signature')
 
-        # TODO: Implement based on payment gateway (Flutterwave/Paystack)
+        if not signature:
+            return error_response('Missing signature', 400)
+
         # Verify webhook signature
-        # Update order status
+        result = stripe_service.verify_webhook_signature(payload, signature)
+
+        if not result.get('success'):
+            current_app.logger.error(f'Webhook verification failed: {result.get("error")}')
+            return error_response('Invalid signature', 400)
+
+        event = result.get('event')
+        event_type = event['type']
+
+        current_app.logger.info(f'Stripe webhook received: {event_type}')
+
+        # Handle payment_intent.succeeded event
+        if event_type == 'payment_intent.succeeded':
+            payment_intent = event['data']['object']
+            payment_intent_id = payment_intent['id']
+
+            # Find order by payment intent ID
+            order = Order.query.filter_by(payment_reference=payment_intent_id).first()
+
+            if order:
+                order.payment_status = PaymentStatus.COMPLETED
+                order.status = OrderStatus.PAID
+                order.paid_at = datetime.utcnow()
+                db.session.commit()
+
+                # Send confirmation email
+                try:
+                    send_payment_confirmation_email(order, order.customer.user.email)
+                except Exception as e:
+                    current_app.logger.error(f'Failed to send payment email: {str(e)}')
+
+                current_app.logger.info(f'Payment successful for order {order.order_number}')
+
+        # Handle payment_intent.payment_failed event
+        elif event_type == 'payment_intent.payment_failed':
+            payment_intent = event['data']['object']
+            payment_intent_id = payment_intent['id']
+
+            order = Order.query.filter_by(payment_reference=payment_intent_id).first()
+
+            if order:
+                order.payment_status = PaymentStatus.FAILED
+                error_message = payment_intent.get('last_payment_error', {}).get('message', 'Payment failed')
+                order.admin_notes = f'Stripe payment failed: {error_message}'
+                db.session.commit()
+
+                current_app.logger.warning(f'Payment failed for order {order.order_number}: {error_message}')
 
         return {'status': 'success'}
 
     except Exception as e:
-        current_app.logger.error(f'Card callback error: {str(e)}')
-        return {'status': 'error', 'message': str(e)}
+        current_app.logger.error(f'Stripe webhook error: {str(e)}')
+        return {'status': 'error', 'message': str(e)}, 500
 
 
 @payments_bp.route('/methods', methods=['GET'])
@@ -410,7 +490,7 @@ def get_payment_methods():
                 'id': 'card',
                 'name': 'Card Payment',
                 'description': 'Pay with Visa, Mastercard, or other cards',
-                'enabled': False,  # Enable when gateway is configured
+                'enabled': stripe_service.is_configured(),
                 'icon': 'card-icon'
             },
             {

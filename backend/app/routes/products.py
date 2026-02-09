@@ -394,3 +394,15 @@ def get_brands():
         return success_response(data=[brand.to_dict() for brand in brands])
     except Exception as e:
         return error_response(f'Failed to fetch brands: {str(e)}', 500)
+
+
+# Delivery zones (public endpoint)
+@products_bp.route('/delivery-zones', methods=['GET'])
+def get_delivery_zones():
+    """Get all active delivery zones (public endpoint)."""
+    try:
+        from app.models.order import DeliveryZone
+        zones = DeliveryZone.query.filter_by(is_active=True).all()
+        return success_response(data=[z.to_dict() for z in zones])
+    except Exception as e:
+        return error_response(f'Failed to fetch delivery zones: {str(e)}', 500)

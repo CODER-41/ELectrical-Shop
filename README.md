@@ -14,6 +14,7 @@ A full-stack multi-vendor e-commerce platform for electronics, built with Flask 
 - [Running the Application](#running-the-application)
 - [Default Accounts](#default-accounts)
 - [API Documentation](#api-documentation)
+- [Refund Policy](#refund-policy)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -337,6 +338,37 @@ The backend provides a RESTful API. Key endpoints:
 | `/api/payments/mpesa/initiate` | POST | M-Pesa payment |
 
 For complete API documentation, see [Backend README](backend/README.md).
+
+---
+
+## Refund Policy
+
+Electronics Shop implements an enterprise-level refund system with multiple policies:
+
+- **Supplier Fault:** Defective/wrong products - Supplier pays 100%
+- **Customer Changed Mind:** 15% restocking fee applies
+- **Shipping Damage:** Platform absorbs full cost
+- **Fraud:** Supplier pays 110% (includes penalty)
+
+For complete refund policy documentation, see [REFUND_POLICY.md](REFUND_POLICY.md).
+
+---
+
+## Supplier Terms & Conditions
+
+Suppliers must agree to platform terms including:
+
+- **Commission:** 25% platform, 75% supplier
+- **Refund Policies:** 4 policies based on return reason
+- **Performance Metrics:** Return rate monitoring
+- **Payout Terms:** Weekly/monthly payouts via M-Pesa
+
+For complete supplier terms, see [SUPPLIER_TERMS.md](SUPPLIER_TERMS.md).
+
+**API Endpoints:**
+- `GET /api/supplier/terms` - View terms
+- `POST /api/supplier/terms/accept` - Accept terms
+- `GET /api/supplier/terms/status` - Check acceptance
 
 ---
 
