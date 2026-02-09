@@ -136,30 +136,30 @@ const Home = () => {
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">Explore our wide range of electronic categories</p>
           </div>
           
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-5 justify-items-center">
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-5 justify-items-center">
             {[
-              { name: 'Mobile Phones', image: mobileImg, color: 'from-blue-600 to-blue-700' },
-              { name: 'Laptops', image: laptopsImg, color: 'from-green-600 to-green-700' },
-              { name: 'TVs', image: tvsImg, color: 'from-purple-600 to-purple-700' },
-              { name: 'Kitchen', image: kitchenImg, color: 'from-red-600 to-red-700' },
-              { name: 'Gaming', image: gamingImg, color: 'from-indigo-600 to-indigo-700' }
+              { name: 'Mobile Phones', displayName: 'Mobile Phones', image: mobileImg, slug: 'mobile-phones-tablets', color: 'from-blue-600 to-blue-700' },
+              { name: 'Laptops', displayName: 'Laptops', image: laptopsImg, slug: 'laptops-computers', color: 'from-green-600 to-green-700' },
+              { name: 'TVs', displayName: 'TVs', image: tvsImg, slug: 'tvs-home-entertainment', color: 'from-purple-600 to-purple-700' },
+              { name: 'Kitchen', displayName: 'Kitchen', image: kitchenImg, slug: 'kitchen-appliances', color: 'from-red-600 to-red-700' },
+              { name: 'Gaming', displayName: 'Gaming', image: gamingImg, slug: 'gaming', color: 'from-indigo-600 to-indigo-700' }
             ].map((category) => (
               <Link
                 key={category.name}
-                to={`/products?category=${category.name.toLowerCase()}`}
+                to={`/products?category=${category.slug}`}
                 className="group w-full max-w-xs"
               >
                 <div className="bg-white shadow-xl rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
                   <div className="relative h-40 overflow-hidden">
                     <img 
                       src={category.image} 
-                      alt={category.name}
+                      alt={category.displayName}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                   </div>
                   <div className="p-4 text-center">
-                    <h3 className="text-sm font-bold text-gray-900 group-hover:text-green-600 transition-colors duration-200">{category.name}</h3>
+                    <h3 className="text-sm font-bold text-gray-900 group-hover:text-green-600 transition-colors duration-200">{category.displayName}</h3>
                     <div className={`h-1 bg-gradient-to-r ${category.color} mt-3 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300`}></div>
                   </div>
                 </div>

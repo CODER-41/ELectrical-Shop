@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useSearchParams } from "react-router-dom";
 import { getProducts, getCategories, getBrands, setFilters, reset } from "../store/slices/productsSlice";
 import ProductCard from "../components/ProductCard";
 import ProductFilters from "../components/ProductFilter";
@@ -7,6 +8,7 @@ import { toast } from "react-toastify";
 
 const Products = () => {
     const dispatch = useDispatch();
+    const [searchParams] = useSearchParams();
     const { products, pagination, filters, isLoading, isError, message } = useSelector((state) => state.products);
 
     const [searchTerm, setSearchTerm] = useState(filters.search || "");
@@ -18,7 +20,13 @@ const Products = () => {
         // fetch categories and brands on component mount
         dispatch(getCategories());
         dispatch(getBrands());
-    }, [dispatch]);
+        
+        // Check for category in URL params
+        const categoryParam = searchParams.get('category');
+        if (categoryParam) {
+            dispatch(setFilters({ category: categoryParam }));
+        }
+    }, [dispatch, searchParams]);
 
     useEffect(() => {
         if (isError) {
