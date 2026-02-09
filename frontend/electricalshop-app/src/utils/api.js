@@ -36,4 +36,26 @@ api.interceptors.response.use(
   }
 );
 
+// Product API functions
+export const productAPI = {
+  // Get products with filters
+  getProducts: (params = {}) => api.get('/products', { params }),
+  
+  // Get products by category slug
+  getProductsByCategory: (categorySlug, params = {}) => 
+    api.get('/products', { params: { ...params, category: categorySlug } }),
+  
+  // Get single product
+  getProduct: (id) => api.get(`/products/${id}`),
+  
+  // Get product by slug
+  getProductBySlug: (slug) => api.get(`/products/slug/${slug}`),
+  
+  // Get categories
+  getCategories: () => api.get('/products/categories'),
+  
+  // Get brands
+  getBrands: () => api.get('/products/brands'),
+};
+
 export default api;
