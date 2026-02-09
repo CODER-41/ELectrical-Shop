@@ -11,25 +11,30 @@ const Products = () => {
     const [searchParams] = useSearchParams();
     const { products, pagination, filters, isLoading, isError, message } = useSelector((state) => state.products);
 
-    const [searchTerm, setSearchTerm] = useState(filters.search || "");
-    const [sortBy, setSortBy] = useState(filters.sort_by || "newest");
+    const [searchTerm, setSearchTerm] = useState("");
+    const [sortBy, setSortBy] = useState("newest");
     const [currentPage, setCurrentPage] = useState(1);
     const [showFilters, setShowFilters] = useState(false);
+    const [isInitialized, setIsInitialized] = useState(false);
    
     useEffect(() => {
-        // Check for category in URL params
+        // Check for category in URL params FIRST
         const categoryParam = searchParams.get('category');
         
         if (categoryParam) {
-            // Clear all filters first, then set only the category from URL
+            // Clear all filters and set only the category from URL
             dispatch(clearFilters());
-            dispatch(setFilters({ category: categoryParam }));
+            setTimeout(() => {
+                dispatch(setFilters({ category: categoryParam }));
+            }, 0);
         }
         
-        // fetch categories and brands on component mount
+        // Fetch categories and brands
         dispatch(getCategories());
         dispatch(getBrands());
-    }, [dispatch, searchParams]);
+        
+        setTimeout(() => setIsInitialized(true), 50);
+    }, [searchParams]); // Only depend on searchParams
 
     useEffect(() => {
         if (isError) {
@@ -39,7 +44,9 @@ const Products = () => {
     }, [isError, message, dispatch]);
 
     useEffect(() => {
-        // fetch products whenever filters change
+        // Only fetch products after initialization
+        if (!isInitialized) return;
+        
         const params = {
             page: currentPage,
             per_page: 20,
@@ -49,7 +56,7 @@ const Products = () => {
         };
         console.log('📦 Fetching products with final params:', params);
         dispatch(getProducts(params));
-    }, [dispatch, filters, currentPage, searchTerm, sortBy]);
+    }, [isInitialized, filters, currentPage, searchTerm, sortBy]);
 
     const handleSearch = (e) => {
         e.preventDefault();

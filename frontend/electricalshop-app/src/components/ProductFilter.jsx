@@ -15,16 +15,18 @@ const ProductFilters = () => {
     in_stock: false,
   });
   
-  // Sync local filters with Redux filters
+  // Sync local filters with Redux filters (but don't trigger on mount)
   useEffect(() => {
-    setLocalFilters({
-      category: filters.category || '',
-      brand: filters.brand || '',
-      min_price: filters.min_price || '',
-      max_price: filters.max_price || '',
-      condition: filters.condition || '',
-      in_stock: filters.in_stock || false,
-    });
+    if (filters.category || filters.brand || filters.min_price || filters.max_price || filters.condition || filters.in_stock) {
+      setLocalFilters({
+        category: filters.category || '',
+        brand: filters.brand || '',
+        min_price: filters.min_price || '',
+        max_price: filters.max_price || '',
+        condition: filters.condition || '',
+        in_stock: filters.in_stock || false,
+      });
+    }
   }, [filters]);
   
   const handleFilterChange = (key, value) => {
