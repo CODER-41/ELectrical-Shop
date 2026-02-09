@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 
 const Home = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   return (
     <div className="bg-white">
@@ -87,7 +87,6 @@ const Home = () => {
               <p className="text-gray-600 leading-relaxed">
                 All products go through rigorous quality checks before delivery to ensure you get the best
               </p>
-              <div className="h-1 bg-gradient-to-r from-green-600 to-green-700 mt-6 rounded-full"></div>
             </div>
             
             {/* Feature 2 */}
@@ -101,7 +100,6 @@ const Home = () => {
               <p className="text-gray-600 leading-relaxed">
                 Pay via M-Pesa, card, or cash on delivery with secure and convenient payment options
               </p>
-              <div className="h-1 bg-gradient-to-r from-blue-600 to-blue-700 mt-6 rounded-full"></div>
             </div>
             
             {/* Feature 3 */}
@@ -115,7 +113,6 @@ const Home = () => {
               <p className="text-gray-600 leading-relaxed">
                 Track warranties and get reminders before expiry with comprehensive protection coverage
               </p>
-              <div className="h-1 bg-gradient-to-r from-purple-600 to-purple-700 mt-6 rounded-full"></div>
             </div>
           </div>
         </div>
@@ -142,7 +139,7 @@ const Home = () => {
               { name: 'Kitchen', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2z', color: 'from-red-600 to-red-700' },
               { name: 'Gaming', icon: 'M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 011-1h1a2 2 0 100-4H7a1 1 0 01-1-1V7a1 1 0 011-1h3a1 1 0 001-1V4z', color: 'from-indigo-600 to-indigo-700' },
               { name: 'Accessories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z', color: 'from-pink-600 to-pink-700' }
-            ].map((category, index) => (
+            ].map((category) => (
               <Link
                 key={category.name}
                 to={`/products?category=${category.name.toLowerCase()}`}
