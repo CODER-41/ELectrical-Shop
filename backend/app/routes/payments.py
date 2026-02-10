@@ -103,8 +103,12 @@ def mpesa_callback():
     This endpoint is called by M-Pesa when payment is completed or fails.
     """
     try:
+        # Log raw request for debugging
+        raw_data = request.get_data(as_text=True)
+        current_app.logger.info(f'M-Pesa callback RAW: {raw_data}')
+        
         data = request.get_json()
-        current_app.logger.info(f'M-Pesa callback received: {data}')
+        current_app.logger.info(f'M-Pesa callback JSON: {data}')
 
         # Extract callback data
         stk_callback = data.get('Body', {}).get('stkCallback', {})
@@ -112,6 +116,8 @@ def mpesa_callback():
         checkout_request_id = stk_callback.get('CheckoutRequestID')
         result_code = stk_callback.get('ResultCode')
         result_desc = stk_callback.get('ResultDesc')
+        
+        current_app.logger.info(f'Callback details - CheckoutID: {checkout_request_id}, ResultCode: {result_code}')
 
         # Find order by checkout request ID
         order = Order.query.filter_by(payment_reference=checkout_request_id).first()
@@ -151,7 +157,7 @@ def mpesa_callback():
             except Exception as e:
                 current_app.logger.error(f'Failed to send payment email: {str(e)}')
 
-            current_app.logger.info(f'Payment successful for order {order.order_number}')
+            current_app.logger.info(f'Payment COMPLETED for order {order.order_number}, Receipt: {mpesa_receipt}')
 
         else:
             # Payment failed
@@ -159,13 +165,13 @@ def mpesa_callback():
             order.admin_notes = f'M-Pesa payment failed: {result_desc}'
             db.session.commit()
 
-            current_app.logger.warning(f'Payment failed for order {order.order_number}: {result_desc}')
+            current_app.logger.warning(f'Payment FAILED for order {order.order_number}: {result_desc}')
 
         # M-Pesa expects this response format
         return {'ResultCode': 0, 'ResultDesc': 'Accepted'}
 
     except Exception as e:
-        current_app.logger.error(f'M-Pesa callback error: {str(e)}')
+        current_app.logger.error(f'M-Pesa callback error: {str(e)}', exc_info=True)
         return {'ResultCode': 0, 'ResultDesc': 'Accepted'}
 
 
@@ -203,19 +209,67 @@ def query_mpesa_status():
             return success_response(
                 data={
                     'status': 'completed',
-                    'payment_reference': order.payment_reference
+                    'payment_reference': order.payment_reference,
+                    'payment_status': order.payment_status.value
                 },
                 message='Payment completed'
             )
 
         # Query M-Pesa for status
-        result = mpesa_service.query_stk_push_status(order.payment_reference)
-
-        return success_response(data={
-            'status': 'pending' if result.get('result_code') != '0' else 'completed',
-            'result_code': result.get('result_code'),
-            'result_desc': result.get('result_desc')
-        })
+        try:
+            result = mpesa_service.query_stk_push_status(order.payment_reference)
+            current_app.logger.info(f'Query result for order {order.order_number}: {result}')
+            
+            # Update order if payment completed
+            if result.get('result_code') == '0':
+                order.payment_status = PaymentStatus.COMPLETED
+                order.status = OrderStatus.PAID
+                order.paid_at = datetime.utcnow()
+                db.session.commit()
+                
+                # Send confirmation email
+                try:
+                    send_payment_confirmation_email(order, order.customer.user.email)
+                except Exception as e:
+                    current_app.logger.error(f'Failed to send payment email: {str(e)}')
+                
+                return success_response(
+                    data={
+                        'status': 'completed',
+                        'payment_reference': order.payment_reference,
+                        'payment_status': 'completed'
+                    },
+                    message='Payment completed'
+                )
+            elif result.get('result_code') == '1032':
+                # User cancelled
+                order.payment_status = PaymentStatus.FAILED
+                order.admin_notes = 'Payment cancelled by user'
+                db.session.commit()
+                return success_response(
+                    data={'status': 'cancelled', 'payment_status': 'failed'},
+                    message='Payment was cancelled'
+                )
+            else:
+                return success_response(
+                    data={
+                        'status': 'pending',
+                        'result_code': result.get('result_code'),
+                        'result_desc': result.get('result_desc'),
+                        'payment_status': order.payment_status.value
+                    },
+                    message='Payment still pending'
+                )
+        except Exception as query_error:
+            current_app.logger.error(f'M-Pesa query API error: {str(query_error)}')
+            # Return current order status even if query fails
+            return success_response(
+                data={
+                    'status': order.payment_status.value,
+                    'payment_status': order.payment_status.value
+                },
+                message='Using cached payment status'
+            )
 
     except Exception as e:
         current_app.logger.error(f'M-Pesa query error: {str(e)}')
