@@ -168,8 +168,8 @@ const Home = () => {
                                 {product.description}
                               </p>
                               <div className="flex items-center justify-between">
-                                <span className="text-2xl font-bold text-orange-600">
-                                  {formatPrice(product.price)}
+                                <span className="text-sm text-gray-500">
+                                  {product.brand} • {product.category}
                                 </span>
                                 <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-semibold rounded-full">
                                   In Stock
