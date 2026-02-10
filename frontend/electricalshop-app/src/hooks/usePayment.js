@@ -140,6 +140,78 @@ export const usePayment = () => {
   };
   
   /**
+   * Query M-Pesa payment status (actively checks with M-Pesa API)
+   */
+  const queryMpesaStatus = async (orderId) => {
+    try {
+      const response = await axios.post(
+        `${API_URL}/payments/mpesa/query`,
+        { order_id: orderId },
+        getAuthHeaders()
+      );
+      
+      const status = response.data.data.status;
+      setPaymentStatus(status);
+      return {
+        success: true,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to query M-Pesa status'
+      };
+    }
+  };
+  
+  /**
+   * Poll M-Pesa payment status until completed or timeout
+   * @param {string} orderId - Order ID to check
+   * @param {function} onStatusChange - Callback when status changes
+   * @param {number} maxAttempts - Maximum polling attempts (default: 24 = 2 minutes)
+   * @param {number} interval - Polling interval in ms (default: 5000 = 5 seconds)
+   */
+  const pollMpesaStatus = (orderId, onStatusChange, maxAttempts = 24, interval = 5000) => {
+    let attempts = 0;
+    
+    const pollInterval = setInterval(async () => {
+      attempts++;
+      
+      try {
+        const result = await queryMpesaStatus(orderId);
+        
+        if (result.success) {
+          const status = result.data.status;
+          
+          // Notify callback
+          if (onStatusChange) {
+            onStatusChange(status, result.data);
+          }
+          
+          // Stop polling if completed or failed
+          if (status === 'completed' || status === 'failed' || status === 'cancelled') {
+            clearInterval(pollInterval);
+          }
+        }
+        
+        // Stop after max attempts
+        if (attempts >= maxAttempts) {
+          clearInterval(pollInterval);
+          if (onStatusChange) {
+            onStatusChange('timeout', { message: 'Payment verification timed out' });
+          }
+        }
+      } catch (error) {
+        console.error('Error polling M-Pesa status:', error);
+      }
+    }, interval);
+    
+    // Return function to stop polling
+    return () => clearInterval(pollInterval);
+  };
+  
+  /**
    * Simulate payment (for testing)
    */
   const simulatePayment = async (orderId, success = true) => {
@@ -188,6 +260,8 @@ export const usePayment = () => {
     initiateCardPayment,
     verifyCardPayment,
     checkPaymentStatus,
+    queryMpesaStatus,
+    pollMpesaStatus,
     simulatePayment,
     checkMpesaConfig,
     setPaymentStatus

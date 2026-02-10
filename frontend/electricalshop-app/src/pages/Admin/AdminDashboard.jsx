@@ -66,12 +66,12 @@ const AdminDashboard = () => {
 
       {/* Revenue KPIs */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="card bg-gradient-to-br from-green-500 to-green-600 text-white">
+        <div className="card bg-gradient-to-br from-orange-500 to-yellow-600 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-green-100 text-sm font-medium">Total Revenue</p>
+              <p className="text-orange-100 text-sm font-medium">Total Revenue</p>
               <p className="text-3xl font-bold mt-2">{formatPrice(dashboard?.revenue?.total || 0)}</p>
-              <p className="text-sm text-green-100 mt-2">All-time earnings</p>
+              <p className="text-sm text-orange-100 mt-2">All-time earnings</p>
             </div>
             <div className="bg-white bg-opacity-20 p-3 rounded-lg">
               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -81,12 +81,12 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        <div className="card bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+        <div className="card bg-gradient-to-br from-orange-600 to-yellow-700 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-blue-100 text-sm font-medium">This Month</p>
+              <p className="text-orange-100 text-sm font-medium">This Month</p>
               <p className="text-3xl font-bold mt-2">{formatPrice(dashboard?.revenue?.this_month || 0)}</p>
-              <p className="text-sm text-blue-100 mt-2">Monthly revenue</p>
+              <p className="text-sm text-orange-100 mt-2">Monthly revenue</p>
             </div>
             <div className="bg-white bg-opacity-20 p-3 rounded-lg">
               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -96,12 +96,12 @@ const AdminDashboard = () => {
           </div>
         </div>
 
-        <div className="card bg-gradient-to-br from-purple-500 to-purple-600 text-white">
+        <div className="card bg-gradient-to-br from-yellow-500 to-orange-600 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-purple-100 text-sm font-medium">Platform Earnings</p>
+              <p className="text-yellow-100 text-sm font-medium">Platform Earnings</p>
               <p className="text-3xl font-bold mt-2">{formatPrice(dashboard?.revenue?.platform_earnings || 0)}</p>
-              <p className="text-sm text-purple-100 mt-2">25% commission</p>
+              <p className="text-sm text-yellow-100 mt-2">25% commission</p>
             </div>
             <div className="bg-white bg-opacity-20 p-3 rounded-lg">
               <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor">

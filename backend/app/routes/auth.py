@@ -1062,6 +1062,60 @@ def set_password():
         return error_response(f'Failed to set password: {str(e)}', 500)
 
 
+@auth_bp.route('/profile', methods=['PUT'])
+@jwt_required()
+def update_profile():
+    """
+    Update user profile.
+    """
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+        data = request.get_json()
+
+        if not user:
+            return error_response('User not found', 404)
+
+        if user.role == UserRole.CUSTOMER:
+            if not user.customer_profile:
+                return error_response('Customer profile not found', 404)
+
+            if data.get('first_name'):
+                user.customer_profile.first_name = data['first_name'].strip()
+            if data.get('last_name'):
+                user.customer_profile.last_name = data['last_name'].strip()
+            if data.get('phone_number'):
+                phone_number = data['phone_number'].strip()
+                if not validate_phone_number(phone_number):
+                    return validation_error_response({'phone_number': 'Invalid phone number format'})
+                user.customer_profile.phone_number = phone_number
+
+        elif user.role == UserRole.SUPPLIER:
+            if not user.supplier_profile:
+                return error_response('Supplier profile not found', 404)
+
+            if data.get('business_name'):
+                user.supplier_profile.business_name = data['business_name'].strip()
+            if data.get('contact_person'):
+                user.supplier_profile.contact_person = data['contact_person'].strip()
+            if data.get('phone_number'):
+                phone_number = data['phone_number'].strip()
+                if not validate_phone_number(phone_number):
+                    return validation_error_response({'phone_number': 'Invalid phone number format'})
+                user.supplier_profile.phone_number = phone_number
+
+        db.session.commit()
+
+        return success_response(
+            data=user.to_dict(include_profile=True),
+            message='Profile updated successfully'
+        )
+
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to update profile: {str(e)}', 500)
+
+
 @auth_bp.route('/complete-profile', methods=['POST'])
 @jwt_required()
 def complete_profile():

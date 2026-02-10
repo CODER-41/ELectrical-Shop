@@ -120,21 +120,21 @@ const DeliveryDashboard = () => {
       </div>
 
       {/* Profile Summary Card */}
-      <div className="bg-gradient-to-r from-green-600 to-green-700 rounded-xl p-6 text-white mb-8">
+      <div className="bg-gradient-to-r from-orange-600 to-yellow-600 rounded-xl p-6 text-white mb-8">
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-semibold">
               {dashboard?.profile?.first_name} {dashboard?.profile?.last_name}
             </h2>
-            <p className="text-green-100 mt-1">{dashboard?.profile?.vehicle_type || 'Delivery Agent'}</p>
+            <p className="text-orange-100 mt-1">{dashboard?.profile?.vehicle_type || 'Delivery Agent'}</p>
             {dashboard?.profile?.vehicle_registration && (
-              <p className="text-green-200 text-sm mt-1">Vehicle: {dashboard.profile.vehicle_registration}</p>
+              <p className="text-orange-200 text-sm mt-1">Vehicle: {dashboard.profile.vehicle_registration}</p>
             )}
           </div>
           <div className="text-right">
             <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${
               dashboard?.profile?.is_available
-                ? 'bg-green-500 text-white'
+                ? 'bg-orange-500 text-white'
                 : 'bg-red-500 text-white'
             }`}>
               {dashboard?.profile?.is_available ? 'Available' : 'Unavailable'}
@@ -219,7 +219,7 @@ const DeliveryDashboard = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center py-3 border-b border-gray-100">
               <span className="text-gray-600">Total Earnings</span>
-              <span className="text-xl font-bold text-green-600">{formatPrice(dashboard?.profile?.total_earnings || 0)}</span>
+              <span className="text-xl font-bold text-orange-600">{formatPrice(dashboard?.profile?.total_earnings || 0)}</span>
             </div>
             <div className="flex justify-between items-center py-3 border-b border-gray-100">
               <span className="text-gray-600">Pending Payout</span>
@@ -242,9 +242,9 @@ const DeliveryDashboard = () => {
           <div className="grid grid-cols-2 gap-4">
             <Link
               to="/delivery/orders"
-              className="flex flex-col items-center p-4 bg-green-50 rounded-lg hover:bg-green-100 transition-colors"
+              className="flex flex-col items-center p-4 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
             >
-              <svg className="w-8 h-8 text-green-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="w-8 h-8 text-orange-600 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
               </svg>
               <span className="text-sm font-medium text-gray-700">My Orders</span>
@@ -287,7 +287,7 @@ const DeliveryDashboard = () => {
           <h3 className="text-lg font-semibold text-gray-900">Delivery Zones</h3>
           <button
             onClick={() => setShowZoneModal(true)}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors text-sm"
+            className="px-4 py-2 bg-gradient-to-r from-orange-600 to-yellow-600 text-white rounded-lg hover:from-orange-700 hover:to-yellow-700 transition-colors text-sm"
           >
             Request New Zone
           </button>
@@ -301,7 +301,7 @@ const DeliveryDashboard = () => {
               {zones.filter(z => dashboard.profile.assigned_zones.includes(z.name)).map((zone) => (
                 <span
                   key={zone.id}
-                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800"
+                  className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-orange-100 text-orange-800"
                 >
                   <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -423,7 +423,7 @@ const DeliveryDashboard = () => {
               <button
                 onClick={handleRequestZone}
                 disabled={!selectedZone}
-                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 px-4 py-2 bg-gradient-to-r from-orange-600 to-yellow-600 text-white rounded-lg hover:from-orange-700 hover:to-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Submit Request
               </button>

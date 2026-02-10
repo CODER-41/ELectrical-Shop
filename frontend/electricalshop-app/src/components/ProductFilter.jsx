@@ -63,7 +63,7 @@ const ProductFilters = () => {
       <div className="px-6 py-8">
         {/* Header */}
         <div className="text-center mb-6">
-          <div className="w-12 h-12 bg-gradient-to-r from-green-600 to-green-700 rounded-full mx-auto flex items-center justify-center mb-4">
+          <div className="w-12 h-12 bg-gradient-to-r from-orange-600 to-yellow-600 rounded-full mx-auto flex items-center justify-center mb-4">
             <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
             </svg>
@@ -92,7 +92,7 @@ const ProductFilters = () => {
               <select
                 value={localFilters.category}
                 onChange={(e) => handleFilterChange('category', e.target.value)}
-                className="block w-full pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 text-gray-900 appearance-none"
+                className="block w-full pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-gray-900 appearance-none"
               >
                 <option value="">All Categories</option>
                 {categories.map((cat) => (
@@ -121,7 +121,7 @@ const ProductFilters = () => {
               <select
                 value={localFilters.brand}
                 onChange={(e) => handleFilterChange('brand', e.target.value)}
-                className="block w-full pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 text-gray-900 appearance-none"
+                className="block w-full pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-gray-900 appearance-none"
               >
                 <option value="">All Brands</option>
                 {brands.map((brand) => (
@@ -151,7 +151,7 @@ const ProductFilters = () => {
                   placeholder="Min Price"
                   value={localFilters.min_price}
                   onChange={(e) => handleFilterChange('min_price', e.target.value)}
-                  className="block w-full pl-12 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 text-gray-900 placeholder-gray-500"
+                  className="block w-full pl-12 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-gray-900 placeholder-gray-500"
                   min="0"
                 />
               </div>
@@ -164,7 +164,7 @@ const ProductFilters = () => {
                   placeholder="Max Price"
                   value={localFilters.max_price}
                   onChange={(e) => handleFilterChange('max_price', e.target.value)}
-                  className="block w-full pl-12 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 text-gray-900 placeholder-gray-500"
+                  className="block w-full pl-12 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-gray-900 placeholder-gray-500"
                   min="0"
                 />
               </div>
@@ -183,7 +183,7 @@ const ProductFilters = () => {
               <select
                 value={localFilters.condition}
                 onChange={(e) => handleFilterChange('condition', e.target.value)}
-                className="block w-full pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all duration-200 text-gray-900 appearance-none"
+                className="block w-full pl-10 pr-8 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-200 text-gray-900 appearance-none"
               >
                 <option value="">All Conditions</option>
                 <option value="new">New</option>
@@ -198,20 +198,20 @@ const ProductFilters = () => {
           </div>
           
           {/* In Stock Only */}
-          <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
+          <div className="bg-gradient-to-r from-orange-50 to-yellow-50 rounded-lg p-4 border border-orange-200">
             <div className="flex items-center">
               <input
                 id="in_stock"
                 type="checkbox"
                 checked={localFilters.in_stock}
                 onChange={(e) => handleFilterChange('in_stock', e.target.checked)}
-                className="h-5 w-5 text-green-600 focus:ring-green-500 border-gray-300 rounded transition-colors duration-200"
+                className="h-5 w-5 text-orange-600 focus:ring-orange-500 border-gray-300 rounded transition-colors duration-200"
               />
               <label htmlFor="in_stock" className="ml-3 flex items-center">
-                <svg className="w-5 h-5 text-green-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5 text-orange-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span className="text-sm font-medium text-green-800">In Stock Only</span>
+                <span className="text-sm font-medium text-orange-800">In Stock Only</span>
               </label>
             </div>
           </div>
@@ -219,7 +219,7 @@ const ProductFilters = () => {
           {/* Apply Button */}
           <button
             onClick={applyFilters}
-            className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 px-4 rounded-lg font-medium hover:from-green-700 hover:to-green-800 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-[1.02]"
+            className="w-full bg-gradient-to-r from-orange-600 to-yellow-600 text-white py-3 px-4 rounded-lg font-medium hover:from-orange-700 hover:to-yellow-700 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-all duration-200 transform hover:scale-[1.02]"
           >
             <div className="flex items-center justify-center">
               <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
