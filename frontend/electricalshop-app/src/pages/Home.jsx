@@ -112,7 +112,7 @@ const Home = () => {
                 </div>
               </div>
               <h1 className="text-3xl font-extrabold text-white sm:text-4xl md:text-5xl mb-4 drop-shadow-2xl">
-                Welcome to <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Q-Gear Electronics</span>
+                Welcome to <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Q-Gear Electronics Shop</span>
               </h1>
               <p className="mt-4 text-lg text-white font-semibold leading-relaxed max-w-2xl mx-auto mb-8 drop-shadow-lg">
                 Your trusted marketplace for quality electronics in Kenya. Shop from verified suppliers with warranty protection.
