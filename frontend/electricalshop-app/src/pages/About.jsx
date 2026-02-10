@@ -64,7 +64,7 @@ const About = () => {
             </div>
           </div>
           <h1 className="text-4xl md:text-5xl font-bold mb-6">
-            About <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Electrical Shop</span>
+            About Us
           </h1>
           <p className="text-xl max-w-3xl mx-auto leading-relaxed text-orange-50">
             Kenya's premier online marketplace for electrical components and equipment.
@@ -101,16 +101,16 @@ const About = () => {
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">Our Story</h2>
               </div>
               <div className="space-y-6 text-gray-700 leading-relaxed">
-                <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-4 border-l-4 border-orange-500">
-                  <p className="font-medium text-orange-900 mb-2">The Beginning (2024)</p>
+                <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-4">
+                  <p className="font-medium text-orange-900 mb-2">The Beginning (2026)</p>
                   <p>
-                    Electrical Shop was founded in 2024 with a mission to revolutionize how electrical
+                    Electrical Shop was founded in 2026 with a mission to revolutionize how electrical
                     components and equipment are sourced in Kenya. We identified the challenges faced by
                     electricians, contractors, and DIY enthusiasts in finding quality electrical supplies
                     at competitive prices.
                   </p>
                 </div>
-                <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg p-4 border-l-4 border-yellow-500">
+                <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg p-4">
                   <p className="font-medium text-yellow-900 mb-2">Our Platform</p>
                   <p>
                     Our platform connects verified suppliers with customers across Kenya, offering a
@@ -118,14 +118,14 @@ const About = () => {
                     equipment and renewable energy solutions.
                   </p>
                 </div>
-                <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg p-4 border-l-4 border-purple-500">
+                <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-lg p-4">
                   <p className="font-medium text-purple-900 mb-2">Our Commitment</p>
                   <p>
                     We prioritize quality assurance, competitive pricing, and excellent customer service
                     to ensure every electrical project has the right components.
                   </p>
                 </div>
-                <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-4 border-l-4 border-orange-500">
+                <div className="bg-gradient-to-r from-orange-50 to-orange-100 rounded-lg p-4">
                   <p className="font-medium text-orange-900 mb-2">Today & Beyond</p>
                   <p>
                     Today, Electrical Shop serves thousands of customers and hundreds of suppliers across
@@ -174,7 +174,7 @@ const About = () => {
                   <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200 hover:shadow-lg transition-all duration-200">
                     <div className="text-center">
                       <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-purple-700 rounded-full mx-auto flex items-center justify-center mb-3">
-                        <span className="text-2xl font-bold text-white">2024</span>
+                        <span className="text-2xl font-bold text-white">2026</span>
                       </div>
                       <h4 className="font-semibold text-purple-900">Founded in Nairobi</h4>
                       <p className="text-sm text-purple-700">Serving all of Kenya</p>
@@ -226,7 +226,6 @@ const About = () => {
                       <p className="text-gray-600 leading-relaxed">{value.description}</p>
                     </div>
                   </div>
-                  <div className={`h-1 bg-gradient-to-r ${gradients[index]}`}></div>
                 </div>
               );
             })}
