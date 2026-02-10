@@ -48,19 +48,22 @@ def send_order_confirmation_email(order, customer_email):
     # Calculate order summary
     subtotal = sum(item.subtotal for item in order.items)
     delivery_fee = order.delivery_fee or 0
-    
+
+    # Pre-compute items list (backslashes not allowed in f-string expressions on Python < 3.12)
+    items_text = ''.join([f'• {item.product_name} x {item.quantity} - KES {item.subtotal:,.2f}\n    ' for item in order.items])
+
     text_body = f"""
     Hi {order.customer.first_name if order.customer else 'Customer'},
-    
+
     Thank you for your order!
-    
+
     Order Number: {order.order_number}
     Order Date: {order.created_at.strftime('%B %d, %Y')}
     Payment Status: {payment_status['text']}
     Total: KES {order.total:,.2f}
-    
+
     Order Items:
-    {''.join([f'• {item.product_name} x {item.quantity} - KES {item.subtotal:,.2f}\n    ' for item in order.items])}
+    {items_text}
     
     Delivery Address:
     {order.delivery_address.full_name if order.delivery_address else 'N/A'}
