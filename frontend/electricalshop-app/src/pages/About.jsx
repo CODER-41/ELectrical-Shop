@@ -145,20 +145,20 @@ const About = () => {
                   <h3 className="text-xl font-bold text-gray-900 mb-4">Key Highlights</h3>
                 </div>
                 <div className="grid grid-cols-1 gap-6">
-                  <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200 hover:shadow-lg transition-all duration-200">
+                  <div className="bg-gradient-to-r from-indigo-50 to-purple-50 rounded-xl p-6 border border-indigo-200 hover:shadow-lg transition-all duration-300 transform hover:scale-105">
                     <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-full flex items-center justify-center">
+                      <div className="w-12 h-12 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-full flex items-center justify-center shadow-md">
                         <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
                       <div>
-                        <h4 className="font-semibold text-blue-900">Quality Products</h4>
-                        <p className="text-sm text-blue-700">Verified suppliers and components</p>
+                        <h4 className="font-semibold text-indigo-900">Quality Products</h4>
+                        <p className="text-sm text-indigo-700">Verified suppliers and components</p>
                       </div>
                     </div>
                   </div>
-                  <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-6 border border-green-200 hover:shadow-lg transition-all duration-200">
+                  <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-6 border border-green-200 hover:shadow-lg transition-all duration-300 transform hover:scale-105">
                     <div className="flex items-center space-x-4">
                       <div className="w-12 h-12 bg-gradient-to-r from-yellow-600 to-yellow-700 rounded-full flex items-center justify-center">
                         <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -171,7 +171,7 @@ const About = () => {
                       </div>
                     </div>
                   </div>
-                  <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200 hover:shadow-lg transition-all duration-200">
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200 hover:shadow-lg transition-all duration-300 transform hover:scale-105">
                     <div className="text-center">
                       <div className="w-16 h-16 bg-gradient-to-r from-purple-600 to-purple-700 rounded-full mx-auto flex items-center justify-center mb-3">
                         <span className="text-2xl font-bold text-white">2026</span>
@@ -237,8 +237,8 @@ const About = () => {
       <div className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900">Our Team</h2>
-            <p className="text-gray-600 mt-2">The people behind Electrical Shop</p>
+            <h2 className="text-3xl font-bold text-gray-900 mb-4">Meet Our Team</h2>
+            <p className="text-gray-600 text-lg">The passionate people behind Electrical Shop's success</p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {team.map((member, index) => (
