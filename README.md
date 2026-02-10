@@ -14,6 +14,7 @@ A full-stack multi-vendor e-commerce platform for electronics, built with Flask 
 - [Running the Application](#running-the-application)
 - [Default Accounts](#default-accounts)
 - [API Documentation](#api-documentation)
+- [Refund Policy](#refund-policy)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -37,7 +38,7 @@ The platform integrates with M-Pesa for mobile payments, Cloudinary for image up
 - Browse products by category, brand, or search
 - Product filtering, sorting, and pagination
 - Shopping cart management
-- Secure checkout with M-Pesa integration
+- Secure checkout with M-Pesa and card payments (Paystack)
 - Order tracking and history
 - Product returns and refunds
 - User profile management
@@ -99,6 +100,7 @@ The platform integrates with M-Pesa for mobile payments, Cloudinary for image up
 | Service | Purpose |
 |---------|---------|
 | M-Pesa Daraja API | Mobile payments |
+| Paystack | Card payments (Visa, Mastercard, local cards) |
 | Google OAuth 2.0 | Social authentication |
 | Cloudinary | Image storage |
 | Web3Forms | Contact form |
@@ -263,6 +265,8 @@ CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
 MPESA_CONSUMER_KEY=your-consumer-key
 MPESA_CONSUMER_SECRET=your-consumer-secret
+PAYSTACK_SECRET_KEY=your-paystack-secret-key
+PAYSTACK_PUBLIC_KEY=your-paystack-public-key
 ```
 
 **Frontend (.env)**
@@ -335,8 +339,40 @@ The backend provides a RESTful API. Key endpoints:
 | `/api/cart` | GET | Get cart |
 | `/api/orders` | GET/POST | Orders |
 | `/api/payments/mpesa/initiate` | POST | M-Pesa payment |
+| `/api/payments/card/initiate` | POST | Card payment (Paystack) |
 
 For complete API documentation, see [Backend README](backend/README.md).
+
+---
+
+## Refund Policy
+
+Electronics Shop implements an enterprise-level refund system with multiple policies:
+
+- **Supplier Fault:** Defective/wrong products - Supplier pays 100%
+- **Customer Changed Mind:** 15% restocking fee applies
+- **Shipping Damage:** Platform absorbs full cost
+- **Fraud:** Supplier pays 110% (includes penalty)
+
+For complete refund policy documentation, see [REFUND_POLICY.md](REFUND_POLICY.md).
+
+---
+
+## Supplier Terms & Conditions
+
+Suppliers must agree to platform terms including:
+
+- **Commission:** 25% platform, 75% supplier
+- **Refund Policies:** 4 policies based on return reason
+- **Performance Metrics:** Return rate monitoring
+- **Payout Terms:** Weekly/monthly payouts via M-Pesa
+
+For complete supplier terms, see [SUPPLIER_TERMS.md](SUPPLIER_TERMS.md).
+
+**API Endpoints:**
+- `GET /api/supplier/terms` - View terms
+- `POST /api/supplier/terms/accept` - Accept terms
+- `GET /api/supplier/terms/status` - Check acceptance
 
 ---
 

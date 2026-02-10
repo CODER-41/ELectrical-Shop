@@ -1,13 +1,19 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import mobileImg from '../assets/mobile phones.jpg';
+import laptopsImg from '../assets/Lpatops.webp';
+import tvsImg from '../assets/TVs.jpeg';
+import kitchenImg from '../assets/Kitchen.jpg';
+import gamingImg from '../assets/Gaming.jpg';
+import accessoriesImg from '../Accessories.jpg';
 
 const Home = () => {
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated } = useAuth();
   
   return (
     <div className="bg-white">
       {/* Hero Section */}
-      <div className="relative bg-gradient-to-br from-green-600 via-green-700 to-green-800 overflow-hidden">
+      <div className="relative bg-gradient-to-br from-blue-600 via-blue-700 to-blue-800 overflow-hidden">
         <div className="absolute inset-0 bg-black opacity-10"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
           <div className="text-center">
@@ -21,14 +27,14 @@ const Home = () => {
             <h1 className="text-4xl font-extrabold text-white sm:text-5xl md:text-6xl">
               Welcome to <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Electronics Shop</span>
             </h1>
-            <p className="mt-6 max-w-3xl mx-auto text-xl text-green-100 leading-relaxed">
+            <p className="mt-6 max-w-3xl mx-auto text-xl text-blue-100 leading-relaxed">
               Your trusted marketplace for quality electronics in Kenya. Shop from verified suppliers with warranty protection and fast delivery nationwide.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
               {isAuthenticated ? (
                 <Link
                   to="/products"
-                  className="inline-flex items-center justify-center px-8 py-4 bg-white text-green-700 font-bold rounded-xl hover:bg-gray-100 transform hover:scale-105 transition-all duration-200 shadow-xl hover:shadow-2xl"
+                  className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-700 font-bold rounded-xl hover:bg-gray-100 transform hover:scale-105 transition-all duration-200 shadow-xl hover:shadow-2xl"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
@@ -39,7 +45,7 @@ const Home = () => {
                 <>
                   <Link
                     to="/register"
-                    className="inline-flex items-center justify-center px-8 py-4 bg-white text-green-700 font-bold rounded-xl hover:bg-gray-100 transform hover:scale-105 transition-all duration-200 shadow-xl hover:shadow-2xl"
+                    className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-700 font-bold rounded-xl hover:bg-gray-100 transform hover:scale-105 transition-all duration-200 shadow-xl hover:shadow-2xl"
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
@@ -48,7 +54,7 @@ const Home = () => {
                   </Link>
                   <Link
                     to="/products"
-                    className="inline-flex items-center justify-center px-8 py-4 bg-transparent border-2 border-white text-white font-bold rounded-xl hover:bg-white hover:text-green-700 transform hover:scale-105 transition-all duration-200"
+                    className="inline-flex items-center justify-center px-8 py-4 bg-transparent border-2 border-white text-white font-bold rounded-xl hover:bg-white hover:text-blue-700 transform hover:scale-105 transition-all duration-200"
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
@@ -78,7 +84,7 @@ const Home = () => {
           <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
             {/* Feature 1 */}
             <div className="bg-white shadow-xl rounded-2xl p-8 text-center hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-              <div className="w-16 h-16 bg-gradient-to-r from-green-600 to-green-700 rounded-full flex items-center justify-center mx-auto mb-6">
+              <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-blue-700 rounded-full flex items-center justify-center mx-auto mb-6">
                 <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
@@ -87,7 +93,6 @@ const Home = () => {
               <p className="text-gray-600 leading-relaxed">
                 All products go through rigorous quality checks before delivery to ensure you get the best
               </p>
-              <div className="h-1 bg-gradient-to-r from-green-600 to-green-700 mt-6 rounded-full"></div>
             </div>
             
             {/* Feature 2 */}
@@ -101,7 +106,6 @@ const Home = () => {
               <p className="text-gray-600 leading-relaxed">
                 Pay via M-Pesa, card, or cash on delivery with secure and convenient payment options
               </p>
-              <div className="h-1 bg-gradient-to-r from-blue-600 to-blue-700 mt-6 rounded-full"></div>
             </div>
             
             {/* Feature 3 */}
@@ -115,7 +119,6 @@ const Home = () => {
               <p className="text-gray-600 leading-relaxed">
                 Track warranties and get reminders before expiry with comprehensive protection coverage
               </p>
-              <div className="h-1 bg-gradient-to-r from-purple-600 to-purple-700 mt-6 rounded-full"></div>
             </div>
           </div>
         </div>
@@ -134,28 +137,33 @@ const Home = () => {
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">Explore our wide range of electronic categories</p>
           </div>
           
-          <div className="grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-6">
+          <div className="grid grid-cols-2 gap-8 sm:grid-cols-3 lg:grid-cols-6 justify-items-center">
             {[
-              { name: 'Mobile Phones', icon: 'M12 18h.01M8 21h8a1 1 0 001-1V4a1 1 0 00-1-1H8a1 1 0 00-1 1v16a1 1 0 001 1z', color: 'from-blue-600 to-blue-700' },
-              { name: 'Laptops', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', color: 'from-green-600 to-green-700' },
-              { name: 'TVs', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z', color: 'from-purple-600 to-purple-700' },
-              { name: 'Kitchen', icon: 'M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2 2z', color: 'from-red-600 to-red-700' },
-              { name: 'Gaming', icon: 'M11 4a2 2 0 114 0v1a1 1 0 001 1h3a1 1 0 011 1v3a1 1 0 01-1 1h-1a2 2 0 100 4h1a1 1 0 011 1v3a1 1 0 01-1 1h-3a1 1 0 01-1-1v-1a2 2 0 10-4 0v1a1 1 0 01-1 1H7a1 1 0 01-1-1v-3a1 1 0 011-1h1a2 2 0 100-4H7a1 1 0 01-1-1V7a1 1 0 011-1h3a1 1 0 001-1V4z', color: 'from-indigo-600 to-indigo-700' },
-              { name: 'Accessories', icon: 'M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z', color: 'from-pink-600 to-pink-700' }
-            ].map((category, index) => (
+              { name: 'Mobile Phones', displayName: 'Mobile Phones', image: mobileImg, slug: 'mobile-phones-tablets', color: 'from-blue-600 to-blue-700' },
+              { name: 'Laptops', displayName: 'Laptops', image: laptopsImg, slug: 'laptops-computers', color: 'from-green-600 to-green-700' },
+              { name: 'TVs', displayName: 'TVs', image: tvsImg, slug: 'tvs-home-entertainment', color: 'from-purple-600 to-purple-700' },
+              { name: 'Kitchen', displayName: 'Kitchen', image: kitchenImg, slug: 'kitchen-appliances', color: 'from-red-600 to-red-700' },
+              { name: 'Gaming', displayName: 'Gaming', image: gamingImg, slug: 'gaming', color: 'from-indigo-600 to-indigo-700' },
+              { name: 'Accessories', displayName: 'Accessories', image: accessoriesImg, slug: 'accessories', color: 'from-pink-600 to-pink-700' }
+            ].map((category) => (
               <Link
                 key={category.name}
-                to={`/products?category=${category.name.toLowerCase()}`}
-                className="group"
+                to={`/products?category=${category.slug}`}
+                className="group w-full max-w-xs"
               >
-                <div className="bg-white shadow-xl rounded-2xl p-6 text-center hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-                  <div className={`w-12 h-12 bg-gradient-to-r ${category.color} rounded-full flex items-center justify-center mx-auto mb-4`}>
-                    <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={category.icon} />
-                    </svg>
+                <div className="bg-white shadow-xl rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+                  <div className="relative h-40 overflow-hidden">
+                    <img 
+                      src={category.image} 
+                      alt={category.displayName}
+                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                   </div>
-                  <h3 className="text-sm font-bold text-gray-900 group-hover:text-green-600 transition-colors duration-200">{category.name}</h3>
-                  <div className={`h-1 bg-gradient-to-r ${category.color} mt-4 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300`}></div>
+                  <div className="p-4 text-center">
+                    <h3 className="text-sm font-bold text-gray-900 group-hover:text-blue-600 transition-colors duration-200">{category.displayName}</h3>
+                    <div className={`h-1 bg-gradient-to-r ${category.color} mt-3 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300`}></div>
+                  </div>
                 </div>
               </Link>
             ))}
@@ -165,23 +173,23 @@ const Home = () => {
       
       {/* CTA Section */}
       {!isAuthenticated && (
-        <div className="bg-gradient-to-r from-green-600 to-green-800 relative overflow-hidden">
+        <div className="bg-gradient-to-r from-blue-600 to-blue-800 relative overflow-hidden">
           <div className="absolute inset-0 bg-black opacity-10"></div>
           <div className="relative max-w-7xl mx-auto py-16 px-4 sm:px-6 lg:py-20 lg:px-8">
             <div className="lg:flex lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-4xl font-extrabold tracking-tight text-white">
                   <span className="block">Ready to start shopping?</span>
-                  <span className="block text-green-200 mt-2">Create your account today.</span>
+                  <span className="block text-blue-200 mt-2">Create your account today.</span>
                 </h2>
-                <p className="mt-4 text-lg text-green-100 max-w-2xl">
+                <p className="mt-4 text-lg text-blue-100 max-w-2xl">
                   Join thousands of satisfied customers and discover the best electronics deals in Kenya.
                 </p>
               </div>
               <div className="mt-8 lg:mt-0 lg:flex-shrink-0">
                 <Link
                   to="/register"
-                  className="inline-flex items-center justify-center px-8 py-4 bg-white text-green-700 font-bold rounded-xl hover:bg-gray-100 transform hover:scale-105 transition-all duration-200 shadow-xl hover:shadow-2xl"
+                  className="inline-flex items-center justify-center px-8 py-4 bg-white text-blue-700 font-bold rounded-xl hover:bg-gray-100 transform hover:scale-105 transition-all duration-200 shadow-xl hover:shadow-2xl"
                 >
                   <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />

@@ -20,10 +20,16 @@ const Orders = () => {
   
   useEffect(() => {
     if (isError) {
+      console.error('Orders error:', message);
       toast.error(message);
       dispatch(reset());
     }
   }, [isError, message, dispatch]);
+  
+  // Debug: Log orders state
+  useEffect(() => {
+    console.log('Orders state:', { orders, isLoading, isError, message });
+  }, [orders, isLoading, isError, message]);
   
   const formatPrice = (price) => {
     return new Intl.NumberFormat('en-KE', {
@@ -82,8 +88,8 @@ const Orders = () => {
   };
   
   const filteredOrders = statusFilter === 'all' 
-    ? orders 
-    : orders.filter(order => order.status === statusFilter);
+    ? (Array.isArray(orders) ? orders : []) 
+    : (Array.isArray(orders) ? orders.filter(order => order.status === statusFilter) : []);
   
   if (isLoading) {
     return (
@@ -119,19 +125,19 @@ const Orders = () => {
             {/* Order Stats */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mt-4 sm:mt-6">
               <div className="bg-gradient-to-r from-blue-500 to-blue-600 p-3 sm:p-4 rounded-xl text-white">
-                <div className="text-xl sm:text-2xl font-bold">{orders.length}</div>
+                <div className="text-xl sm:text-2xl font-bold">{Array.isArray(orders) ? orders.length : 0}</div>
                 <div className="text-blue-100 text-xs sm:text-sm">Total Orders</div>
               </div>
               <div className="bg-gradient-to-r from-green-500 to-green-600 p-3 sm:p-4 rounded-xl text-white">
-                <div className="text-xl sm:text-2xl font-bold">{orders.filter(o => o.status === 'delivered').length}</div>
+                <div className="text-xl sm:text-2xl font-bold">{Array.isArray(orders) ? orders.filter(o => o.status === 'delivered').length : 0}</div>
                 <div className="text-green-100 text-xs sm:text-sm">Delivered</div>
               </div>
               <div className="bg-gradient-to-r from-yellow-500 to-yellow-600 p-3 sm:p-4 rounded-xl text-white">
-                <div className="text-xl sm:text-2xl font-bold">{orders.filter(o => o.status === 'pending').length}</div>
+                <div className="text-xl sm:text-2xl font-bold">{Array.isArray(orders) ? orders.filter(o => o.status === 'pending').length : 0}</div>
                 <div className="text-yellow-100 text-xs sm:text-sm">Pending</div>
               </div>
               <div className="bg-gradient-to-r from-purple-500 to-purple-600 p-3 sm:p-4 rounded-xl text-white">
-                <div className="text-xl sm:text-2xl font-bold">{orders.filter(o => o.status === 'shipped').length}</div>
+                <div className="text-xl sm:text-2xl font-bold">{Array.isArray(orders) ? orders.filter(o => o.status === 'shipped').length : 0}</div>
                 <div className="text-purple-100 text-xs sm:text-sm">Shipped</div>
               </div>
             </div>
@@ -143,12 +149,12 @@ const Orders = () => {
           <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Filter Orders</h3>
           <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {[
-              { key: 'all', label: 'All', shortLabel: 'All', count: orders.length },
-              { key: 'pending', label: 'Pending', shortLabel: 'Pending', count: orders.filter(o => o.status === 'pending').length },
-              { key: 'paid', label: 'Paid', shortLabel: 'Paid', count: orders.filter(o => o.status === 'paid').length },
-              { key: 'processing', label: 'Processing', shortLabel: 'Process', count: orders.filter(o => o.status === 'processing').length },
-              { key: 'shipped', label: 'Shipped', shortLabel: 'Shipped', count: orders.filter(o => o.status === 'shipped').length },
-              { key: 'delivered', label: 'Delivered', shortLabel: 'Delivered', count: orders.filter(o => o.status === 'delivered').length },
+              { key: 'all', label: 'All', shortLabel: 'All', count: Array.isArray(orders) ? orders.length : 0 },
+              { key: 'pending', label: 'Pending', shortLabel: 'Pending', count: Array.isArray(orders) ? orders.filter(o => o.status === 'pending').length : 0 },
+              { key: 'paid', label: 'Paid', shortLabel: 'Paid', count: Array.isArray(orders) ? orders.filter(o => o.status === 'paid').length : 0 },
+              { key: 'processing', label: 'Processing', shortLabel: 'Process', count: Array.isArray(orders) ? orders.filter(o => o.status === 'processing').length : 0 },
+              { key: 'shipped', label: 'Shipped', shortLabel: 'Shipped', count: Array.isArray(orders) ? orders.filter(o => o.status === 'shipped').length : 0 },
+              { key: 'delivered', label: 'Delivered', shortLabel: 'Delivered', count: Array.isArray(orders) ? orders.filter(o => o.status === 'delivered').length : 0 },
             ].map(filter => (
               <button
                 key={filter.key}

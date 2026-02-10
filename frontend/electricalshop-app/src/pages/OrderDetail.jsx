@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { getOrder, clearCurrentOrder, reset } from '../store/slices/ordersSlice';
+import { getOrder, clearCurrentOrder, reset, cancelOrder } from '../store/slices/ordersSlice';
 import { usePayment } from '../hooks/usePayment';
 import { toast } from 'react-toastify';
 
@@ -14,6 +14,8 @@ const OrderDetail = () => {
   
   const [showPaymentRetry, setShowPaymentRetry] = useState(false);
   const [mpesaNumber, setMpesaNumber] = useState('');
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason] = useState('');
   
   useEffect(() => {
     dispatch(getOrder(orderId));
@@ -79,6 +81,27 @@ const OrderDetail = () => {
         dispatch(getOrder(orderId));
       }, 5000);
     }
+  };
+  
+  const handleCancelOrder = async () => {
+    if (!cancelReason.trim()) {
+      toast.error('Please provide a reason for cancellation');
+      return;
+    }
+    
+    try {
+      await dispatch(cancelOrder({ orderId, reason: cancelReason })).unwrap();
+      toast.success('Order cancelled successfully');
+      setShowCancelModal(false);
+      setCancelReason('');
+      dispatch(getOrder(orderId)); // Refresh order
+    } catch (error) {
+      toast.error(error || 'Failed to cancel order');
+    }
+  };
+  
+  const canCancelOrder = () => {
+    return ['pending', 'paid'].includes(order?.status);
   };
   
   // Order status timeline
@@ -345,6 +368,15 @@ const OrderDetail = () => {
             
             {/* Actions */}
             <div className="mt-6 pt-6 border-t border-gray-200 space-y-3">
+              {canCancelOrder() && (
+                <button 
+                  onClick={() => setShowCancelModal(true)}
+                  className="btn btn-outline w-full text-red-600 border-red-300 hover:bg-red-50"
+                >
+                  Cancel Order
+                </button>
+              )}
+              
               <Link to="/orders" className="btn btn-outline w-full text-center">
                 View All Orders
               </Link>
@@ -358,6 +390,50 @@ const OrderDetail = () => {
           </div>
         </div>
       </div>
+      
+      {/* Cancel Order Modal */}
+      {showCancelModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-4">Cancel Order</h3>
+            
+            <p className="text-gray-600 mb-4">
+              Are you sure you want to cancel this order? This action cannot be undone.
+            </p>
+            
+            <div className="mb-4">
+              <label className="form-label">Reason for cancellation *</label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={3}
+                placeholder="Please tell us why you're cancelling..."
+                className="input"
+                required
+              />
+            </div>
+            
+            <div className="flex space-x-3">
+              <button
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelReason('');
+                }}
+                className="btn btn-outline flex-1"
+              >
+                Keep Order
+              </button>
+              <button
+                onClick={handleCancelOrder}
+                disabled={isLoading}
+                className="btn bg-red-600 hover:bg-red-700 text-white flex-1"
+              >
+                {isLoading ? 'Cancelling...' : 'Cancel Order'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -29,7 +29,7 @@ def create_app(config_name=None):
         from app.models.user import User, CustomerProfile, SupplierProfile, AdminProfile, DeliveryAgentProfile, DeliveryCompany
         from app.models.session import Session
         from app.models.address import Address
-        from app.models.notifications import Notification
+        from app.models.notification import Notification
         from app.models.product import Product, Category, Brand
         from app.models.order import Order, OrderItem, DeliveryZone
         from app.models.returns import Return, SupplierPayout, DeliveryPayout
@@ -44,6 +44,7 @@ def create_app(config_name=None):
     from app.routes.payments import payments_bp
     from app.routes.returns import returns_bp
     from app.routes.supplier import supplier_bp
+    from app.routes.supplier_terms import supplier_bp as supplier_terms_bp
     from app.routes.admin import admin_bp
     from app.routes.uploads import uploads_bp
     from app.routes.cart import cart_bp
@@ -56,6 +57,7 @@ def create_app(config_name=None):
     app.register_blueprint(payments_bp)
     app.register_blueprint(returns_bp)
     app.register_blueprint(supplier_bp)
+    app.register_blueprint(supplier_terms_bp, name='supplier_terms')
     app.register_blueprint(admin_bp)
     app.register_blueprint(uploads_bp)
     app.register_blueprint(cart_bp)

@@ -5,7 +5,7 @@ Delivery agent routes for managing deliveries and COD collection.
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
-from sqlalchemy import func
+from sqlalchemy import func, cast, Text
 from app.models import db
 from app.models.user import User, UserRole, DeliveryAgentProfile
 from app.models.order import Order, OrderStatus, PaymentMethod, PaymentStatus, DeliveryZone
@@ -28,7 +28,8 @@ def find_available_agent_for_zone(zone_name):
     # Find agents assigned to this zone who are available
     agents = DeliveryAgentProfile.query.filter(
         DeliveryAgentProfile.is_available == True,
-        DeliveryAgentProfile.assigned_zones.contains([zone_name])
+        DeliveryAgentProfile.assigned_zones.isnot(None),
+        cast(DeliveryAgentProfile.assigned_zones, Text).like(f'%{zone_name}%')
     ).all()
 
     if not agents:
@@ -2036,9 +2037,10 @@ def get_delivery_zones_admin():
         for zone in zones:
             zone_dict = zone.to_dict()
 
-            # Count agents assigned to this zone
+            # Count agents assigned to this zone (assigned_zones stores zone names)
             agent_count = DeliveryAgentProfile.query.filter(
-                DeliveryAgentProfile.assigned_zones.contains([zone.id])
+                DeliveryAgentProfile.assigned_zones.isnot(None),
+                cast(DeliveryAgentProfile.assigned_zones, Text).like(f'%{zone.name}%')
             ).count()
 
             zone_dict['agent_count'] = agent_count

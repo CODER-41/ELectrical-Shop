@@ -115,3 +115,5 @@ class CartItem(db.Model):
 
     def __repr__(self):
         return f'<CartItem {self.id} - Product: {self.product_id}, Qty: {self.quantity}>'
+
+    

@@ -13,6 +13,7 @@ from app.models.returns import SupplierPayout
 from app.utils.responses import success_response, error_response
 from app.utils.decorators import admin_required
 from app.services.mpesa_service import mpesa_service
+from app.services.paystack_service import paystack_service
 from app.services.email_service import send_payment_confirmation_email
 
 payments_bp = Blueprint('payments', __name__, url_prefix='/api/payments')
@@ -325,19 +326,19 @@ def confirm_cash_payment():
         return error_response(f'Failed to confirm payment: {str(e)}', 500)
 
 
-# Card payment endpoints (placeholder for Flutterwave/Paystack integration)
+# Card payment endpoints (Paystack integration)
 @payments_bp.route('/card/initiate', methods=['POST'])
 @jwt_required()
 def initiate_card_payment():
     """
-    Initiate card payment via payment gateway.
+    Initiate card payment via Paystack.
 
     Expected payload:
     {
         "order_id": "uuid"
     }
 
-    Returns a redirect URL to the payment gateway.
+    Returns authorization URL for Paystack payment.
     """
     try:
         user_id = get_jwt_identity()
@@ -360,36 +361,169 @@ def initiate_card_payment():
         if order.payment_method != PaymentMethod.CARD:
             return error_response('Order payment method is not card', 400)
 
-        # TODO: Integrate with Flutterwave or Paystack
-        # For now, return a placeholder response
-        return error_response(
-            'Card payment gateway not yet configured. Please use M-Pesa or cash on delivery.',
-            501
+        # Check if Paystack is configured
+        if not paystack_service.is_configured():
+            return error_response(
+                'Card payment is not available at the moment. Please use M-Pesa or cash on delivery.',
+                503
+            )
+
+        # Generate unique reference
+        reference = f'ORD-{order.order_number}-{datetime.utcnow().strftime("%Y%m%d%H%M%S")}'
+
+        # Initialize Paystack transaction
+        result = paystack_service.initialize_transaction(
+            email=order.customer.user.email,
+            amount=float(order.total),
+            reference=reference,
+            metadata={
+                'order_id': str(order.id),
+                'order_number': order.order_number,
+                'customer_name': order.customer.user.full_name
+            }
         )
 
+        if result.get('success'):
+            # Store reference for verification
+            order.payment_reference = reference
+            db.session.commit()
+
+            return success_response(
+                data={
+                    'authorization_url': result.get('authorization_url'),
+                    'access_code': result.get('access_code'),
+                    'reference': reference,
+                    'public_key': paystack_service.get_public_key()
+                },
+                message='Payment initialized successfully'
+            )
+        else:
+            return error_response(
+                result.get('error', 'Failed to initiate card payment'),
+                500
+            )
+
     except Exception as e:
-        return error_response(f'Failed to initiate card payment: {str(e)}', 500)
+        current_app.logger.error(f'Paystack initiation error: {str(e)}')
+        return error_response(f'Payment initiation failed: {str(e)}', 500)
 
 
-@payments_bp.route('/card/callback', methods=['POST'])
-def card_callback():
+@payments_bp.route('/card/verify', methods=['POST'])
+@jwt_required()
+def verify_card_payment():
     """
-    Handle card payment callback from payment gateway.
-    This endpoint is called by the payment gateway when payment completes.
+    Verify Paystack payment after customer completes payment.
+    Called by frontend after redirect from Paystack.
+
+    Expected payload:
+    {
+        "reference": "transaction_reference"
+    }
+    """
+    try:
+        user_id = get_jwt_identity()
+        data = request.get_json()
+
+        if not data.get('reference'):
+            return error_response('Payment reference is required', 400)
+
+        reference = data['reference']
+
+        # Find order by reference
+        order = Order.query.filter_by(payment_reference=reference).first()
+        if not order:
+            return error_response('Order not found', 404)
+
+        # Verify ownership
+        if str(order.customer.user_id) != user_id:
+            return error_response('Unauthorized', 403)
+
+        # Verify transaction with Paystack
+        result = paystack_service.verify_transaction(reference)
+
+        if result.get('success'):
+            if result['status'] == 'success':
+                # Payment successful
+                order.payment_status = PaymentStatus.COMPLETED
+                order.status = OrderStatus.PAID
+                order.paid_at = datetime.utcnow()
+                db.session.commit()
+
+                # Send confirmation email
+                try:
+                    send_payment_confirmation_email(order, order.customer.user.email)
+                except Exception as e:
+                    current_app.logger.error(f'Failed to send payment email: {str(e)}')
+
+                current_app.logger.info(f'Payment successful for order {order.order_number}')
+
+                return success_response(
+                    data={
+                        'order_id': str(order.id),
+                        'order_number': order.order_number,
+                        'payment_status': 'completed',
+                        'amount': float(order.total)
+                    },
+                    message='Payment verified successfully'
+                )
+            else:
+                # Payment failed or pending
+                order.payment_status = PaymentStatus.FAILED
+                order.admin_notes = f'Paystack payment status: {result["status"]}'
+                db.session.commit()
+
+                return error_response(f'Payment {result["status"]}', 400)
+        else:
+            return error_response(
+                result.get('error', 'Payment verification failed'),
+                500
+            )
+
+    except Exception as e:
+        current_app.logger.error(f'Paystack verification error: {str(e)}')
+        return error_response(f'Verification failed: {str(e)}', 500)
+
+
+@payments_bp.route('/card/webhook', methods=['POST'])
+def card_webhook():
+    """
+    Handle Paystack webhook events.
+    This endpoint is called by Paystack when payment events occur.
     """
     try:
         data = request.get_json()
-        current_app.logger.info(f'Card payment callback received: {data}')
+        current_app.logger.info(f'Paystack webhook received: {data}')
 
-        # TODO: Implement based on payment gateway (Flutterwave/Paystack)
-        # Verify webhook signature
-        # Update order status
+        event = data.get('event')
+        event_data = data.get('data', {})
 
-        return {'status': 'success'}
+        # Handle charge.success event
+        if event == 'charge.success':
+            reference = event_data.get('reference')
+            status = event_data.get('status')
+
+            # Find order by reference
+            order = Order.query.filter_by(payment_reference=reference).first()
+
+            if order and status == 'success':
+                order.payment_status = PaymentStatus.COMPLETED
+                order.status = OrderStatus.PAID
+                order.paid_at = datetime.utcnow()
+                db.session.commit()
+
+                # Send confirmation email
+                try:
+                    send_payment_confirmation_email(order, order.customer.user.email)
+                except Exception as e:
+                    current_app.logger.error(f'Failed to send payment email: {str(e)}')
+
+                current_app.logger.info(f'Payment successful for order {order.order_number}')
+
+        return {'status': 'success'}, 200
 
     except Exception as e:
-        current_app.logger.error(f'Card callback error: {str(e)}')
-        return {'status': 'error', 'message': str(e)}
+        current_app.logger.error(f'Paystack webhook error: {str(e)}')
+        return {'status': 'error', 'message': str(e)}, 500
 
 
 @payments_bp.route('/methods', methods=['GET'])
@@ -410,7 +544,7 @@ def get_payment_methods():
                 'id': 'card',
                 'name': 'Card Payment',
                 'description': 'Pay with Visa, Mastercard, or other cards',
-                'enabled': False,  # Enable when gateway is configured
+                'enabled': paystack_service.is_configured(),
                 'icon': 'card-icon'
             },
             {

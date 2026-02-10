@@ -30,7 +30,7 @@ const KENYA_COUNTIES = [
 const Checkout = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { initiateMpesaPayment, isProcessing: isPaymentProcessing } = usePayment();
+  const { initiateMpesaPayment, initiateCardPayment, isProcessing: isPaymentProcessing } = usePayment();
   
   const { items, totalPrice } = useSelector((state) => state.cart);
   const { addresses, selectedAddress, deliveryFee, isLoading } = useSelector((state) => state.orders);
@@ -174,6 +174,21 @@ const Checkout = () => {
         
         if (paymentResult.success) {
           toast.success('Check your phone for M-Pesa prompt');
+        } else {
+          toast.warning('Order created but payment failed. You can retry payment from order details.');
+        }
+      }
+      
+      // If Card, initiate Paystack payment
+      if (paymentMethod === 'card') {
+        toast.info('Redirecting to payment page...');
+        
+        const paymentResult = await initiateCardPayment(order.id);
+        
+        if (paymentResult.success && paymentResult.data.authorization_url) {
+          // Redirect to Paystack payment page
+          window.location.href = paymentResult.data.authorization_url;
+          return; // Don't navigate to confirmation yet
         } else {
           toast.warning('Order created but payment failed. You can retry payment from order details.');
         }
@@ -524,15 +539,30 @@ const Checkout = () => {
                   )}
                 </div>
                 
-                {/* Card Payment - Coming Soon */}
-                <div className="p-4 border-2 border-gray-200 rounded-lg opacity-50 cursor-not-allowed">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <input type="radio" disabled className="h-4 w-4" />
-                      <label className="ml-3 font-semibold text-gray-500">Card Payment</label>
-                    </div>
-                    <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">Coming Soon</span>
+                {/* Card Payment - Paystack */}
+                <div
+                  onClick={() => setPaymentMethod('card')}
+                  className={`p-4 border-2 rounded-lg cursor-pointer ${
+                    paymentMethod === 'card' ? 'border-primary bg-primary-50' : 'border-gray-200'
+                  }`}
+                >
+                  <div className="flex items-center">
+                    <input
+                      type="radio"
+                      checked={paymentMethod === 'card'}
+                      onChange={() => setPaymentMethod('card')}
+                      className="h-4 w-4 text-primary"
+                    />
+                    <label className="ml-3 flex items-center">
+                      <span className="font-semibold">Card Payment</span>
+                      <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">Visa, Mastercard</span>
+                    </label>
                   </div>
+                  {paymentMethod === 'card' && (
+                    <p className="mt-2 text-sm text-gray-600">
+                      Pay securely with your debit or credit card via Paystack
+                    </p>
+                  )}
                 </div>
               </div>
               
@@ -659,6 +689,10 @@ const Checkout = () => {
                             <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                             </svg>
+                          ) : paymentMethod === 'card' ? (
+                            <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                            </svg>
                           ) : (
                             <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -669,6 +703,9 @@ const Checkout = () => {
                           <p className="font-bold text-gray-900 text-lg capitalize">{paymentMethod}</p>
                           {paymentMethod === 'mpesa' && (
                             <p className="text-gray-700 font-medium">{mpesaNumber}</p>
+                          )}
+                          {paymentMethod === 'card' && (
+                            <p className="text-gray-600">Visa, Mastercard, or local bank card</p>
                           )}
                           {paymentMethod === 'cash' && (
                             <p className="text-gray-600">Pay when your order is delivered</p>
