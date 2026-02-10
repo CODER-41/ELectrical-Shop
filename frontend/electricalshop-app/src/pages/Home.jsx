@@ -26,7 +26,7 @@ const Home = () => {
               </div>
             </div>
             <h1 className="text-4xl font-extrabold text-white sm:text-5xl md:text-6xl">
-              Welcome to <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Electronics Shop</span>
+              Welcome to <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Q-Gear Electronics shop</span>
             </h1>
             <p className="mt-6 max-w-3xl mx-auto text-xl text-orange-50 leading-relaxed">
               Your trusted marketplace for quality electronics in Kenya. Shop from verified suppliers with warranty protection and fast delivery nationwide.
@@ -152,7 +152,7 @@ const Home = () => {
                 to={`/products?category=${category.slug}`}
                 className="group w-full max-w-xs"
               >
-                <div className="bg-white shadow-xl rounded-2xl overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+                <div className="bg-white shadow-xl rounded-2xl overflow-hidden hover:shadow-2xl hover:bg-gradient-to-br hover:from-orange-50 hover:to-yellow-50 transition-all duration-300 transform hover:scale-105">
                   <div className="relative h-40 overflow-hidden">
                     <img 
                       src={category.image} 
@@ -163,7 +163,6 @@ const Home = () => {
                   </div>
                   <div className="p-4 text-center">
                     <h3 className="text-sm font-bold text-gray-900 group-hover:text-orange-600 transition-colors duration-200">{category.displayName}</h3>
-                    <div className={`h-1 bg-gradient-to-r ${category.color} mt-3 rounded-full transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300`}></div>
                   </div>
                 </div>
               </Link>

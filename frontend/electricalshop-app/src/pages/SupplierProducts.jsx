@@ -81,7 +81,7 @@ const SupplierProducts = () => {
         </div>
         <Link
           to="/add-product"
-          className="mt-4 sm:mt-0 btn btn-primary inline-flex items-center"
+          className="mt-4 sm:mt-0 bg-gradient-to-r from-orange-600 to-yellow-600 text-white px-6 py-2 rounded-lg hover:from-orange-700 hover:to-yellow-700 transition-all inline-flex items-center font-medium"
         >
           <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -98,13 +98,13 @@ const SupplierProducts = () => {
             placeholder="Search products..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
           />
         </div>
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
+          className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
         >
           <option value="all">All Status</option>
           <option value="active">Active</option>
@@ -120,7 +120,7 @@ const SupplierProducts = () => {
           </svg>
           <h3 className="mt-2 text-lg font-medium text-gray-900">No products found</h3>
           <p className="mt-1 text-gray-500">Get started by adding your first product.</p>
-          <Link to="/add-product" className="mt-4 inline-block btn btn-primary">
+          <Link to="/add-product" className="mt-4 inline-block bg-gradient-to-r from-orange-600 to-yellow-600 text-white px-6 py-2 rounded-lg hover:from-orange-700 hover:to-yellow-700 transition-all font-medium">
             Add Product
           </Link>
         </div>
@@ -162,7 +162,7 @@ const SupplierProducts = () => {
                 </div>
 
                 <div className="mt-3 flex items-center justify-between">
-                  <p className="text-lg font-bold text-primary">{formatPrice(product.price)}</p>
+                  <span className="px-3 py-1.5 bg-gradient-to-r from-orange-600 to-yellow-600 text-white rounded-lg text-sm font-bold">{formatPrice(product.price)}</span>
                   <p className="text-sm text-gray-500">
                     Stock: <span className={product.stock_quantity <= 10 ? 'text-orange-600 font-semibold' : ''}>
                       {product.stock_quantity}
@@ -174,16 +174,16 @@ const SupplierProducts = () => {
                 <div className="mt-4 flex gap-2">
                   <Link
                     to={`/supplier/products/edit/${product.id}`}
-                    className="flex-1 btn btn-outline btn-sm text-center"
+                    className="flex-1 border border-orange-600 text-orange-600 hover:bg-orange-50 px-3 py-1.5 rounded-lg text-sm font-medium text-center transition-all"
                   >
                     Edit
                   </Link>
                   <button
                     onClick={() => handleToggleStatus(product.id, product.is_active)}
-                    className={`flex-1 btn btn-sm ${
+                    className={`flex-1 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
                       product.is_active
                         ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                        : 'bg-green-100 text-green-700 hover:bg-green-200'
+                        : 'bg-gradient-to-r from-orange-600 to-yellow-600 text-white hover:from-orange-700 hover:to-yellow-700'
                     }`}
                   >
                     {product.is_active ? 'Deactivate' : 'Activate'}

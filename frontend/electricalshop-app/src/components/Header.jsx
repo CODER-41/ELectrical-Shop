@@ -17,12 +17,12 @@ const Header = () => {
             <Link to="/" className="flex items-center group">
               <img 
                 src="/elogo.png" 
-                alt="Electronics Shop Logo" 
+                alt="Quantum Gear Logo" 
                 className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 mr-2 sm:mr-3 rounded-full"
               />
               <span className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent group-hover:from-black group-hover:to-black transition-all duration-200">
-                <span className="hidden sm:inline">Electronics Shop</span>
-                <span className="sm:hidden">E-Shop</span>
+                <span className="hidden sm:inline">Quantum Gear Electronics</span>
+                <span className="sm:hidden">Q-Gear</span>
               </span>
             </Link>
           </div>
@@ -44,12 +44,6 @@ const Header = () => {
             
             {isAuthenticated ? (
               <>
-                <div className="hidden xl:flex items-center px-3 py-1 bg-gradient-to-r from-blue-50 to-blue-100 rounded-full border border-blue-200">
-                  <span className="text-sm text-blue-800 font-medium">
-                    Welcome, <strong>{user?.profile?.first_name || user?.profile?.business_name || user?.email}</strong>
-                  </span>
-                </div>
-                
                 {user?.role === 'customer' && (
                   <>
                     <Link to="/products" className="text-orange-600 hover:text-black px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-50">Products</Link>
@@ -135,12 +129,6 @@ const Header = () => {
             
             {isAuthenticated ? (
               <>
-                <div className="px-4 py-2 bg-blue-50 rounded-lg border border-blue-200 mx-2">
-                  <span className="text-sm text-blue-800 font-medium">
-                    Welcome, <strong>{user?.profile?.first_name || user?.profile?.business_name || user?.email}</strong>
-                  </span>
-                </div>
-                
                 {user?.role === 'customer' && (
                   <>
                     <Link to="/products" className="block px-4 py-2 text-orange-600 hover:text-black hover:bg-gray-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Products</Link>
