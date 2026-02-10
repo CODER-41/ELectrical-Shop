@@ -2,6 +2,7 @@
 Payment routes for M-Pesa and Card payments.
 """
 
+import os
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime
@@ -442,15 +443,21 @@ def initiate_card_payment():
         # Generate unique reference
         reference = f'ORD-{order.order_number}-{datetime.utcnow().strftime("%Y%m%d%H%M%S")}'
 
+        # Get frontend URL from environment
+        frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+        callback_url = f'{frontend_url}/payment/callback?reference={reference}'
+
         # Initialize Paystack transaction
+        customer_name = f"{order.customer.first_name} {order.customer.last_name}"
         result = paystack_service.initialize_transaction(
             email=order.customer.user.email,
             amount=float(order.total),
             reference=reference,
+            callback_url=callback_url,
             metadata={
                 'order_id': str(order.id),
                 'order_number': order.order_number,
-                'customer_name': order.customer.user.full_name
+                'customer_name': customer_name
             }
         )
 
