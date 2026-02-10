@@ -798,7 +798,7 @@ def seed_sample_products(suppliers, categories, brands):
             'specifications': {'Sensor': '20.9MP APS-C', 'Video': '4K 30fps', 'Screen': '3.2" Tilting'},
             'stock_quantity': 12,
             'warranty_months': 24,
-            'image_url': 'https://images.unsplash.com/photo-1510127034890-ba27508e9f1c?w=400&h=400&fit=crop'
+            'image_url': 'https://images.unsplash.com/photo-1510127050910-b1234cc35e8e?w=400&h=400&fit=crop'
         },
         {
             'name': 'Canon EF 50mm f/1.8 Lens',
@@ -814,7 +814,7 @@ def seed_sample_products(suppliers, categories, brands):
         {
             'name': 'DJI Osmo Pocket 3',
             'category': 'Cameras & Photography',
-            'brand': 'Sony',
+            'brand': 'DJI',
             'price': 75999,
             'description': 'Pocket-sized gimbal camera with 4K video and AI tracking.',
             'specifications': {'Sensor': '1-inch CMOS', 'Video': '4K 120fps', 'Stabilization': '3-axis Gimbal'},
@@ -904,7 +904,7 @@ def seed_delivery_agents():
         # Create user
         agent = User(
             email=agent_data['email'],
-            role=UserRole.DELIVERY_AGENT,
+            role=UserRole.DELIVERY_AGENT,  # Use the enum value
             is_active=True,
             is_verified=True
         )
