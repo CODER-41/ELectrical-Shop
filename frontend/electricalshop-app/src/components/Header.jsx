@@ -20,7 +20,7 @@ const Header = () => {
                 alt="Electronics Shop Logo" 
                 className="w-10 h-10 sm:w-12 sm:h-12 lg:w-16 lg:h-16 mr-2 sm:mr-3 rounded-full"
               />
-              <span className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent group-hover:from-green-700 group-hover:to-green-800 transition-all duration-200">
+              <span className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-700 bg-clip-text text-transparent group-hover:from-blue-700 group-hover:to-blue-800 transition-all duration-200">
                 <span className="hidden sm:inline">Electronics Shop</span>
                 <span className="sm:hidden">E-Shop</span>
               </span>
@@ -30,8 +30,14 @@ const Header = () => {
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center space-x-2">
             <Link
+              to="/"
+              className="text-blue-700 hover:text-orange-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-orange-50"
+            >
+              Home
+            </Link>
+            <Link
               to="/about"
-              className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-green-50"
+              className="text-blue-700 hover:text-orange-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-orange-50"
             >
               About
             </Link>
@@ -82,13 +88,13 @@ const Header = () => {
                 )}
 
                 <Link to="/profile" className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-green-50">Profile</Link>
-                <button onClick={logout} className="px-4 py-2 bg-gradient-to-r from-red-600 to-red-700 text-white font-medium rounded-lg hover:from-red-700 hover:to-red-800 transition-all duration-200">Logout</button>
+                <button onClick={logout} className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200">Logout</button>
               </>
             ) : (
               <>
                 <Link to="/products" className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-green-50">Products</Link>
                 <Link to="/login" className="text-gray-700 hover:text-green-600 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-green-50">Login</Link>
-                <Link to="/register" className="px-4 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white font-medium rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-200">Sign Up</Link>
+                <Link to="/register" className="px-4 py-2 bg-gradient-to-r from-orange-600 to-yellow-600 text-white font-medium rounded-lg hover:from-orange-700 hover:to-yellow-700 transition-all duration-200">Sign Up</Link>
               </>
             )}
           </div>
@@ -124,7 +130,8 @@ const Header = () => {
         {/* Mobile Menu */}
         {isMobileMenuOpen && (
           <div className="lg:hidden border-t border-gray-200 py-4 space-y-2">
-            <Link to="/about" className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>About</Link>
+            <Link to="/" className="block px-4 py-2 text-blue-700 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Home</Link>
+            <Link to="/about" className="block px-4 py-2 text-blue-700 hover:text-orange-600 hover:bg-orange-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>About</Link>
             
             {isAuthenticated ? (
               <>
@@ -166,13 +173,13 @@ const Header = () => {
                 )}
                 
                 <Link to="/profile" className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Profile</Link>
-                <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200">Logout</button>
+                <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full text-left px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200">Logout</button>
               </>
             ) : (
               <>
                 <Link to="/products" className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Products</Link>
                 <Link to="/login" className="block px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Login</Link>
-                <Link to="/register" className="block px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Sign Up</Link>
+                <Link to="/register" className="block px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Sign Up</Link>
               </>
             )}
           </div>

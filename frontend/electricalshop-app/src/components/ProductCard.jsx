@@ -107,7 +107,7 @@ const ProductCard = ({product}) => {
         <div className="p-6">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <p className="text-xs text-green-600 uppercase tracking-wide font-semibold bg-green-50 px-2 py-1 rounded-full">
+              <p className="text-xs text-orange-600 uppercase tracking-wide font-semibold bg-orange-50 px-2 py-1 rounded-full">
                 {product.brand?.name || 'Electronics'}
               </p>
               <div className="flex items-center text-xs text-gray-500">
@@ -119,7 +119,7 @@ const ProductCard = ({product}) => {
               </div>
             </div>
             
-            <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-green-600 transition-colors duration-200">
+            <h3 className="text-lg font-bold text-gray-900 line-clamp-2 group-hover:text-orange-600 transition-colors duration-200">
               {product.name}
             </h3>
             
@@ -129,7 +129,7 @@ const ProductCard = ({product}) => {
             
             <div className="flex items-center justify-between pt-2">
               <div>
-                <p className="text-2xl font-bold bg-gradient-to-r from-green-600 to-green-700 bg-clip-text text-transparent">
+                <p className="text-2xl font-bold bg-gradient-to-r from-orange-600 to-yellow-600 bg-clip-text text-transparent">
                   {formatPrice(product.price)}
                 </p>
                 <div className="flex items-center text-xs text-gray-500 mt-1">
@@ -146,7 +146,7 @@ const ProductCard = ({product}) => {
               disabled={!product.is_in_stock}
               className={`w-full mt-4 py-3 px-4 rounded-lg font-medium transition-all duration-200 transform ${
                 product.is_in_stock
-                  ? 'bg-gradient-to-r from-green-600 to-green-700 text-white hover:from-green-700 hover:to-green-800 hover:scale-105 focus:ring-2 focus:ring-green-500 focus:ring-offset-2 shadow-lg hover:shadow-xl'
+                  ? 'bg-gradient-to-r from-orange-600 to-yellow-600 text-white hover:from-orange-700 hover:to-yellow-700 hover:scale-105 focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 shadow-lg hover:shadow-xl'
                   : 'bg-gray-200 text-gray-500 cursor-not-allowed'
               }`}
             >
@@ -168,7 +168,7 @@ const ProductCard = ({product}) => {
             </button>
           </div>
         </div>
-        <div className="h-1 bg-gradient-to-r from-green-600 to-green-700"></div>
+        <div className="h-1 bg-gradient-to-r from-orange-600 to-yellow-600"></div>
       </div>
     </Link>
   );
