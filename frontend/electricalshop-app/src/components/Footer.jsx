@@ -12,10 +12,10 @@ const Footer = () => {
                         <div className="flex items-center mb-4">
                             <img 
                               src="/elogo.png" 
-                              alt="Electronics Shop Logo" 
+                              alt="Quantum Gear Logo" 
                               className="w-16 h-16 mr-3 rounded-full"
                             />
-                            <h3 className="text-lg font-bold text-black">Electronics Shop</h3>
+                            <h3 className="text-lg font-bold text-black">Quantum Gear</h3>
                         </div>
                         <p className="text-gray-300 text-sm leading-relaxed mb-4">
                             Your trusted marketplace for quality electronics in Kenya.
@@ -138,7 +138,7 @@ const Footer = () => {
                 <div className='border-t border-gray-700 mt-8 pt-6'>
                     <div className="flex flex-col md:flex-row justify-between items-center">
                         <p className='text-gray-100 text-sm'>
-                            &copy; {currentyear} Electronics Shop. All rights reserved.
+                            &copy; {currentyear} Quantum Gear. All rights reserved.
                         </p>
                     </div>
                 </div>
