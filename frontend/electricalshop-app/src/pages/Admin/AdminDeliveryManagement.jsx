@@ -22,6 +22,10 @@ const AdminDeliveryManagement = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedAgent, setSelectedAgent] = useState('');
 
+  // Zone editing
+  const [editingZone, setEditingZone] = useState(null);
+  const [zoneForm, setZoneForm] = useState({ delivery_fee: '', estimated_days: '', is_active: true });
+
   useEffect(() => {
     if (token) {
       fetchDashboard();
@@ -113,6 +117,26 @@ const AdminDeliveryManagement = () => {
       fetchDashboard();
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to auto-assign orders');
+    }
+  };
+
+  const handleEditZone = (zone) => {
+    setEditingZone(zone);
+    setZoneForm({
+      delivery_fee: zone.delivery_fee,
+      estimated_days: zone.estimated_days,
+      is_active: zone.is_active,
+    });
+  };
+
+  const handleSaveZone = async () => {
+    try {
+      await api.put(`/admin/delivery-zones/${editingZone.id}`, zoneForm);
+      toast.success('Zone updated successfully');
+      setEditingZone(null);
+      fetchZones();
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to update zone');
     }
   };
 
@@ -556,6 +580,7 @@ const AdminDeliveryManagement = () => {
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Est. Days</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Agents</th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
@@ -595,6 +620,14 @@ const AdminDeliveryManagement = () => {
                         }`}>
                           {zone.is_active ? 'Active' : 'Inactive'}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <button
+                          onClick={() => handleEditZone(zone)}
+                          className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                        >
+                          Edit
+                        </button>
                       </td>
                     </tr>
                   ))}
@@ -648,6 +681,69 @@ const AdminDeliveryManagement = () => {
                 className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Assign
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Zone Modal */}
+      {editingZone && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-semibold text-gray-900 mb-1">
+              Edit Delivery Zone
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">{editingZone.name}</p>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Delivery Fee (KES)</label>
+                <input
+                  type="number"
+                  value={zoneForm.delivery_fee}
+                  onChange={(e) => setZoneForm({ ...zoneForm, delivery_fee: parseFloat(e.target.value) || 0 })}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  min="0"
+                  step="50"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Estimated Days</label>
+                <input
+                  type="number"
+                  value={zoneForm.estimated_days}
+                  onChange={(e) => setZoneForm({ ...zoneForm, estimated_days: parseInt(e.target.value) || 1 })}
+                  className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  min="1"
+                />
+              </div>
+
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="zone-active"
+                  checked={zoneForm.is_active}
+                  onChange={(e) => setZoneForm({ ...zoneForm, is_active: e.target.checked })}
+                  className="h-4 w-4 text-blue-600 rounded border-gray-300"
+                />
+                <label htmlFor="zone-active" className="ml-2 text-sm text-gray-700">Active</label>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => setEditingZone(null)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveZone}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              >
+                Save Changes
               </button>
             </div>
           </div>

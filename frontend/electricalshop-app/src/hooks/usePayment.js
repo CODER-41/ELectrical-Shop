@@ -29,7 +29,7 @@ export const usePayment = () => {
     setIsProcessing(true);
     try {
       const response = await axios.post(
-        `${API_URL}/payments/initiate`,
+        `${API_URL}/payments/mpesa/initiate`,
         { order_id: orderId, phone_number: phoneNumber },
         getAuthHeaders()
       );
@@ -42,6 +42,68 @@ export const usePayment = () => {
       };
     } catch (error) {
       const errorMessage = error.response?.data?.error || 'Payment initiation failed';
+      toast.error(errorMessage);
+      setPaymentStatus('failed');
+      return {
+        success: false,
+        error: errorMessage
+      };
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
+  /**
+   * Initiate Paystack card payment
+   */
+  const initiateCardPayment = async (orderId) => {
+    setIsProcessing(true);
+    try {
+      const response = await axios.post(
+        `${API_URL}/payments/card/initiate`,
+        { order_id: orderId },
+        getAuthHeaders()
+      );
+      
+      setPaymentStatus('pending');
+      return {
+        success: true,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Card payment initiation failed';
+      toast.error(errorMessage);
+      setPaymentStatus('failed');
+      return {
+        success: false,
+        error: errorMessage
+      };
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+  
+  /**
+   * Verify Paystack payment after redirect
+   */
+  const verifyCardPayment = async (reference) => {
+    setIsProcessing(true);
+    try {
+      const response = await axios.post(
+        `${API_URL}/payments/card/verify`,
+        { reference },
+        getAuthHeaders()
+      );
+      
+      setPaymentStatus('completed');
+      return {
+        success: true,
+        data: response.data.data,
+        message: response.data.message
+      };
+    } catch (error) {
+      const errorMessage = error.response?.data?.error || 'Payment verification failed';
       toast.error(errorMessage);
       setPaymentStatus('failed');
       return {
@@ -123,6 +185,8 @@ export const usePayment = () => {
     isProcessing,
     paymentStatus,
     initiateMpesaPayment,
+    initiateCardPayment,
+    verifyCardPayment,
     checkPaymentStatus,
     simulatePayment,
     checkMpesaConfig,

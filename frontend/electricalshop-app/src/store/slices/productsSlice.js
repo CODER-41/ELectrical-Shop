@@ -18,9 +18,12 @@ const initialState = {
 
 export const getProducts = createAsyncThunk('products/getProducts', async (params = {}, thunkAPI) => {
   try {
+    console.log('🔍 Fetching products with params:', params);
     const response = await axios.get(`${API_URL}/products`, { params });
+    console.log('✅ Products fetched:', response.data.data.products.length, 'products');
     return response.data;
   } catch (error) {
+    console.error('❌ Error fetching products:', error);
     return thunkAPI.rejectWithValue(error.response?.data?.message || error.message);
   }
 });

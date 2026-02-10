@@ -47,9 +47,25 @@ def get_products():
         # Filter by category
         category_slug = request.args.get('category')
         if category_slug:
-            category = Category.query.filter_by(slug=category_slug, is_active=True).first()
-            if category:
-                query = query.filter_by(category_id=category.id)
+            # Case-insensitive category lookup
+            category_slug_lower = category_slug.lower()
+            
+            if category_slug_lower == 'accessories':
+                # For accessories, show all products from ALL categories
+                # This is the special case - no filtering needed
+                pass
+            else:
+                # Normal category filtering - match by slug
+                category = Category.query.filter(
+                    db.func.lower(Category.slug) == category_slug_lower,
+                    Category.is_active == True
+                ).first()
+                
+                if category:
+                    query = query.filter_by(category_id=category.id)
+                else:
+                    # If category not found, return empty results
+                    query = query.filter(Product.id == None)
         
         # Filter by brand
         brand_name = request.args.get('brand')
@@ -394,3 +410,15 @@ def get_brands():
         return success_response(data=[brand.to_dict() for brand in brands])
     except Exception as e:
         return error_response(f'Failed to fetch brands: {str(e)}', 500)
+
+
+# Delivery zones (public endpoint)
+@products_bp.route('/delivery-zones', methods=['GET'])
+def get_delivery_zones():
+    """Get all active delivery zones (public endpoint)."""
+    try:
+        from app.models.order import DeliveryZone
+        zones = DeliveryZone.query.filter_by(is_active=True).all()
+        return success_response(data=[z.to_dict() for z in zones])
+    except Exception as e:
+        return error_response(f'Failed to fetch delivery zones: {str(e)}', 500)

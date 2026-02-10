@@ -3,6 +3,21 @@ import { useDispatch } from 'react-redux';
 import { addToCart } from '../store/slices/cartSlice';
 import {toast} from 'react-toastify';
 
+// Helper to get image URL (handles both local and remote images)
+const getImageUrl = (imageUrl) => {
+  if (!imageUrl) return null;
+  // If it's a local asset path, import it dynamically
+  if (imageUrl.startsWith('/src/assets/')) {
+    const fileName = imageUrl.replace('/src/assets/', '');
+    try {
+      return new URL(`../assets/${fileName}`, import.meta.url).href;
+    } catch {
+      return imageUrl; // Fallback to original URL
+    }
+  }
+  return imageUrl; // Return remote URL as-is
+};
+
 const ProductCard = ({product}) => {
     const dispatch = useDispatch();
 
@@ -30,9 +45,22 @@ const ProductCard = ({product}) => {
         <div className="relative w-full h-48 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
           {product.image_url ? (
             <img
-              src={product.image_url}
+              src={getImageUrl(product.image_url)}
               alt={product.name}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              onError={(e) => {
+                e.target.style.display = 'none';
+                e.target.parentElement.innerHTML = `
+                  <div class="w-full h-full flex items-center justify-center text-gray-400">
+                    <div class="text-center">
+                      <svg class="w-16 h-16 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <p class="text-xs">No Image</p>
+                    </div>
+                  </div>
+                `;
+              }}
             />
           ) : (
             <div className="w-full h-full flex items-center justify-center text-gray-400">

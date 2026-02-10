@@ -21,6 +21,7 @@ import AddProduct from './pages/AddProduct';
 import EditProduct from './pages/EditProduct';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import PaymentVerification from './pages/PaymentVerification';
 import OrderConfirmation from './pages/OrderConfirmation';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
@@ -51,10 +52,17 @@ import AdminAnalytics from './pages/Admin/AdminAnalytics';
 import AdminUsers from './pages/Admin/AdminUsers';
 import AdminOrders from './pages/Admin/AdminOrders';
 import AdminReturns from './pages/Admin/AdminReturns';
+import AdminReturnsManagement from './pages/Admin/AdminReturnsManagement';
 import AdminPayouts from './pages/Admin/AdminPayouts';
 import AdminDeliveryZones from './pages/Admin/AdminDeliveryZones';
 import AdminCategories from './pages/Admin/AdminCategories';
 import AdminDeliveryManagement from './pages/Admin/AdminDeliveryManagement';
+import AdminProductManagement from './pages/Admin/AdminProductManagement';
+import AdminSettings from './pages/Admin/AdminSettings';
+import AdminAuditLogs from './pages/Admin/AdminAuditLogs';
+import AdminFinancialReports from './pages/Admin/AdminFinancialReports';
+import AdminNotifications from './pages/Admin/AdminNotifications';
+import AdminActivityTimeline from './pages/Admin/AdminActivityTimeline';
 
 // Returns Pages
 import RequestReturn from './pages/Returns/RequestReturn';
@@ -139,6 +147,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['customer']}>
                   <Checkout />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/payment/verify"
+              element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <PaymentVerification />
                 </ProtectedRoute>
               }
             />
@@ -288,7 +304,7 @@ function App() {
               path="/admin/returns"
               element={
                 <ProtectedRoute allowedRoles={['admin', 'order_manager']}>
-                  <AdminReturns />
+                  <AdminReturnsManagement />
                 </ProtectedRoute>
               }
             />
@@ -328,10 +344,47 @@ function App() {
               path="/admin/products"
               element={
                 <ProtectedRoute allowedRoles={['admin', 'product_manager']}>
-                  <div className="max-w-7xl mx-auto px-4 py-8">
-                    <h1 className="text-3xl font-bold">Product Management</h1>
-                    <p className="mt-4 text-gray-600">Product management coming soon</p>
-                  </div>
+                  <AdminProductManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/settings"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminSettings />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/audit-logs"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminAuditLogs />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/reports/financial"
+              element={
+                <ProtectedRoute allowedRoles={['admin', 'finance_admin']}>
+                  <AdminFinancialReports />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/notifications"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminNotifications />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/admin/activity"
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <AdminActivityTimeline />
                 </ProtectedRoute>
               }
             />

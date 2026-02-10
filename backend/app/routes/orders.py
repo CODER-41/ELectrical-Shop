@@ -12,7 +12,9 @@ from app.services.email_service import (
     send_order_confirmation_email,
     send_payment_confirmation_email,
     send_shipping_notification_email,
-    send_delivery_confirmation_email
+    send_delivery_confirmation_email,
+    send_order_cancellation_email,
+    send_order_status_update_email
 )
 
 orders_bp = Blueprint('orders', __name__, url_prefix='/api/orders')
@@ -331,19 +333,38 @@ def get_orders():
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
+        # Get pagination params
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+        status = request.args.get('status')
+        
         if user.role == UserRole.CUSTOMER:
-            orders = Order.query.filter_by(customer_id=user.customer_profile.id)\
-                .order_by(Order.created_at.desc()).all()
+            query = Order.query.filter_by(customer_id=user.customer_profile.id)
         elif user.role == UserRole.SUPPLIER:
             # Get orders containing supplier's products
-            orders = db.session.query(Order).join(OrderItem)\
-                .filter(OrderItem.supplier_id == user.supplier_profile.id)\
-                .order_by(Order.created_at.desc()).distinct().all()
+            query = db.session.query(Order).join(OrderItem)\
+                .filter(OrderItem.supplier_id == user.supplier_profile.id).distinct()
         else:
             # Admin sees all orders
-            orders = Order.query.order_by(Order.created_at.desc()).all()
+            query = Order.query
         
-        return success_response(data=[order.to_dict(include_items=False) for order in orders])
+        # Apply status filter
+        if status:
+            query = query.filter_by(status=status)
+        
+        # Paginate
+        orders = query.order_by(Order.created_at.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False)
+        
+        return success_response(data={
+            'orders': [order.to_dict(include_items=False) for order in orders.items],
+            'pagination': {
+                'page': orders.page,
+                'per_page': orders.per_page,
+                'total': orders.total,
+                'pages': orders.pages
+            }
+        })
     except Exception as e:
         return error_response(f'Failed to fetch orders: {str(e)}', 500)
 
@@ -407,12 +428,19 @@ def update_order_status(order_id):
         if not is_admin:
             return error_response('Only admins can update order status', 403)
         
+        old_status = order.status
         order.status = new_status
         
         if 'admin_notes' in data:
             order.admin_notes = data['admin_notes']
         
         db.session.commit()
+        
+        # Send status update email
+        try:
+            send_order_status_update_email(order, order.customer.user.email, old_status.value, new_status)
+        except Exception as e:
+            current_app.logger.error(f'Failed to send status update email: {str(e)}')
         
         return success_response(
             data=order.to_dict(),
@@ -537,6 +565,12 @@ def cancel_order(order_id):
             order.admin_notes += '\nRefund required - order was paid before cancellation.'
 
         db.session.commit()
+        
+        # Send cancellation email
+        try:
+            send_order_cancellation_email(order, order.customer.user.email, cancellation_reason)
+        except Exception as e:
+            current_app.logger.error(f'Failed to send cancellation email: {str(e)}')
 
         return success_response(
             data=order.to_dict(),

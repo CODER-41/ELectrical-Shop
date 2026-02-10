@@ -745,3 +745,157 @@ def send_contact_form_confirmation(name, email, subject_line):
     """
 
     send_email(subject, email, text_body, html_body)
+
+
+def send_order_cancellation_email(order, customer_email, reason=''):
+    """Send order cancellation confirmation email."""
+    subject = f'Order Cancelled - {order.order_number}'
+    
+    text_body = f"""
+    Hi {order.customer.first_name if order.customer else 'Customer'},
+    
+    Your order has been cancelled.
+    
+    Order Number: {order.order_number}
+    Cancellation Date: {order.updated_at.strftime('%B %d, %Y at %I:%M %p')}
+    {f'Reason: {reason}' if reason else ''}
+    
+    {f'Refund Status: Your payment of KES {order.total:,.2f} will be refunded within 5-7 business days.' if order.payment_status and order.payment_status.value == 'completed' else 'No payment was processed for this order.'}
+    
+    If you have any questions, please contact our support team.
+    
+    Thanks,
+    Electronics Shop Team
+    """
+    
+    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <div style="background: #ef4444; color: white; padding: 30px 20px; text-align: center;">
+                <h1 style="margin: 0; font-size: 28px;">Order Cancelled</h1>
+            </div>
+            
+            <div style="padding: 30px 20px;">
+                <p style="font-size: 16px; color: #374151;">Hi {order.customer.first_name if order.customer else 'Customer'},</p>
+                <p style="font-size: 16px; color: #374151;">Your order has been cancelled as requested.</p>
+                
+                <div style="background: #fee2e2; border: 1px solid #fecaca; border-radius: 12px; padding: 20px; margin: 25px 0;">
+                    <h3 style="margin: 0 0 15px 0; color: #991b1b;">Cancellation Details</h3>
+                    <div style="color: #7f1d1d;">
+                        <p style="margin: 8px 0;"><strong>Order Number:</strong> {order.order_number}</p>
+                        <p style="margin: 8px 0;"><strong>Cancelled On:</strong> {order.updated_at.strftime('%B %d, %Y at %I:%M %p')}</p>
+                        {f'<p style="margin: 8px 0;"><strong>Reason:</strong> {reason}</p>' if reason else ''}
+                    </div>
+                </div>
+                
+                {f'''<div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 20px; margin: 25px 0;">
+                    <h4 style="margin: 0 0 10px 0; color: #92400e;">Refund Information</h4>
+                    <p style="margin: 0; color: #92400e;">Your payment of <strong>KES {order.total:,.2f}</strong> will be refunded to your original payment method within <strong>5-7 business days</strong>.</p>
+                </div>''' if order.payment_status and order.payment_status.value == 'completed' else '<div style="background: #dbeafe; border-left: 4px solid #3b82f6; padding: 20px; margin: 25px 0;"><p style="margin: 0; color: #1e40af;">No payment was processed for this order.</p></div>'}
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{frontend_url}/products" style="display: inline-block; background: #f97316; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold;">Continue Shopping</a>
+                </div>
+                
+                <div style="text-align: center; color: #6b7280; font-size: 14px; margin-top: 30px;">
+                    <p>Questions? Contact us at <a href="mailto:support@electronicsshop.com" style="color: #f97316;">support@electronicsshop.com</a></p>
+                </div>
+            </div>
+            
+            <div style="background: #f3f4f6; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+                <p style="margin: 0; color: #6b7280; font-size: 12px;">© 2026 Electronics Shop. All rights reserved.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    send_email(subject, customer_email, text_body, html_body)
+
+
+def send_order_status_update_email(order, customer_email, old_status, new_status):
+    """Send email when order status changes."""
+    status_messages = {
+        'pending': {'title': 'Order Received', 'message': 'We have received your order and are preparing it for processing.', 'color': '#eab308'},
+        'paid': {'title': 'Payment Confirmed', 'message': 'Your payment has been confirmed and your order is being prepared.', 'color': '#10b981'},
+        'processing': {'title': 'Order Processing', 'message': 'Your order is being prepared for shipment.', 'color': '#3b82f6'},
+        'quality_approved': {'title': 'Quality Check Passed', 'message': 'Your order has passed our quality checks and will be shipped soon.', 'color': '#8b5cf6'},
+        'shipped': {'title': 'Order Shipped', 'message': 'Your order is on its way to you!', 'color': '#8b5cf6'},
+        'delivered': {'title': 'Order Delivered', 'message': 'Your order has been delivered. We hope you love it!', 'color': '#10b981'},
+    }
+    
+    status_info = status_messages.get(new_status, {'title': 'Order Update', 'message': f'Your order status has been updated to {new_status}.', 'color': '#6b7280'})
+    
+    subject = f'{status_info["title"]} - {order.order_number}'
+    
+    text_body = f"""
+    Hi {order.customer.first_name if order.customer else 'Customer'},
+    
+    Your order status has been updated!
+    
+    Order Number: {order.order_number}
+    Status: {new_status.replace('_', ' ').title()}
+    
+    {status_info['message']}
+    
+    Track your order for more details.
+    
+    Thanks,
+    Electronics Shop Team
+    """
+    
+    frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
+    track_url = f"{frontend_url}/orders/{order.id}"
+    
+    html_body = f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f9fafb;">
+        <div style="max-width: 600px; margin: 0 auto; background-color: #ffffff;">
+            <div style="background: {status_info['color']}; color: white; padding: 30px 20px; text-align: center;">
+                <h1 style="margin: 0; font-size: 28px;">{status_info['title']}</h1>
+            </div>
+            
+            <div style="padding: 30px 20px;">
+                <p style="font-size: 16px; color: #374151;">Hi {order.customer.first_name if order.customer else 'Customer'},</p>
+                <p style="font-size: 16px; color: #374151;">{status_info['message']}</p>
+                
+                <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 20px; margin: 25px 0;">
+                    <h3 style="margin: 0 0 15px 0; color: #1f2937;">Order Details</h3>
+                    <div style="color: #374151;">
+                        <p style="margin: 8px 0;"><strong>Order Number:</strong> {order.order_number}</p>
+                        <p style="margin: 8px 0;"><strong>Status:</strong> <span style="color: {status_info['color']}; font-weight: bold;">{new_status.replace('_', ' ').title()}</span></p>
+                        <p style="margin: 8px 0;"><strong>Total:</strong> KES {order.total:,.2f}</p>
+                    </div>
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                    <a href="{track_url}" style="display: inline-block; background: #f97316; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold;">Track Your Order</a>
+                </div>
+                
+                <div style="text-align: center; color: #6b7280; font-size: 14px; margin-top: 30px;">
+                    <p>Questions? Contact us at <a href="mailto:support@electronicsshop.com" style="color: #f97316;">support@electronicsshop.com</a></p>
+                </div>
+            </div>
+            
+            <div style="background: #f3f4f6; padding: 20px; text-align: center; border-top: 1px solid #e5e7eb;">
+                <p style="margin: 0; color: #6b7280; font-size: 12px;">© 2026 Electronics Shop. All rights reserved.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    
+    send_email(subject, customer_email, text_body, html_body)

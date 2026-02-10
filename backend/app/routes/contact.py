@@ -45,18 +45,12 @@ def submit_contact_form():
         # Check if Web3Forms is configured
         web3forms_key = os.getenv('WEB3FORMS_ACCESS_KEY')
 
-        if web3forms_key:
-            # Use Web3Forms API
-            result = send_via_web3forms(web3forms_key, name, email, subject, message)
-            if not result['success']:
-                return error_response(result['error'], 500)
-        else:
-            # Use direct SMTP
-            try:
-                send_contact_form_notification(name, email, subject, message)
-                send_contact_form_confirmation(name, email, subject)
-            except Exception as e:
-                return error_response(f'Failed to send message: {str(e)}', 500)
+        # Always use direct SMTP for now (Web3Forms has restrictions)
+        try:
+            send_contact_form_notification(name, email, subject, message)
+            send_contact_form_confirmation(name, email, subject)
+        except Exception as e:
+            return error_response(f'Failed to send message: {str(e)}', 500)
 
         return success_response(
             message='Thank you for your message! We will get back to you soon.',

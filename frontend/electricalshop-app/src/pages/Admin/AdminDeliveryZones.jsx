@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const AdminDeliveryZones = () => {
-  const { user } = useSelector((state) => state.auth);
+  const { token } = useSelector((state) => state.auth);
   const [zones, setZones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -20,7 +20,7 @@ const AdminDeliveryZones = () => {
   const fetchZones = async () => {
     try {
       const response = await axios.get(`${API_URL}/admin/delivery-zones`, {
-        headers: { Authorization: `Bearer ${user.token}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       setZones(response.data.data);
     } catch (error) {
@@ -35,12 +35,12 @@ const AdminDeliveryZones = () => {
     try {
       if (editZone) {
         await axios.put(`${API_URL}/admin/delivery-zones/${editZone.id}`, formData, {
-          headers: { Authorization: `Bearer ${user.token}` }
+          headers: { Authorization: `Bearer ${token}` }
         });
         toast.success('Zone updated');
       } else {
         await axios.post(`${API_URL}/admin/delivery-zones`, formData, {
-          headers: { Authorization: `Bearer ${user.token}` }
+          headers: { Authorization: `Bearer ${token}` }
         });
         toast.success('Zone created');
       }

@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
 const AdminCategories = () => {
-  const { user } = useSelector((state) => state.auth);
+  const { token } = useSelector((state) => state.auth);
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -21,8 +21,8 @@ const AdminCategories = () => {
   const fetchData = async () => {
     try {
       const [catRes, brandRes] = await Promise.all([
-        axios.get(`${API_URL}/admin/categories`, { headers: { Authorization: `Bearer ${user.token}` } }),
-        axios.get(`${API_URL}/admin/brands`, { headers: { Authorization: `Bearer ${user.token}` } })
+        axios.get(`${API_URL}/admin/categories`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/admin/brands`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       setCategories(catRes.data.data);
       setBrands(brandRes.data.data);
@@ -38,7 +38,7 @@ const AdminCategories = () => {
     try {
       const endpoint = activeTab === 'categories' ? '/admin/categories' : '/admin/brands';
       await axios.post(`${API_URL}${endpoint}`, formData, {
-        headers: { Authorization: `Bearer ${user.token}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       toast.success(`${activeTab === 'categories' ? 'Category' : 'Brand'} created`);
       setShowModal(false);
