@@ -21,6 +21,7 @@ import AddProduct from './pages/AddProduct';
 import EditProduct from './pages/EditProduct';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import PaymentVerification from './pages/PaymentVerification';
 import OrderConfirmation from './pages/OrderConfirmation';
 import Orders from './pages/Orders';
 import OrderDetail from './pages/OrderDetail';
@@ -146,6 +147,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['customer']}>
                   <Checkout />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/payment/verify"
+              element={
+                <ProtectedRoute allowedRoles={['customer']}>
+                  <PaymentVerification />
                 </ProtectedRoute>
               }
             />
