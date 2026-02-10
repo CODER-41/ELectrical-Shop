@@ -44,12 +44,6 @@ const Header = () => {
             
             {isAuthenticated ? (
               <>
-                <div className="hidden xl:flex items-center px-3 py-1 bg-gradient-to-r from-blue-50 to-blue-100 rounded-full border border-blue-200">
-                  <span className="text-sm text-blue-800 font-medium">
-                    Welcome, <strong>{user?.profile?.first_name || user?.profile?.business_name || user?.email}</strong>
-                  </span>
-                </div>
-                
                 {user?.role === 'customer' && (
                   <>
                     <Link to="/products" className="text-orange-600 hover:text-black px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-50">Products</Link>
@@ -135,12 +129,6 @@ const Header = () => {
             
             {isAuthenticated ? (
               <>
-                <div className="px-4 py-2 bg-blue-50 rounded-lg border border-blue-200 mx-2">
-                  <span className="text-sm text-blue-800 font-medium">
-                    Welcome, <strong>{user?.profile?.first_name || user?.profile?.business_name || user?.email}</strong>
-                  </span>
-                </div>
-                
                 {user?.role === 'customer' && (
                   <>
                     <Link to="/products" className="block px-4 py-2 text-orange-600 hover:text-black hover:bg-gray-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Products</Link>

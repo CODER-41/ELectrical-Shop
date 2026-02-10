@@ -67,7 +67,7 @@ const Profile = () => {
         {/* Profile Card */}
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
           {/* Profile Header */}
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 px-6 py-8 sm:px-8">
+          <div className="bg-gradient-to-r from-secondary via-orange-500 to-yellow-500 px-6 py-8 sm:px-8">
             <div className="flex flex-col sm:flex-row items-center sm:items-start space-y-4 sm:space-y-0 sm:space-x-6">
               {/* Avatar */}
               <div className="relative group">
@@ -79,7 +79,7 @@ const Profile = () => {
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <span className="text-2xl sm:text-3xl font-bold text-blue-600">
+                    <span className="text-2xl sm:text-3xl font-bold text-secondary">
                       {user?.email?.charAt(0).toUpperCase()}
                     </span>
                   )}
@@ -119,7 +119,7 @@ const Profile = () => {
                       : user.profile.business_name
                   ) : user?.email}
                 </h2>
-                <p className="text-blue-100 capitalize font-medium">{user?.role}</p>
+                <p className="text-orange-100 capitalize font-medium">{user?.role}</p>
                 <div className="mt-2">
                   <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${
                     user?.is_active 
@@ -133,7 +133,7 @@ const Profile = () => {
                   </span>
                 </div>
                 {uploadError && (
-                  <div className="mt-2 text-red-200 text-sm">
+                  <div className="mt-2 text-white text-sm bg-red-600/30 px-3 py-1.5 rounded-lg backdrop-blur-sm">
                     {uploadError}
                   </div>
                 )}
@@ -279,7 +279,7 @@ const Profile = () => {
               <div className="flex flex-col sm:flex-row gap-3">
                 <button 
                   onClick={() => navigate('/profile/edit')}
-                  className="btn btn-primary flex-1 sm:flex-none"
+                  className="inline-flex items-center justify-center px-6 py-2.5 bg-gradient-to-r from-secondary to-orange-600 text-white rounded-lg hover:from-secondary-600 hover:to-orange-700 shadow-md hover:shadow-lg transition-all duration-200 font-medium flex-1 sm:flex-none"
                 >
                   <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z"/>
@@ -288,7 +288,7 @@ const Profile = () => {
                 </button>
                 <button 
                   onClick={() => navigate('/settings')}
-                  className="btn btn-outline flex-1 sm:flex-none"
+                  className="inline-flex items-center justify-center px-6 py-2.5 border-2 border-secondary text-secondary rounded-lg hover:bg-secondary hover:text-white transition-all duration-200 font-medium flex-1 sm:flex-none"
                 >
                   <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd"/>

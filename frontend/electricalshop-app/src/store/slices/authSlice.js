@@ -78,10 +78,11 @@ export const updateProfile = createAsyncThunk('auth/updateProfile', async (profi
     });
     
     if (response.data.success) {
-      const updatedUser = { ...state.auth.user, profile: response.data.data };
+      const updatedUser = response.data.data;
       const authData = {
         user: updatedUser,
-        token: state.auth.token
+        token: state.auth.token,
+        refresh_token: state.auth.refresh_token
       };
       localStorage.setItem('user', JSON.stringify(authData));
       return updatedUser;
