@@ -20,7 +20,14 @@ def create_app(config_name=None):
     app.config.from_object(config[config_name])
     
     db.init_app(app)
-    CORS(app, resources={r"/api/*": {"origins": app.config['FRONTEND_URL']}})
+    CORS(app, resources={
+        r"/api/*": {
+            "origins": [app.config['FRONTEND_URL'], "http://localhost:5173", "http://localhost:5174", "http://localhost:5175"],
+            "supports_credentials": True,
+            "allow_headers": ["Content-Type", "Authorization"],
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+        }
+    })
     jwt = JWTManager(app)
     migrate = Migrate(app, db)
     mail.init_app(app)

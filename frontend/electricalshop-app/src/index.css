@@ -20,7 +20,7 @@
   }
   
   .btn-primary {
-    @apply bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 focus:ring-blue-500 shadow-md hover:shadow-lg;
+    @apply bg-gradient-to-r from-orange-500 to-yellow-500 text-white hover:from-orange-600 hover:to-yellow-600 focus:ring-orange-500 shadow-md hover:shadow-lg;
   }
   
   .btn-secondary {
@@ -28,7 +28,7 @@
   }
   
   .btn-outline {
-    @apply border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 focus:ring-blue-500;
+    @apply border border-orange-300 bg-white text-orange-700 hover:bg-orange-50 focus:ring-orange-500;
   }
   
   .btn-lg {
@@ -44,7 +44,7 @@
   }
   
   .input {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200;
+    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent transition-all duration-200;
   }
   
   .form-label {
