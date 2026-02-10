@@ -1,5 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 import mobileImg from '../assets/mobile phones.jpg';
 import laptopsImg from '../assets/Lpatops.webp';
 import tvsImg from '../assets/TVs.jpeg';
@@ -7,66 +9,188 @@ import kitchenImg from '../assets/Kitchen.jpg';
 import gamingImg from '../assets/Gaming.jpg';
 import accessoriesImg from '../Accessories.jpg';
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 const Home = () => {
   const { isAuthenticated } = useAuth();
+  const [featuredProducts, setFeaturedProducts] = useState([]);
+  const [currentSlide, setCurrentSlide] = useState(0);
+  
+  useEffect(() => {
+    // Fetch featured products with high-resolution images
+    const fetchFeaturedProducts = async () => {
+      try {
+        const response = await axios.get(`${API_URL}/products?page=1&per_page=20&sort_by=created_at&sort_order=desc`);
+        const products = response.data.data.products || [];
+        
+        // Filter and sort products by image quality
+        const productsWithImages = products
+          .filter(p => p.image_url && p.image_url.includes('cloudinary'))
+          .sort((a, b) => {
+            // Prioritize products with larger image dimensions in URL
+            const getImageQuality = (url) => {
+              if (url.includes('/w_1000') || url.includes('/w_2000')) return 3;
+              if (url.includes('/w_800') || url.includes('/w_900')) return 2;
+              return 1;
+            };
+            return getImageQuality(b.image_url) - getImageQuality(a.image_url);
+          })
+          .slice(0, 5);
+        
+        setFeaturedProducts(productsWithImages.length > 0 ? productsWithImages : products.slice(0, 5));
+      } catch (error) {
+        console.error('Failed to fetch featured products:', error);
+      }
+    };
+    
+    fetchFeaturedProducts();
+  }, []);
+  
+  // Auto-rotate slides
+  useEffect(() => {
+    if (featuredProducts.length === 0) return;
+    
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % featuredProducts.length);
+    }, 8000); // Change slide every 8 seconds (slower)
+    
+    return () => clearInterval(interval);
+  }, [featuredProducts.length]);
+  
+  const nextSlide = () => {
+    setCurrentSlide((prev) => (prev + 1) % featuredProducts.length);
+  };
+  
+  const prevSlide = () => {
+    setCurrentSlide((prev) => (prev - 1 + featuredProducts.length) % featuredProducts.length);
+  };
+  
+  const formatPrice = (price) => {
+    return new Intl.NumberFormat('en-KE', {
+      style: 'currency',
+      currency: 'KES',
+      minimumFractionDigits: 0,
+    }).format(price);
+  };
   
   return (
   
     <div className="bg-white">
-      {/* Hero Section */}
-      <div className="relative bg-gradient-to-br from-orange-500 via-orange-600 to-yellow-600 overflow-hidden">
-        <div className="absolute inset-0 bg-black opacity-10"></div>
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-          <div className="text-center">
-            <div className="mb-8">
-              <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full mx-auto flex items-center justify-center mb-6">
-                <svg className="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-                </svg>
+      {/* Hero Section with Product Background */}
+      <div className="relative bg-white overflow-hidden h-[70vh]">
+        
+        {/* Full Background Product Slideshow - Clear and Visible */}
+        {featuredProducts.length > 0 && (
+          <div className="absolute inset-0">
+            {featuredProducts.map((product, index) => (
+              <div
+                key={product.id}
+                className={`absolute inset-0 transition-opacity duration-1000 ${
+                  index === currentSlide ? 'opacity-100' : 'opacity-0'
+                }`}
+              >
+                <img
+                  src={product.image_url || '/placeholder.png'}
+                  alt={product.name}
+                  className="w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60"></div>
               </div>
-            </div>
-            <h1 className="text-4xl font-extrabold text-white sm:text-5xl md:text-6xl">
-              Welcome to <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Q-Gear Electronics shop</span>
-            </h1>
-            <p className="mt-6 max-w-3xl mx-auto text-xl text-orange-50 leading-relaxed">
-              Your trusted marketplace for quality electronics in Kenya. Shop from verified suppliers with warranty protection and fast delivery nationwide.
-            </p>
-            <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center">
-              {isAuthenticated ? (
-                <Link
-                  to="/products"
-                  className="inline-flex items-center justify-center px-8 py-4 bg-white text-orange-700 font-bold rounded-xl hover:bg-gray-100 transform hover:scale-105 transition-all duration-200 shadow-xl hover:shadow-2xl"
-                >
-                  <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+            ))}
+          </div>
+        )}
+        
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center">
+          <div className="w-full">
+            {/* Text Content - Centered */}
+            <div className="text-center">
+              <div className="mb-6">
+                <div className="w-16 h-16 bg-white bg-opacity-20 backdrop-blur-sm rounded-full mx-auto flex items-center justify-center mb-4">
+                  <svg className="w-10 h-10 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  Shop Now
-                </Link>
-              ) : (
-                <>
-                  <Link
-                    to="/register"
-                    className="inline-flex items-center justify-center px-8 py-4 bg-white text-orange-700 font-bold rounded-xl hover:bg-gray-100 transform hover:scale-105 transition-all duration-200 shadow-xl hover:shadow-2xl"
-                  >
-                    <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
-                    </svg>
-                    Get Started
-                  </Link>
+                </div>
+              </div>
+              <h1 className="text-3xl font-extrabold text-white sm:text-4xl md:text-5xl mb-4 drop-shadow-2xl">
+                Welcome to <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Q-Gear Electronics</span>
+              </h1>
+              <p className="mt-4 text-lg text-white font-semibold leading-relaxed max-w-2xl mx-auto mb-8 drop-shadow-lg">
+                Your trusted marketplace for quality electronics in Kenya. Shop from verified suppliers with warranty protection.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                {isAuthenticated ? (
                   <Link
                     to="/products"
-                    className="inline-flex items-center justify-center px-8 py-4 bg-transparent border-2 border-white text-white font-bold rounded-xl hover:bg-white hover:text-orange-700 transform hover:scale-105 transition-all duration-200"
+                    className="inline-flex items-center justify-center px-8 py-3 bg-white text-orange-700 font-bold rounded-xl hover:bg-gray-100 transform hover:scale-105 transition-all duration-200 shadow-xl hover:shadow-2xl"
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
                     </svg>
-                    Browse Products
+                    Shop Now
                   </Link>
-                </>
-              )}
+                ) : (
+                  <>
+                    <Link
+                      to="/register"
+                      className="inline-flex items-center justify-center px-8 py-3 bg-white text-orange-700 font-bold rounded-xl hover:bg-gray-100 transform hover:scale-105 transition-all duration-200 shadow-xl hover:shadow-2xl"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                      </svg>
+                      Get Started
+                    </Link>
+                    <Link
+                      to="/products"
+                      className="inline-flex items-center justify-center px-8 py-3 bg-transparent border-2 border-white text-white font-bold rounded-xl hover:bg-white hover:text-orange-700 transform hover:scale-105 transition-all duration-200"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                      </svg>
+                      Browse Products
+                    </Link>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
+        
+        {/* Navigation Arrows */}
+        {featuredProducts.length > 1 && (
+          <>
+            <button
+              onClick={prevSlide}
+              className="absolute left-4 top-1/2 -translate-y-1/2 bg-white hover:bg-gray-50 text-gray-800 p-3 rounded-full shadow-2xl transition-all duration-200 hover:scale-110 z-10"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <button
+              onClick={nextSlide}
+              className="absolute right-4 top-1/2 -translate-y-1/2 bg-white hover:bg-gray-50 text-gray-800 p-3 rounded-full shadow-2xl transition-all duration-200 hover:scale-110 z-10"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+            
+            {/* Dots Indicator */}
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex justify-center space-x-3 z-10">
+              {featuredProducts.map((_, index) => (
+                <button
+                  key={index}
+                  onClick={() => setCurrentSlide(index)}
+                  className={`h-2.5 rounded-full transition-all duration-300 ${
+                    index === currentSlide
+                      ? 'bg-white w-8 shadow-lg'
+                      : 'bg-white bg-opacity-50 hover:bg-opacity-75 w-2.5'
+                  }`}
+                />
+              ))}
+            </div>
+          </>
+        )}
       </div>
       
       {/* Features Section */}
