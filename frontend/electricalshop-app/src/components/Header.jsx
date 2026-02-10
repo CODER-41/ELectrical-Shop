@@ -88,7 +88,7 @@ const Header = () => {
               <>
                 <Link to="/products" className="text-orange-600 hover:text-black px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-50">Products</Link>
                 <Link to="/login" className="text-orange-600 hover:text-black px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-50">Login</Link>
-                <Link to="/register" className="px-4 py-2 bg-gradient-to-r from-orange-600 to-yellow-600 text-white font-medium rounded-lg hover:from-orange-700 hover:to-yellow-700 transition-all duration-200">Sign Up</Link>
+                <Link to="/register" className="px-4 py-2 bg-gradient-to-r from-gray-700 to-gray-800 text-white font-medium rounded-lg hover:from-orange-600 hover:to-yellow-600 transition-all duration-200">Sign Up</Link>
               </>
             )}
           </div>
@@ -167,7 +167,7 @@ const Header = () => {
               <>
                 <Link to="/products" className="block px-4 py-2 text-orange-600 hover:text-black hover:bg-gray-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Products</Link>
                 <Link to="/login" className="block px-4 py-2 text-orange-600 hover:text-black hover:bg-gray-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Login</Link>
-                <Link to="/register" className="block px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Sign Up</Link>
+                <Link to="/register" className="block px-4 py-2 bg-gradient-to-r from-gray-700 to-gray-800 text-white rounded-lg hover:from-orange-600 hover:to-yellow-600 transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Sign Up</Link>
               </>
             )}
           </div>
