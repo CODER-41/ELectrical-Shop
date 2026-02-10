@@ -53,10 +53,20 @@ const About = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <div className="bg-gradient-to-br from-blue-600 to-blue-800 text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h1 className="text-4xl md:text-5xl font-bold mb-6">About Electrical Shop</h1>
-          <p className="text-xl max-w-3xl mx-auto leading-relaxed">
+      <div className="bg-gradient-to-br from-green-600 via-green-700 to-green-800 text-white py-20 overflow-hidden">
+        <div className="absolute inset-0 bg-black opacity-10"></div>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="mb-8">
+            <div className="w-20 h-20 bg-white bg-opacity-20 rounded-full mx-auto flex items-center justify-center mb-6">
+              <svg className="w-12 h-12 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold mb-6">
+            About <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Electrical Shop</span>
+          </h1>
+          <p className="text-xl max-w-3xl mx-auto leading-relaxed text-green-100">
             Kenya's premier online marketplace for electrical components and equipment.
             We're building the future of electrical supplies in East Africa.
           </p>
@@ -69,7 +79,7 @@ const About = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
               <div key={index} className="text-center">
-                <div className="text-3xl md:text-4xl font-bold text-blue-600">{stat.value}</div>
+                <div className="text-3xl md:text-4xl font-bold text-green-600">{stat.value}</div>
                 <div className="text-gray-600 mt-1 font-medium">{stat.label}</div>
               </div>
             ))}
@@ -78,12 +88,12 @@ const About = () => {
       </div>
 
       {/* Our Story Section */}
-      <div className="py-16 bg-gradient-to-br from-blue-50 via-white to-blue-50">
+      <div className="py-16 bg-gradient-to-br from-green-50 via-white to-green-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="bg-white shadow-xl rounded-2xl p-8">
               <div className="mb-6">
-                <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-full flex items-center justify-center mb-4">
+                <div className="w-12 h-12 bg-gradient-to-r from-green-600 to-green-700 rounded-full flex items-center justify-center mb-4">
                   <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                   </svg>
@@ -91,8 +101,8 @@ const About = () => {
                 <h2 className="text-3xl font-bold text-gray-900 mb-4">Our Story</h2>
               </div>
               <div className="space-y-6 text-gray-700 leading-relaxed">
-                <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-lg p-4 border-l-4 border-blue-500">
-                  <p className="font-medium text-blue-900 mb-2">The Beginning (2024)</p>
+                <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-4 border-l-4 border-green-500">
+                  <p className="font-medium text-green-900 mb-2">The Beginning (2024)</p>
                   <p>
                     Electrical Shop was founded in 2024 with a mission to revolutionize how electrical
                     components and equipment are sourced in Kenya. We identified the challenges faced by
@@ -100,8 +110,8 @@ const About = () => {
                     at competitive prices.
                   </p>
                 </div>
-                <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-lg p-4 border-l-4 border-green-500">
-                  <p className="font-medium text-green-900 mb-2">Our Platform</p>
+                <div className="bg-gradient-to-r from-yellow-50 to-yellow-100 rounded-lg p-4 border-l-4 border-yellow-500">
+                  <p className="font-medium text-yellow-900 mb-2">Our Platform</p>
                   <p>
                     Our platform connects verified suppliers with customers across Kenya, offering a
                     comprehensive range of electrical products from wiring and switches to industrial
@@ -150,14 +160,14 @@ const About = () => {
                   </div>
                   <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-6 border border-green-200 hover:shadow-lg transition-all duration-200">
                     <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-gradient-to-r from-green-600 to-green-700 rounded-full flex items-center justify-center">
+                      <div className="w-12 h-12 bg-gradient-to-r from-yellow-600 to-yellow-700 rounded-full flex items-center justify-center">
                         <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
                       </div>
                       <div>
-                        <h4 className="font-semibold text-green-900">Fast Delivery</h4>
-                        <p className="text-sm text-green-700">Nationwide shipping available</p>
+                        <h4 className="font-semibold text-yellow-900">Fast Delivery</h4>
+                        <p className="text-sm text-yellow-700">Nationwide shipping available</p>
                       </div>
                     </div>
                   </div>
@@ -178,10 +188,10 @@ const About = () => {
       </div>
 
       {/* Values Section */}
-      <div className="bg-gradient-to-br from-blue-50 via-white to-blue-50 py-16">
+      <div className="bg-gradient-to-br from-green-50 via-white to-green-50 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <div className="w-16 h-16 bg-gradient-to-r from-green-600 to-green-700 rounded-full mx-auto flex items-center justify-center mb-6">
+            <div className="w-16 h-16 bg-gradient-to-r from-yellow-600 to-yellow-700 rounded-full mx-auto flex items-center justify-center mb-6">
               <svg className="w-8 h-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
               </svg>
@@ -192,10 +202,10 @@ const About = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {values.map((value, index) => {
               const gradients = [
-                'from-blue-600 to-blue-700',
-                'from-green-600 to-green-700', 
-                'from-purple-600 to-purple-700',
-                'from-orange-600 to-orange-700'
+                'from-green-600 to-green-700',
+                'from-yellow-600 to-yellow-700', 
+                'from-teal-600 to-teal-700',
+                'from-lime-600 to-lime-700'
               ];
               const icons = [
                 'M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z',
@@ -238,11 +248,11 @@ const About = () => {
                   <img
                     src={member.image}
                     alt={member.name}
-                    className="w-32 h-32 rounded-full mx-auto object-cover ring-4 ring-gray-300 group-hover:ring-blue-400 transition-all"
+                    className="w-32 h-32 rounded-full mx-auto object-cover ring-4 ring-gray-300 group-hover:ring-green-400 transition-all"
                   />
                 </div>
                 <h3 className="font-semibold text-gray-900">{member.name}</h3>
-                <p className="text-blue-600 text-sm font-medium">{member.role}</p>
+                <p className="text-green-600 text-sm font-medium">{member.role}</p>
               </div>
             ))}
           </div>
@@ -259,13 +269,13 @@ const About = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               to="/products"
-              className="inline-block bg-blue-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-sm hover:shadow-md"
+              className="inline-block bg-green-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors shadow-sm hover:shadow-md"
             >
               Browse Products
             </Link>
             <Link
               to="/contact"
-              className="inline-block bg-gray-200 text-gray-900 px-8 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors border border-blue-600 shadow-sm hover:shadow-md"
+              className="inline-block bg-gray-200 text-gray-900 px-8 py-3 rounded-lg font-semibold hover:bg-gray-300 transition-colors border border-green-600 shadow-sm hover:shadow-md"
             >
               Contact Us
             </Link>
