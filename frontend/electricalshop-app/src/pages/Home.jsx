@@ -17,11 +17,27 @@ const Home = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   
   useEffect(() => {
-    // Fetch featured products
+    // Fetch featured products with high-resolution images
     const fetchFeaturedProducts = async () => {
       try {
-        const response = await axios.get(`${API_URL}/products?page=1&per_page=5&sort_by=created_at&sort_order=desc`);
-        setFeaturedProducts(response.data.data.products || []);
+        const response = await axios.get(`${API_URL}/products?page=1&per_page=20&sort_by=created_at&sort_order=desc`);
+        const products = response.data.data.products || [];
+        
+        // Filter and sort products by image quality
+        const productsWithImages = products
+          .filter(p => p.image_url && p.image_url.includes('cloudinary'))
+          .sort((a, b) => {
+            // Prioritize products with larger image dimensions in URL
+            const getImageQuality = (url) => {
+              if (url.includes('/w_1000') || url.includes('/w_2000')) return 3;
+              if (url.includes('/w_800') || url.includes('/w_900')) return 2;
+              return 1;
+            };
+            return getImageQuality(b.image_url) - getImageQuality(a.image_url);
+          })
+          .slice(0, 5);
+        
+        setFeaturedProducts(productsWithImages.length > 0 ? productsWithImages : products.slice(0, 5));
       } catch (error) {
         console.error('Failed to fetch featured products:', error);
       }
