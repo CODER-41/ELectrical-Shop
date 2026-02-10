@@ -222,6 +222,23 @@ def query_mpesa_status():
         return error_response(f'Failed to query payment status: {str(e)}', 500)
 
 
+@payments_bp.route('/status/<order_id>', methods=['GET'])
+@jwt_required()
+def payment_status(order_id):
+    try:
+        user_id = get_jwt_identity()
+        order = Order.query.get(order_id)
+        if not order:
+            return error_response('Order not found', 404)
+        if str(order.customer.user_id) != user_id:
+            return error_response('Unauthorized', 403)
+        return success_response(data={
+            'payment_status': order.payment_status.value if order.payment_status else 'pending',
+            'order_status': order.status.value if order.status else 'pending'
+        })
+    except Exception as e:
+        return error_response(str(e), 500)
+
 @payments_bp.route('/verify/<order_id>', methods=['GET'])
 @jwt_required()
 def verify_payment(order_id):
