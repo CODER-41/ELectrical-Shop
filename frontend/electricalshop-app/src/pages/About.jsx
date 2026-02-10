@@ -53,7 +53,7 @@ const About = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Hero Section */}
-      <div className="bg-gradient-to-br from-orange-500 via-orange-600 to-yellow-600 text-white py-20 overflow-hidden">
+      <div className="relative bg-gradient-to-br from-orange-500 via-orange-600 to-yellow-600 text-white py-20 overflow-hidden">
         <div className="absolute inset-0 bg-black opacity-10"></div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <div className="mb-8">
@@ -88,7 +88,7 @@ const About = () => {
       </div>
 
       {/* Our Story Section */}
-      <div className="py-16 bg-gradient-to-br from-orange-50 via-white to-yellow-50">
+      <div className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="bg-white shadow-xl rounded-2xl p-8">
@@ -188,7 +188,7 @@ const About = () => {
       </div>
 
       {/* Values Section */}
-      <div className="bg-gradient-to-br from-orange-50 via-white to-yellow-50 py-16">
+      <div className="bg-gray-50 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <div className="w-16 h-16 bg-gradient-to-r from-orange-600 to-yellow-600 rounded-full mx-auto flex items-center justify-center mb-6">
@@ -234,7 +234,7 @@ const About = () => {
       </div>
 
       {/* Team Section */}
-      <div className="py-16 bg-gray-50">
+      <div className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-3xl font-bold text-gray-900">Our Team</h2>
@@ -259,7 +259,7 @@ const About = () => {
       </div>
 
       {/* CTA Section */}
-      <div className="bg-white py-16">
+      <div className="bg-gray-50 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Ready to Power Your Projects?</h2>
           <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
