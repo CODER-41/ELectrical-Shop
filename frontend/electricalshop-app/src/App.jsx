@@ -76,8 +76,8 @@ function App() {
           {/* Routes with Layout */}
           <Route element={<MainLayout />}>
             {/* Public Routes */}
-            <Route path="/" element={<Home />} />
-            <Route path="/about" element={<About />} />
+            <Route path="/" element={<About />} />
+            <Route path="/about" element={<Home />} />
             <Route path="/contact" element={<ContactUs />} />
             <Route path="/terms" element={<TermsAndConditions />} />
             <Route path="/privacy" element={<PrivacyPolicy />} />
