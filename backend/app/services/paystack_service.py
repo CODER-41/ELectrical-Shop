@@ -26,7 +26,7 @@ class PaystackService:
             'Content-Type': 'application/json'
         }
     
-    def initialize_transaction(self, email, amount, reference, metadata=None):
+    def initialize_transaction(self, email, amount, reference, callback_url=None, metadata=None):
         """
         Initialize a Paystack transaction.
         
@@ -34,6 +34,7 @@ class PaystackService:
             email: Customer email
             amount: Amount in kobo (multiply KES by 100)
             reference: Unique transaction reference
+            callback_url: URL to redirect to after payment
             metadata: Dictionary of metadata to attach to the transaction
         
         Returns:
@@ -56,6 +57,10 @@ class PaystackService:
                 'currency': 'KES',
                 'metadata': metadata or {}
             }
+            
+            # Add callback URL if provided
+            if callback_url:
+                payload['callback_url'] = callback_url
             
             response = requests.post(
                 f'{self.base_url}/transaction/initialize',
