@@ -82,7 +82,7 @@ const Header = () => {
                 )}
 
                 <Link to="/profile" className="text-orange-600 hover:text-black px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-50">Profile</Link>
-                <button onClick={logout} className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white font-medium rounded-lg hover:from-blue-700 hover:to-blue-800 transition-all duration-200">Logout</button>
+                <button onClick={logout} className="px-4 py-2 bg-gradient-to-r from-gray-700 to-gray-800 text-white font-medium rounded-lg hover:from-gray-800 hover:to-gray-900 transition-all duration-200">Logout</button>
               </>
             ) : (
               <>
@@ -161,7 +161,7 @@ const Header = () => {
                 )}
 
                 <Link to="/profile" className="block px-4 py-2 text-orange-600 hover:text-black hover:bg-gray-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Profile</Link>
-                <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full text-left px-4 py-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200">Logout</button>
+                <button onClick={() => { logout(); setIsMobileMenuOpen(false); }} className="w-full text-left px-4 py-2 text-white bg-gray-700 hover:bg-gray-800 rounded-lg transition-all duration-200">Logout</button>
               </>
             ) : (
               <>
