@@ -15,7 +15,7 @@ const Footer = () => {
                               alt="Electronics Shop Logo" 
                               className="w-16 h-16 mr-3 rounded-full"
                             />
-                            <h3 className="text-lg font-bold bg-gradient-to-r from-orange-300 to-yellow-400 bg-clip-text text-transparent">Electronics Shop</h3>
+                            <h3 className="text-lg font-bold text-black">Electronics Shop</h3>
                         </div>
                         <p className="text-gray-300 text-sm leading-relaxed mb-4">
                             Your trusted marketplace for quality electronics in Kenya.
