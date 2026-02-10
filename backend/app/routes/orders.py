@@ -12,7 +12,9 @@ from app.services.email_service import (
     send_order_confirmation_email,
     send_payment_confirmation_email,
     send_shipping_notification_email,
-    send_delivery_confirmation_email
+    send_delivery_confirmation_email,
+    send_order_cancellation_email,
+    send_order_status_update_email
 )
 
 orders_bp = Blueprint('orders', __name__, url_prefix='/api/orders')
@@ -426,12 +428,19 @@ def update_order_status(order_id):
         if not is_admin:
             return error_response('Only admins can update order status', 403)
         
+        old_status = order.status
         order.status = new_status
         
         if 'admin_notes' in data:
             order.admin_notes = data['admin_notes']
         
         db.session.commit()
+        
+        # Send status update email
+        try:
+            send_order_status_update_email(order, order.customer.user.email, old_status.value, new_status)
+        except Exception as e:
+            current_app.logger.error(f'Failed to send status update email: {str(e)}')
         
         return success_response(
             data=order.to_dict(),
@@ -556,6 +565,12 @@ def cancel_order(order_id):
             order.admin_notes += '\nRefund required - order was paid before cancellation.'
 
         db.session.commit()
+        
+        # Send cancellation email
+        try:
+            send_order_cancellation_email(order, order.customer.user.email, cancellation_reason)
+        except Exception as e:
+            current_app.logger.error(f'Failed to send cancellation email: {str(e)}')
 
         return success_response(
             data=order.to_dict(),

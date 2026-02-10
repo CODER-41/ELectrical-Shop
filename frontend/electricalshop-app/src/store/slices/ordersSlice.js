@@ -348,7 +348,8 @@ const ordersSlice = createSlice({
       })
       .addCase(getOrders.fulfilled, (state, action) => {
         state.isLoading = false;
-        state.orders = action.payload;
+        // Handle both array and object responses
+        state.orders = Array.isArray(action.payload) ? action.payload : (action.payload?.orders || []);
       })
       .addCase(getOrders.rejected, (state, action) => {
         state.isLoading = false;
