@@ -38,8 +38,7 @@ const Home = () => {
           })
           .slice(0, 5)
           .map(p => {
-            // Replace Z50 mirrorless camera image with local asset
-            if (p.name && p.name.toLowerCase().includes('z50') && p.name.toLowerCase().includes('mirrorless')) {
+            if (p.name && (p.name.toLowerCase().includes('nikon z50') || p.name.toLowerCase() === 'nikon z50 mirrorless camera')) {
               return { ...p, image_url: z50CameraImg };
             }
             return p;
