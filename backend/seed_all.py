@@ -798,7 +798,7 @@ def seed_sample_products(suppliers, categories, brands):
             'specifications': {'Sensor': '20.9MP APS-C', 'Video': '4K 30fps', 'Screen': '3.2" Tilting'},
             'stock_quantity': 12,
             'warranty_months': 24,
-            'image_url': 'https://images.unsplash.com/photo-1606980707986-7b0c1e7d2e6e?w=800&h=800&fit=crop'
+            'image_url': 'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=800&h=800&fit=crop'
         },
         {
             'name': 'Canon EF 50mm f/1.8 Lens',
