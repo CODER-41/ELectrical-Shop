@@ -8,6 +8,7 @@ import tvsImg from '../assets/TVs.jpeg';
 import kitchenImg from '../assets/Kitchen.jpg';
 import gamingImg from '../assets/Gaming.jpg';
 import accessoriesImg from '../Accessories.jpg';
+import z50CameraImg from '../assets/Nikon Z50 mirrorless camerra.jpeg';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -35,7 +36,14 @@ const Home = () => {
             };
             return getImageQuality(b.image_url) - getImageQuality(a.image_url);
           })
-          .slice(0, 5);
+          .slice(0, 5)
+          .map(p => {
+            // Replace Z50 mirrorless camera image with local asset
+            if (p.name && p.name.toLowerCase().includes('z50') && p.name.toLowerCase().includes('mirrorless')) {
+              return { ...p, image_url: z50CameraImg };
+            }
+            return p;
+          });
         
         setFeaturedProducts(productsWithImages.length > 0 ? productsWithImages : products.slice(0, 5));
       } catch (error) {
