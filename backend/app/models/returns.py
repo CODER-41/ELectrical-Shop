@@ -88,59 +88,85 @@ class Return(db.Model):
         ).count() + 1
         self.return_number = f'RET-{date_str}-{count:04d}'
 
+    def get_item_total(self):
+        """Get the total value of the returned item(s)."""
+        from app.models.order import OrderItem
+        # Try specific order_item first
+        if self.order_item_id:
+            oi = OrderItem.query.get(self.order_item_id)
+            if oi:
+                return float(oi.product_price) * (self.quantity or oi.quantity)
+        # Fallback: find item from the order
+        if self.order_id:
+            if self.product_id:
+                oi = OrderItem.query.filter_by(order_id=self.order_id, product_id=self.product_id).first()
+            else:
+                oi = OrderItem.query.filter_by(order_id=self.order_id).first()
+            if oi:
+                return float(oi.product_price) * (self.quantity or oi.quantity)
+        return 0
+
     def calculate_refund(self, policy=None):
-        """Calculate refund amounts based on policy."""
-        if not self.order:
+        """Calculate refund amounts based on policy using item-level pricing."""
+        item_total = self.get_item_total()
+        if item_total <= 0:
             return
 
-        order_total = float(self.order.total)
         self.refund_policy = policy or RefundPolicy.SUPPLIER_FAULT.value
 
         if self.refund_policy == RefundPolicy.SUPPLIER_FAULT.value:
-            self.customer_refund = order_total
-            self.supplier_deduction = order_total
+            self.customer_refund = item_total
+            self.supplier_deduction = item_total
             self.platform_deduction = 0
             self.restocking_fee = 0
 
         elif self.refund_policy == RefundPolicy.CUSTOMER_CHANGED_MIND.value:
-            self.restocking_fee = order_total * 0.15
-            self.customer_refund = order_total - self.restocking_fee
-            self.supplier_deduction = (order_total - self.restocking_fee) * 0.75
+            self.restocking_fee = item_total * 0.15
+            self.customer_refund = item_total - float(self.restocking_fee)
+            self.supplier_deduction = float(self.customer_refund) * 0.75
             self.platform_deduction = 0
 
         elif self.refund_policy == RefundPolicy.SHIPPING_DAMAGE.value:
-            self.customer_refund = order_total
+            self.customer_refund = item_total
             self.supplier_deduction = 0
-            self.platform_deduction = order_total
+            self.platform_deduction = item_total
             self.restocking_fee = 0
 
         elif self.refund_policy == RefundPolicy.FRAUD.value:
-            penalty = order_total * 0.10
-            self.customer_refund = order_total
-            self.supplier_deduction = order_total + penalty
+            penalty = item_total * 0.10
+            self.customer_refund = item_total
+            self.supplier_deduction = item_total + penalty
             self.platform_deduction = -penalty
             self.restocking_fee = 0
 
-        self.refund_amount = order_total
+        self.refund_amount = item_total
 
     def to_dict(self):
         refund_amount = float(self.refund_amount) if self.refund_amount else 0
 
-        # Derive display names
+        # Derive display names and item price
         product_name = None
         customer_name = None
+        item_price = 0
+        item_subtotal = 0
         from app.models.order import OrderItem
+        oi = None
         if self.order_item_id:
             oi = OrderItem.query.get(self.order_item_id)
-            if oi:
-                product_name = oi.product_name
-        if not product_name and self.order_id:
-            # Fallback: get first item from the order
-            oi = OrderItem.query.filter_by(order_id=self.order_id).first()
-            if oi:
-                product_name = oi.product_name
+        if not oi and self.order_id:
+            if self.product_id:
+                oi = OrderItem.query.filter_by(order_id=self.order_id, product_id=self.product_id).first()
+            if not oi:
+                oi = OrderItem.query.filter_by(order_id=self.order_id).first()
+        if oi:
+            product_name = oi.product_name
+            item_price = float(oi.product_price) if oi.product_price else 0
+            item_subtotal = item_price * (self.quantity or oi.quantity)
         if self.customer:
             customer_name = f"{self.customer.first_name} {self.customer.last_name}"
+
+        # Use item_subtotal as fallback for refund_amount display
+        display_refund = refund_amount if refund_amount > 0 else item_subtotal
 
         return {
             'id': self.id,
@@ -158,12 +184,14 @@ class Return(db.Model):
             'status': self.status if isinstance(self.status, str) else (self.status.value if self.status else None),
             'rejection_reason': self.rejection_reason,
             'refund_policy': self.refund_policy,
-            'refund_amount': refund_amount,
+            'refund_amount': display_refund,
             'refund_method': self.refund_method,
             'restocking_fee': float(self.restocking_fee) if self.restocking_fee else 0,
             'supplier_deduction': float(self.supplier_deduction) if self.supplier_deduction else 0,
             'platform_deduction': float(self.platform_deduction) if self.platform_deduction else 0,
             'customer_refund': float(self.customer_refund) if self.customer_refund else 0,
+            'item_price': item_price,
+            'item_subtotal': item_subtotal,
             'refund_processed_at': self.refund_processed_at.isoformat() if self.refund_processed_at else None,
             'refund_reference': self.refund_reference,
             'refunded_at': self.refunded_at.isoformat() if self.refunded_at else None,
