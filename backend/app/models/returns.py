@@ -5,10 +5,15 @@ from enum import Enum
 
 
 class ReturnStatus(str, Enum):
+    REQUESTED = 'requested'
     PENDING = 'pending'
+    PENDING_REVIEW = 'pending_review'
+    SUPPLIER_REVIEW = 'supplier_review'
     APPROVED = 'approved'
     REJECTED = 'rejected'
+    DISPUTED = 'disputed'
     COMPLETED = 'completed'
+    REFUND_COMPLETED = 'refund_completed'
 
 
 class RefundPolicy(str, Enum):
@@ -24,85 +29,156 @@ class Return(db.Model):
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     order_id = db.Column(db.String(36), db.ForeignKey('orders.id'), nullable=False)
     user_id = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=False)
+    order_item_id = db.Column(db.String(36), db.ForeignKey('order_items.id'), nullable=True)
+    customer_id = db.Column(db.String(36), db.ForeignKey('customer_profiles.id'), nullable=True)
+    product_id = db.Column(db.String(36), db.ForeignKey('products.id'), nullable=True)
+
+    # Return details
+    return_number = db.Column(db.String(50), unique=True, nullable=True, index=True)
     reason = db.Column(db.String(500), nullable=False)
-    status = db.Column(db.Enum(ReturnStatus), default=ReturnStatus.PENDING, nullable=False)
-    
-    # Refund policy fields
+    description = db.Column(db.Text, nullable=True)
+    quantity = db.Column(db.Integer, default=1, nullable=True)
+    images = db.Column(db.JSON, nullable=True)
+    is_warranty_claim = db.Column(db.Boolean, default=False, nullable=True)
+    status = db.Column(db.String(50), default='pending', nullable=False)
+
+    # Review fields
+    reviewed_by = db.Column(db.String(36), db.ForeignKey('users.id'), nullable=True)
+    reviewed_at = db.Column(db.DateTime, nullable=True)
+    rejection_reason = db.Column(db.Text, nullable=True)
+
+    # Refund fields
     refund_policy = db.Column(db.String(50), default='supplier_fault', nullable=True)
     refund_amount = db.Column(db.Numeric(12, 2), nullable=True)
+    refund_method = db.Column(db.String(50), nullable=True)
     restocking_fee = db.Column(db.Numeric(12, 2), default=0, nullable=True)
     supplier_deduction = db.Column(db.Numeric(12, 2), default=0, nullable=True)
     platform_deduction = db.Column(db.Numeric(12, 2), default=0, nullable=True)
     customer_refund = db.Column(db.Numeric(12, 2), nullable=True)
     refund_processed_at = db.Column(db.DateTime, nullable=True)
     refund_reference = db.Column(db.String(100), nullable=True)
+    refunded_at = db.Column(db.DateTime, nullable=True)
     admin_notes = db.Column(db.Text, nullable=True)
-    
+
+    # Supplier participation fields
+    supplier_acknowledged = db.Column(db.Boolean, default=False, nullable=False)
+    supplier_acknowledged_at = db.Column(db.DateTime, nullable=True)
+    supplier_response = db.Column(db.Text, nullable=True)
+    supplier_evidence = db.Column(db.JSON, nullable=True)
+    supplier_action = db.Column(db.String(20), nullable=True)  # 'accept' or 'dispute'
+    supplier_action_at = db.Column(db.DateTime, nullable=True)
+    supplier_dispute_reason = db.Column(db.Text, nullable=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
     # Relationships
-    user = db.relationship('User', backref=db.backref('returns', lazy='dynamic'))
+    user = db.relationship('User', foreign_keys=[user_id], backref=db.backref('returns', lazy='dynamic'))
     order = db.relationship('Order', backref=db.backref('returns', lazy='dynamic'))
+    order_item = db.relationship('OrderItem', backref=db.backref('returns', lazy='dynamic'))
+    customer = db.relationship('CustomerProfile', backref=db.backref('returns', lazy='dynamic'))
+    product = db.relationship('Product', backref=db.backref('returns', lazy='dynamic'))
+    reviewer = db.relationship('User', foreign_keys=[reviewed_by])
+
+    def generate_return_number(self):
+        """Generate unique return number."""
+        date_str = datetime.utcnow().strftime('%Y%m%d')
+        count = Return.query.filter(
+            Return.created_at >= datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+        ).count() + 1
+        self.return_number = f'RET-{date_str}-{count:04d}'
 
     def calculate_refund(self, policy=None):
         """Calculate refund amounts based on policy."""
         if not self.order:
             return
-        
+
         order_total = float(self.order.total)
         self.refund_policy = policy or RefundPolicy.SUPPLIER_FAULT.value
-        
+
         if self.refund_policy == RefundPolicy.SUPPLIER_FAULT.value:
-            # Supplier pays 100% (including platform commission)
             self.customer_refund = order_total
             self.supplier_deduction = order_total
             self.platform_deduction = 0
             self.restocking_fee = 0
-            
+
         elif self.refund_policy == RefundPolicy.CUSTOMER_CHANGED_MIND.value:
-            # 15% restocking fee, platform keeps commission
             self.restocking_fee = order_total * 0.15
             self.customer_refund = order_total - self.restocking_fee
-            # Supplier loses 75% of (order_total - restocking_fee)
             self.supplier_deduction = (order_total - self.restocking_fee) * 0.75
-            self.platform_deduction = 0  # Platform keeps commission
-            
+            self.platform_deduction = 0
+
         elif self.refund_policy == RefundPolicy.SHIPPING_DAMAGE.value:
-            # Platform absorbs full cost
             self.customer_refund = order_total
             self.supplier_deduction = 0
             self.platform_deduction = order_total
             self.restocking_fee = 0
-            
+
         elif self.refund_policy == RefundPolicy.FRAUD.value:
-            # Supplier pays 100% + 10% penalty
             penalty = order_total * 0.10
             self.customer_refund = order_total
             self.supplier_deduction = order_total + penalty
-            self.platform_deduction = -penalty  # Platform gains penalty
+            self.platform_deduction = -penalty
             self.restocking_fee = 0
-        
+
         self.refund_amount = order_total
-    
+
     def to_dict(self):
-        refund_amount = float(self.refund_amount) if self.refund_amount else (float(self.order.total) if self.order else 0)
-        
+        refund_amount = float(self.refund_amount) if self.refund_amount else 0
+
+        # Derive display names
+        product_name = None
+        customer_name = None
+        from app.models.order import OrderItem
+        if self.order_item_id:
+            oi = OrderItem.query.get(self.order_item_id)
+            if oi:
+                product_name = oi.product_name
+        if not product_name and self.order_id:
+            # Fallback: get first item from the order
+            oi = OrderItem.query.filter_by(order_id=self.order_id).first()
+            if oi:
+                product_name = oi.product_name
+        if self.customer:
+            customer_name = f"{self.customer.first_name} {self.customer.last_name}"
+
         return {
             'id': self.id,
             'order_id': self.order_id,
+            'order_item_id': self.order_item_id,
+            'customer_id': self.customer_id,
+            'product_id': self.product_id,
             'user_id': self.user_id,
+            'return_number': self.return_number,
             'reason': self.reason,
-            'status': self.status.value if self.status else None,
+            'description': self.description,
+            'quantity': self.quantity,
+            'images': self.images,
+            'is_warranty_claim': self.is_warranty_claim,
+            'status': self.status if isinstance(self.status, str) else (self.status.value if self.status else None),
+            'rejection_reason': self.rejection_reason,
             'refund_policy': self.refund_policy,
             'refund_amount': refund_amount,
+            'refund_method': self.refund_method,
             'restocking_fee': float(self.restocking_fee) if self.restocking_fee else 0,
             'supplier_deduction': float(self.supplier_deduction) if self.supplier_deduction else 0,
             'platform_deduction': float(self.platform_deduction) if self.platform_deduction else 0,
             'customer_refund': float(self.customer_refund) if self.customer_refund else 0,
             'refund_processed_at': self.refund_processed_at.isoformat() if self.refund_processed_at else None,
             'refund_reference': self.refund_reference,
+            'refunded_at': self.refunded_at.isoformat() if self.refunded_at else None,
+            'reviewed_by': self.reviewed_by,
+            'reviewed_at': self.reviewed_at.isoformat() if self.reviewed_at else None,
             'admin_notes': self.admin_notes,
+            'supplier_acknowledged': self.supplier_acknowledged,
+            'supplier_acknowledged_at': self.supplier_acknowledged_at.isoformat() if self.supplier_acknowledged_at else None,
+            'supplier_response': self.supplier_response,
+            'supplier_evidence': self.supplier_evidence,
+            'supplier_action': self.supplier_action,
+            'supplier_action_at': self.supplier_action_at.isoformat() if self.supplier_action_at else None,
+            'supplier_dispute_reason': self.supplier_dispute_reason,
+            'product_name': product_name,
+            'customer_name': customer_name,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None
         }
