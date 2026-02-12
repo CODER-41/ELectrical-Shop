@@ -27,7 +27,7 @@ const Header = () => {
             </Link>
           </div>
           
-          {/* Desktop Navigation */}
+          {/* Desktop nav */}
           <div className="hidden lg:flex items-center space-x-2">
             <Link
               to="/"
@@ -96,7 +96,7 @@ const Header = () => {
             )}
           </div>
           
-          {/* Mobile Cart & Menu Button */}
+          {/* Mobile cart & menu */}
           <div className="flex items-center space-x-2 lg:hidden">
             {isAuthenticated && user?.role === 'customer' && (
               <Link to="/cart" className="relative p-2 text-gray-700 hover:text-green-600 rounded-lg">
@@ -124,7 +124,7 @@ const Header = () => {
           </div>
         </div>
         
-        {/* Mobile Menu */}
+        {/* Mobile menu */}
         {isMobileMenuOpen && (
           <div className="lg:hidden border-t border-gray-200 py-4 space-y-2">
             <Link to="/" className="block px-4 py-2 text-orange-600 hover:text-black hover:bg-gray-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Home</Link>

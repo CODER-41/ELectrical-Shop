@@ -4,6 +4,8 @@ from flask_cors import CORS
 from flask_jwt_extended import JWTManager
 from flask_migrate import Migrate
 from flask_swagger_ui import get_swaggerui_blueprint
+from flask_compress import Compress
+from flask_caching import Cache
 from app.config.config import config
 from app.models import db
 from app.services.email_service import mail
@@ -11,7 +13,7 @@ from app.services.scheduler_service import init_scheduler
 
 
 def create_app(config_name=None):
-    """Application factory pattern."""
+    """Application factory"""
     
     if config_name is None:
         config_name = os.getenv('FLASK_ENV', 'development')
@@ -19,11 +21,22 @@ def create_app(config_name=None):
     app = Flask(__name__)
     app.config.from_object(config[config_name])
     
+    # init extensions
     db.init_app(app)
     CORS(app, resources={r"/api/*": {"origins": app.config['FRONTEND_URL']}})
     jwt = JWTManager(app)
     migrate = Migrate(app, db)
     mail.init_app(app)
+    
+    # compression for faster responses
+    Compress(app)
+    
+    # caching for frequently accessed data
+    cache = Cache(app, config={
+        'CACHE_TYPE': 'simple',
+        'CACHE_DEFAULT_TIMEOUT': 300
+    })
+    app.cache = cache
     
     with app.app_context():
         from app.models.user import User, CustomerProfile, SupplierProfile, AdminProfile, DeliveryAgentProfile, DeliveryCompany

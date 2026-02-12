@@ -11,16 +11,16 @@ mail = Mail()
 
 
 def send_async_email(app, msg):
-    """Send email asynchronously."""
+    """Send email in background"""
     with app.app_context():
         try:
             mail.send(msg)
         except Exception as e:
-            current_app.logger.error(f'Failed to send email: {str(e)}')
+            current_app.logger.error(f'Email send failed: {str(e)}')
 
 
 def send_email(subject, recipients, text_body, html_body):
-    """Send email with text and HTML body."""
+    """Send email with text and HTML versions"""
     msg = Message(
         subject=subject,
         sender=os.getenv('MAIL_DEFAULT_SENDER', 'noreply@electronicsshop.com'),
@@ -29,15 +29,15 @@ def send_email(subject, recipients, text_body, html_body):
     msg.body = text_body
     msg.html = html_body
     
-    # Send asynchronously
+    # send in background thread
     Thread(target=send_async_email, args=(current_app._get_current_object(), msg)).start()
 
 
 def send_order_confirmation_email(order, customer_email):
-    """Send order confirmation email."""
+    """Send order confirmation"""
     subject = f'Order Confirmation - {order.order_number}'
     
-    # Determine payment status display
+    # payment status display
     payment_status = {
         'pending': {'text': 'Payment Pending', 'color': '#eab308', 'bg': '#fef3c7'},
         'paid': {'text': 'Payment Confirmed', 'color': '#10b981', 'bg': '#d1fae5'},
@@ -45,17 +45,17 @@ def send_order_confirmation_email(order, customer_email):
     }.get(order.payment_status.value if order.payment_status else 'pending', 
           {'text': 'Payment Pending', 'color': '#eab308', 'bg': '#fef3c7'})
     
-    # Calculate order summary
+    # order totals
     subtotal = sum(item.subtotal for item in order.items)
     delivery_fee = order.delivery_fee or 0
 
-    # Pre-compute items list (backslashes not allowed in f-string expressions on Python < 3.12)
+    # build items list for text email
     items_text = ''.join([f'• {item.product_name} x {item.quantity} - KES {item.subtotal:,.2f}\n    ' for item in order.items])
 
     text_body = f"""
-    Hi {order.customer.first_name if order.customer else 'Customer'},
+    Hi {order.customer.first_name if order.customer else 'there'},
 
-    Thank you for your order!
+    Thanks for your order!
 
     Order Number: {order.order_number}
     Order Date: {order.created_at.strftime('%B %d, %Y')}
@@ -70,19 +70,19 @@ def send_order_confirmation_email(order, customer_email):
     {order.delivery_address.address_line_1 if order.delivery_address else ''}
     {order.delivery_address.city if order.delivery_address else ''}, {order.delivery_address.county if order.delivery_address else ''}
     
-    We'll send you another email when your order ships.
+    We'll email you when it ships.
     
-    Thanks,
-    Electronics Shop Team
+    Cheers,
+    Q-Gear Team
     """
     
-    # Frontend URL for order tracking
+    # frontend URL
     frontend_url = os.getenv('FRONTEND_URL', 'http://localhost:5173')
     track_url = f"{frontend_url}/orders/{order.id}"
-    # Use Cloudinary hosted favicon
+    # logo from cloudinary
     cloudinary_name = os.getenv('CLOUDINARY_CLOUD_NAME')
     logo_url = f"https://res.cloudinary.com/{cloudinary_name}/image/upload/v1/fav.png"
-    logo_html = f'''<img src="{logo_url}" alt="Electronics Shop" style="height: 50px; width: auto; margin-bottom: 15px;">'''
+    logo_html = f'''<img src="{logo_url}" alt="Q-Gear" style="height: 50px; width: auto; margin-bottom: 15px;">'''
     
     html_body = f"""
     <!DOCTYPE html>
@@ -214,23 +214,23 @@ def send_order_confirmation_email(order, customer_email):
 
 
 def send_payment_confirmation_email(order, customer_email):
-    """Send payment confirmation email."""
+    """Payment confirmed email"""
     subject = f'Payment Confirmed - {order.order_number}'
     
     text_body = f"""
     Hi,
     
-    Your payment has been confirmed!
+    Your payment went through!
     
     Order Number: {order.order_number}
-    Amount Paid: KES {order.total:,.2f}
+    Amount: KES {order.total:,.2f}
     Payment Method: {order.payment_method.value.upper()}
     Reference: {order.payment_reference or 'N/A'}
     
-    Your order is now being processed.
+    We're processing your order now.
     
-    Thanks,
-    Electronics Shop Team
+    Cheers,
+    Q-Gear Team
     """
     
     html_body = f"""
@@ -272,21 +272,21 @@ def send_payment_confirmation_email(order, customer_email):
 
 
 def send_shipping_notification_email(order, customer_email):
-    """Send shipping notification email."""
+    """Order shipped notification"""
     subject = f'Your Order Has Shipped - {order.order_number}'
     
     text_body = f"""
     Hi,
     
-    Good news! Your order has been shipped.
+    Good news! Your order is on the way.
     
     Order Number: {order.order_number}
-    Estimated Delivery: {order.delivery_zone} - Check your order for details
+    Estimated Delivery: Check your order for details
     
-    Your package is on its way!
+    Your package should arrive soon!
     
-    Thanks,
-    Electronics Shop Team
+    Cheers,
+    Q-Gear Team
     """
     
     html_body = f"""
@@ -325,7 +325,7 @@ def send_shipping_notification_email(order, customer_email):
 
 
 def send_delivery_confirmation_email(order, customer_email):
-    """Send delivery confirmation email."""
+    """Order delivered confirmation"""
     subject = f'Order Delivered - {order.order_number}'
     
     text_body = f"""
@@ -335,11 +335,10 @@ def send_delivery_confirmation_email(order, customer_email):
     
     Order Number: {order.order_number}
     
-    We hope you love your purchase!
-    Please consider leaving a review to help other customers.
+    Hope you love it! Consider leaving a review.
     
-    Thanks,
-    Electronics Shop Team
+    Cheers,
+    Q-Gear Team
     """
     
     html_body = f"""

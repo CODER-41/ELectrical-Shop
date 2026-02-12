@@ -540,7 +540,7 @@ def seed_sample_products(suppliers, categories, brands):
             'specifications': {'Screen Size': '58 inches', 'Resolution': '4K UHD', 'Smart TV': 'VIDAA', 'HDR': 'Dolby Vision'},
             'stock_quantity': 20,
             'warranty_months': 24,
-            'image_url': 'https://images.unsplash.com/photo-1539874754764-5a96559165b0?w=400&h=400&fit=crop'
+            'image_url': '/src/assets/Hisense smart TV.webp'
         },
         # Kitchen Appliances (5 products)
         {
@@ -585,7 +585,7 @@ def seed_sample_products(suppliers, categories, brands):
             'specifications': {'Capacity': '7.3L', 'Power': '2225W', 'Features': 'Digital Display, Rapid Air'},
             'stock_quantity': 35,
             'warranty_months': 24,
-            'image_url': 'https://images.unsplash.com/photo-1648221295097-8c09a6fd42b5?w=400&h=400&fit=crop'
+            'image_url': '/src/assets/Phiillips Air Fryer.webp'
         },
         {
             'name': 'Ramtons Blender 1.5L',
