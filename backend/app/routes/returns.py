@@ -158,31 +158,19 @@ def review_return(return_id):
             return error_response('Return not found', 404)
         
         data = request.get_json()
-        action = data['action']  # approve or reject
+        action = data['action']
         
         if action == 'approve':
-            return_request.status = 'approved'
-
-            # Calculate refund amount
-            order_item = None
-            if return_request.order_item_id:
-                order_item = OrderItem.query.get(return_request.order_item_id)
-            if not order_item and return_request.order_id:
-                order_item = OrderItem.query.filter_by(order_id=return_request.order_id).first()
-            if order_item:
-                return_request.refund_amount = float(order_item.product_price) * (return_request.quantity or 1)
-            return_request.refund_method = data.get('refund_method', 'mpesa')
-
+            return_request.status = ReturnStatus.APPROVED
+            policy = data.get('refund_policy', 'supplier_fault')
+            return_request.calculate_refund(policy)
+            
         elif action == 'reject':
-            return_request.status = 'rejected'
-            return_request.rejection_reason = data.get('rejection_reason', '').strip()
+            return_request.status = ReturnStatus.REJECTED
         else:
             return error_response('Invalid action', 400)
         
-        return_request.reviewed_by = user_id
-        return_request.reviewed_at = datetime.utcnow()
         return_request.admin_notes = data.get('admin_notes', '').strip()
-        
         db.session.commit()
         
         return success_response(
@@ -212,17 +200,15 @@ def update_return_status(return_id):
         
         data = request.get_json()
         
-        # Validate status
-        valid_statuses = [s.value for s in ReturnStatus]
-        new_status = data['status']
-        if new_status not in valid_statuses:
+        try:
+            new_status = ReturnStatus(data['status'])
+        except ValueError:
             return error_response('Invalid status', 400)
 
         return_request.status = new_status
-
-        # If refund completed, set refund details
-        if new_status == 'refund_completed':
-            return_request.refunded_at = datetime.utcnow()
+        
+        if new_status == ReturnStatus.COMPLETED:
+            return_request.refund_processed_at = datetime.utcnow()
             if 'refund_reference' in data:
                 return_request.refund_reference = data['refund_reference']
         
