@@ -26,23 +26,23 @@ const Home = () => {
         
         // Filter and sort products by image quality
         const productsWithImages = products
-          .filter(p => p.image_url && p.image_url.includes('cloudinary'))
+          .map(p => {
+            if (p.name && p.name.toLowerCase().includes('nikon z50')) {
+              return { ...p, image_url: z50CameraImg };
+            }
+            return p;
+          })
+          .filter(p => p.image_url)
           .sort((a, b) => {
-            // Prioritize products with larger image dimensions in URL
             const getImageQuality = (url) => {
+              if (typeof url !== 'string') return 4;
               if (url.includes('/w_1000') || url.includes('/w_2000')) return 3;
               if (url.includes('/w_800') || url.includes('/w_900')) return 2;
               return 1;
             };
             return getImageQuality(b.image_url) - getImageQuality(a.image_url);
           })
-          .slice(0, 5)
-          .map(p => {
-            if (p.name && (p.name.toLowerCase().includes('nikon z50') || p.name.toLowerCase() === 'nikon z50 mirrorless camera')) {
-              return { ...p, image_url: z50CameraImg };
-            }
-            return p;
-          });
+          .slice(0, 5);
         
         setFeaturedProducts(productsWithImages.length > 0 ? productsWithImages : products.slice(0, 5));
       } catch (error) {
