@@ -8,6 +8,7 @@ import tvsImg from '../assets/TVs.jpeg';
 import kitchenImg from '../assets/Kitchen.jpg';
 import gamingImg from '../assets/Gaming.jpg';
 import accessoriesImg from '../Accessories.jpg';
+import z50CameraImg from '../assets/Nikon Z50 mirrorless camerra.jpeg';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -35,7 +36,13 @@ const Home = () => {
             };
             return getImageQuality(b.image_url) - getImageQuality(a.image_url);
           })
-          .slice(0, 5);
+          .slice(0, 5)
+          .map(p => {
+            if (p.name && (p.name.toLowerCase().includes('nikon z50') || p.name.toLowerCase() === 'nikon z50 mirrorless camera')) {
+              return { ...p, image_url: z50CameraImg };
+            }
+            return p;
+          });
         
         setFeaturedProducts(productsWithImages.length > 0 ? productsWithImages : products.slice(0, 5));
       } catch (error) {
@@ -112,7 +119,7 @@ const Home = () => {
                 </div>
               </div>
               <h1 className="text-3xl font-extrabold text-white sm:text-4xl md:text-5xl mb-4 drop-shadow-2xl">
-                Welcome to <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Q-Gear Electronics</span>
+                Welcome to <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Q-Gear Electronics Shop</span>
               </h1>
               <p className="mt-4 text-lg text-white font-semibold leading-relaxed max-w-2xl mx-auto mb-8 drop-shadow-lg">
                 Your trusted marketplace for quality electronics in Kenya. Shop from verified suppliers with warranty protection.
