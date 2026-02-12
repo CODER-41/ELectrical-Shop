@@ -12,6 +12,28 @@ from app.services.email_service import mail
 from app.services.scheduler_service import init_scheduler
 
 
+def _run_startup_fixes(db, Product):
+    """One-time data fixes that run on startup. Safe to run multiple times."""
+    try:
+        image_updates = {
+            'Philips Air Fryer XXL': 'https://images.philips.com/is/image/philipsconsumer/vrs_1defac742e4f1743824d94fd3314ecc0a83c0add?$pnglarge$&wid=1250',
+            'Hisense 58" 4K Smart TV': 'https://ke.jumia.is/unsafe/fit-in/500x500/filters:fill(white)/product/75/0209462/1.jpg?6173',
+            'Nikon Z50 Mirrorless Camera': 'https://rondamo.co.ke/photok/48033.jpg',
+        }
+        updated = 0
+        for name, url in image_updates.items():
+            product = Product.query.filter_by(name=name).first()
+            if product and product.image_url != url:
+                product.image_url = url
+                updated += 1
+        if updated:
+            db.session.commit()
+            print(f"[Startup Fix] Updated {updated} product image(s)")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[Startup Fix] Image update skipped: {e}")
+
+
 def create_app(config_name=None):
     """Application factory"""
     
@@ -49,6 +71,9 @@ def create_app(config_name=None):
         from app.models.cart import Cart, CartItem
         from app.models.audit_log import AuditLog
         from app.models.otp import OTP
+
+        # One-time data fix: update product images
+        _run_startup_fixes(db, Product)
 
     from app.routes.auth import auth_bp
     from app.routes.contact import contact_bp
