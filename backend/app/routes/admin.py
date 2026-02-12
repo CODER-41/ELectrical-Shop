@@ -71,7 +71,9 @@ def get_dashboard():
             .filter(Order.payment_status == PaymentStatus.COMPLETED).scalar() or 0
         
         # Returns
-        pending_returns = Return.query.filter_by(status=ReturnStatus.PENDING).count()
+        pending_returns = Return.query.filter(
+            Return.status.in_(['pending', 'requested', 'pending_review', 'supplier_review', 'disputed'])
+        ).count()
         
         return success_response(data={
             'users': {
@@ -1029,16 +1031,16 @@ def approve_return(return_id):
         if not return_request:
             return error_response('Return not found', 404)
         
-        if return_request.status != ReturnStatus.PENDING:
+        if return_request.status not in ['pending', 'pending_review', 'disputed']:
             return error_response('Return already processed', 400)
-        
+
         data = request.get_json() or {}
         policy = data.get('refund_policy', RefundPolicy.SUPPLIER_FAULT.value)
         admin_notes = data.get('admin_notes')
-        
+
         # Calculate refund amounts based on policy
         return_request.calculate_refund(policy)
-        return_request.status = ReturnStatus.APPROVED
+        return_request.status = 'approved'
         return_request.admin_notes = admin_notes
         
         db.session.commit()
@@ -1062,13 +1064,13 @@ def reject_return(return_id):
         if not return_request:
             return error_response('Return not found', 404)
         
-        if return_request.status != ReturnStatus.PENDING:
+        if return_request.status not in ['pending', 'pending_review', 'disputed']:
             return error_response('Return already processed', 400)
-        
+
         data = request.get_json() or {}
         admin_notes = data.get('admin_notes', 'Return rejected by admin')
-        
-        return_request.status = ReturnStatus.REJECTED
+
+        return_request.status = 'rejected'
         return_request.admin_notes = admin_notes
         
         db.session.commit()
@@ -1092,14 +1094,14 @@ def process_return_refund(return_id):
         if not return_request:
             return error_response('Return not found', 404)
         
-        if return_request.status != ReturnStatus.APPROVED:
+        if return_request.status != 'approved':
             return error_response('Return must be approved first', 400)
-        
+
         data = request.get_json() or {}
         refund_reference = data.get('refund_reference')
-        
+
         # Mark as completed
-        return_request.status = ReturnStatus.COMPLETED
+        return_request.status = 'refund_completed'
         return_request.refund_processed_at = datetime.utcnow()
         return_request.refund_reference = refund_reference
         
@@ -1122,26 +1124,32 @@ def get_returns_analytics():
     try:
         # Total returns
         total_returns = Return.query.count()
-        
+
         # Returns by status
         by_status = db.session.query(
             Return.status,
             func.count(Return.id).label('count')
         ).group_by(Return.status).all()
-        
-        # Pending returns
-        pending = Return.query.filter_by(status=ReturnStatus.PENDING).count()
-        approved = Return.query.filter_by(status=ReturnStatus.APPROVED).count()
-        rejected = Return.query.filter_by(status=ReturnStatus.REJECTED).count()
-        completed = Return.query.filter_by(status=ReturnStatus.COMPLETED).count()
-        
+
+        # Pending returns (includes new statuses from supplier workflow)
+        pending = Return.query.filter(
+            Return.status.in_(['pending', 'requested', 'pending_review', 'supplier_review'])
+        ).count()
+        approved = Return.query.filter_by(status='approved').count()
+        rejected = Return.query.filter_by(status='rejected').count()
+        completed = Return.query.filter(
+            Return.status.in_(['completed', 'refund_completed'])
+        ).count()
+        disputed = Return.query.filter_by(status='disputed').count()
+
         return success_response(data={
             'total_returns': total_returns,
             'pending': pending,
             'approved': approved,
             'rejected': rejected,
             'completed': completed,
-            'by_status': [{'status': s[0].value, 'count': s[1]} for s in by_status]
+            'disputed': disputed,
+            'by_status': [{'status': str(s[0]), 'count': s[1]} for s in by_status]
         })
     except Exception as e:
         current_app.logger.error(f'Returns analytics error: {str(e)}')
@@ -1373,7 +1381,7 @@ def get_financial_report():
         
         # Calculate refunds from approved/completed returns
         returns_query = Return.query.filter(
-            Return.status.in_([ReturnStatus.APPROVED, ReturnStatus.COMPLETED])
+            Return.status.in_(['approved', 'completed', 'refund_completed'])
         )
         if start_date:
             returns_query = returns_query.filter(Return.created_at >= datetime.fromisoformat(start_date))

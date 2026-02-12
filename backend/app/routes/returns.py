@@ -71,7 +71,7 @@ def create_return():
             quantity=quantity,
             images=data.get('images', []),
             is_warranty_claim=is_warranty,
-            status=ReturnStatus.REQUESTED
+            status='requested'
         )
         
         return_request.generate_return_number()
@@ -161,15 +161,20 @@ def review_return(return_id):
         action = data['action']  # approve or reject
         
         if action == 'approve':
-            return_request.status = ReturnStatus.APPROVED
-            
+            return_request.status = 'approved'
+
             # Calculate refund amount
-            order_item = OrderItem.query.get(return_request.order_item_id)
-            return_request.refund_amount = float(order_item.product_price) * return_request.quantity
+            order_item = None
+            if return_request.order_item_id:
+                order_item = OrderItem.query.get(return_request.order_item_id)
+            if not order_item and return_request.order_id:
+                order_item = OrderItem.query.filter_by(order_id=return_request.order_id).first()
+            if order_item:
+                return_request.refund_amount = float(order_item.product_price) * (return_request.quantity or 1)
             return_request.refund_method = data.get('refund_method', 'mpesa')
-            
+
         elif action == 'reject':
-            return_request.status = ReturnStatus.REJECTED
+            return_request.status = 'rejected'
             return_request.rejection_reason = data.get('rejection_reason', '').strip()
         else:
             return error_response('Invalid action', 400)
@@ -208,15 +213,15 @@ def update_return_status(return_id):
         data = request.get_json()
         
         # Validate status
-        try:
-            new_status = ReturnStatus(data['status'])
-        except ValueError:
+        valid_statuses = [s.value for s in ReturnStatus]
+        new_status = data['status']
+        if new_status not in valid_statuses:
             return error_response('Invalid status', 400)
-        
+
         return_request.status = new_status
-        
+
         # If refund completed, set refund details
-        if new_status == ReturnStatus.REFUND_COMPLETED:
+        if new_status == 'refund_completed':
             return_request.refunded_at = datetime.utcnow()
             if 'refund_reference' in data:
                 return_request.refund_reference = data['refund_reference']
@@ -244,33 +249,30 @@ def get_return_stats():
         user = User.query.get(user_id)
         
         if user.role == UserRole.SUPPLIER:
-            # Stats for supplier's products
-            total = db.session.query(Return)\
-                .join(OrderItem)\
+            # Stats for supplier's products (via order_id subquery)
+            supplier_order_ids = db.session.query(OrderItem.order_id)\
                 .filter(OrderItem.supplier_id == user.supplier_profile.id)\
-                .count()
-            
-            pending = db.session.query(Return)\
-                .join(OrderItem)\
-                .filter(
-                    OrderItem.supplier_id == user.supplier_profile.id,
-                    Return.status.in_([ReturnStatus.REQUESTED, ReturnStatus.PENDING_REVIEW])
-                ).count()
-            
-            approved = db.session.query(Return)\
-                .join(OrderItem)\
-                .filter(
-                    OrderItem.supplier_id == user.supplier_profile.id,
-                    Return.status == ReturnStatus.APPROVED
-                ).count()
-            
+                .distinct().subquery()
+
+            total = Return.query.filter(Return.order_id.in_(supplier_order_ids)).count()
+
+            pending = Return.query.filter(
+                Return.order_id.in_(supplier_order_ids),
+                Return.status.in_(['requested', 'pending', 'pending_review', 'supplier_review'])
+            ).count()
+
+            approved = Return.query.filter(
+                Return.order_id.in_(supplier_order_ids),
+                Return.status == 'approved'
+            ).count()
+
         elif user.role in [UserRole.ADMIN, UserRole.FINANCE_ADMIN]:
             # All returns
             total = Return.query.count()
             pending = Return.query.filter(
-                Return.status.in_([ReturnStatus.REQUESTED, ReturnStatus.PENDING_REVIEW])
+                Return.status.in_(['requested', 'pending', 'pending_review', 'supplier_review'])
             ).count()
-            approved = Return.query.filter_by(status=ReturnStatus.APPROVED).count()
+            approved = Return.query.filter_by(status='approved').count()
         else:
             return error_response('Unauthorized', 403)
         

@@ -79,6 +79,7 @@ const Header = () => {
                   <>
                     <Link to="/admin/dashboard" className="text-orange-600 hover:text-black px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-50">Dashboard</Link>
                     <Link to="/admin/orders" className="text-orange-600 hover:text-black px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-50">Orders</Link>
+                    <Link to="/admin/returns" className="text-orange-600 hover:text-black px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-50">Returns</Link>
                     <Link to="/admin/delivery" className="text-orange-600 hover:text-black px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-50">Delivery</Link>
                   </>
                 )}
@@ -159,6 +160,7 @@ const Header = () => {
                   <>
                     <Link to="/admin/dashboard" className="block px-4 py-2 text-orange-600 hover:text-black hover:bg-gray-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Dashboard</Link>
                     <Link to="/admin/orders" className="block px-4 py-2 text-orange-600 hover:text-black hover:bg-gray-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Orders</Link>
+                    <Link to="/admin/returns" className="block px-4 py-2 text-orange-600 hover:text-black hover:bg-gray-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Returns</Link>
                     <Link to="/admin/delivery" className="block px-4 py-2 text-orange-600 hover:text-black hover:bg-gray-50 rounded-lg transition-all duration-200" onClick={() => setIsMobileMenuOpen(false)}>Delivery Management</Link>
                   </>
                 )}

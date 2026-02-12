@@ -1,6 +1,6 @@
-# Electronics Shop
+# Quantum Gear Electronics
 
-A full-stack multi-vendor e-commerce platform for electronics, built with Flask (Python) and React. Features include user authentication, product management, shopping cart, M-Pesa payments, supplier dashboards, and admin controls.
+A full-stack multi-vendor e-commerce platform for electronics, built with Flask (Python) and React. Features role-based dashboards for customers, suppliers, delivery agents, and admins with M-Pesa & Paystack payments, returns management, delivery tracking, and real-time analytics.
 
 ## Table of Contents
 
@@ -14,7 +14,12 @@ A full-stack multi-vendor e-commerce platform for electronics, built with Flask 
 - [Running the Application](#running-the-application)
 - [Default Accounts](#default-accounts)
 - [API Documentation](#api-documentation)
-- [Refund Policy](#refund-policy)
+- [User Roles](#user-roles)
+- [Returns & Refund System](#returns--refund-system)
+- [Payment Integration](#payment-integration)
+- [Scripts Reference](#scripts-reference)
+- [Environment Setup by OS](#environment-setup-by-os)
+- [Troubleshooting](#troubleshooting)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -22,12 +27,13 @@ A full-stack multi-vendor e-commerce platform for electronics, built with Flask 
 
 ## Overview
 
-Electronics Shop is a complete e-commerce solution that enables:
-- **Customers** to browse, purchase, and track orders for electronics
-- **Suppliers** to list products, manage inventory, and track payouts
-- **Admins** to oversee the platform, manage users, and process operations
+Quantum Gear Electronics is a complete multi-vendor e-commerce solution that enables:
+- **Customers** to browse, purchase, track orders, and request returns for electronics
+- **Suppliers** to list products, manage inventory, handle returns, track payouts, and view analytics
+- **Delivery Agents** to manage assigned deliveries and track earnings
+- **Admins** to oversee the entire platform — users, orders, returns, payouts, delivery zones, and financials
 
-The platform integrates with M-Pesa for mobile payments, Cloudinary for image uploads, and Google OAuth for seamless authentication.
+The platform integrates with M-Pesa (Daraja API) for mobile payments, Paystack for card payments, Cloudinary for image uploads, and Google OAuth for authentication.
 
 ---
 
@@ -35,38 +41,58 @@ The platform integrates with M-Pesa for mobile payments, Cloudinary for image up
 
 ### Customer Features
 - User registration and authentication (email/password + Google OAuth)
-- Browse products by category, brand, or search
-- Product filtering, sorting, and pagination
-- Shopping cart management
-- Secure checkout with M-Pesa and card payments (Paystack)
-- Order tracking and history
-- Product returns and refunds
+- Email verification with OTP and two-factor authentication (2FA)
+- Browse products by category, brand, or search with advanced filtering
+- Product sorting, pagination, and stock availability indicators
+- Shopping cart management with real-time stock validation
+- Secure checkout with M-Pesa STK Push, Paystack card payments, or cash on delivery
+- Order tracking with status updates (pending → paid → processing → shipped → delivered)
+- Product returns and refund requests with image upload support
+- Warranty claims for eligible products
+- Delivery address management with zone-based delivery fees
 - User profile management
 
 ### Supplier Features
-- Supplier registration and verification
-- Product management (CRUD operations)
+- Supplier registration with admin approval workflow
+- Product management (CRUD) with image uploads via Cloudinary
 - Inventory tracking with low stock alerts
-- Order fulfillment dashboard
-- Sales analytics and reports
-- Payout tracking and history
+- Order fulfillment dashboard with status management
+- **Returns management** — acknowledge, accept, or dispute customer return requests
+- Sales analytics and performance reports (Recharts)
+- Payout tracking and history (M-Pesa B2C payouts)
+- Commission tracking (75% supplier / 25% platform)
+- Supplier terms and conditions acceptance
+
+### Delivery Agent Features
+- Delivery agent dashboard with assigned orders
+- Order pickup and delivery status updates
+- Delivery earnings tracking and payout history
+- Route and zone-based delivery management
 
 ### Admin Features
-- User management (customers, suppliers, admins)
+- Comprehensive admin dashboard with platform-wide analytics
+- User management (customers, suppliers, delivery agents, admins)
+- Multi-role admin system (admin, product_manager, finance_admin, support_admin)
 - Category and brand management
-- Order oversight and management
-- Supplier payout processing
-- Returns and refunds management
-- Delivery zone configuration
-- Platform-wide analytics
+- Order oversight and status management
+- **Returns management** — review supplier responses, approve/reject returns, process refunds
+- Supplier payout processing (M-Pesa B2C)
+- Delivery zone configuration with fee and estimated days
+- Product management and moderation
+- Financial reports and analytics
+- Audit logs for compliance tracking
+- System notifications and activity timeline
 
 ### Technical Features
-- JWT-based authentication with refresh tokens
-- Role-based access control (RBAC)
-- Email notifications (order confirmations, password reset)
+- JWT-based authentication with access + refresh tokens
+- Role-based access control (RBAC) with 7 user roles
+- Google OAuth 2.0 social authentication
+- Email notifications (OTP, order confirmations, shipping updates, password reset)
 - Image upload and optimization via Cloudinary
-- Responsive design for mobile and desktop
-- RESTful API architecture
+- Responsive design with Tailwind CSS (mobile + desktop)
+- RESTful API architecture with 80+ endpoints
+- Background job scheduling (APScheduler)
+- Swagger/OpenAPI documentation
 
 ---
 
@@ -77,12 +103,14 @@ The platform integrates with M-Pesa for mobile payments, Cloudinary for image up
 |------------|---------|
 | Python 3.10+ | Runtime |
 | Flask 3.x | Web framework |
-| PostgreSQL | Database |
-| SQLAlchemy | ORM |
+| PostgreSQL 14+ | Database |
+| SQLAlchemy 2.x | ORM |
 | Flask-JWT-Extended | Authentication |
-| Flask-Migrate | Database migrations |
-| Flask-Mail | Email service |
+| Flask-Migrate (Alembic) | Database migrations |
+| Flask-Mail | Email service (SMTP) |
+| Flask-CORS | Cross-origin requests |
 | Cloudinary | Image uploads |
+| APScheduler | Background jobs |
 | Gunicorn | Production server |
 
 ### Frontend
@@ -90,49 +118,58 @@ The platform integrates with M-Pesa for mobile payments, Cloudinary for image up
 |------------|---------|
 | React 19.x | UI library |
 | Vite 7.x | Build tool |
-| Redux Toolkit | State management |
-| React Router 7.x | Routing |
-| Tailwind CSS 3.x | Styling |
-| Axios | HTTP client |
-| Recharts | Analytics charts |
+| Redux Toolkit 2.x | State management |
+| React Router 7.x | Client-side routing |
+| Tailwind CSS 3.x | Utility-first styling |
+| Axios | HTTP client with interceptors |
+| Recharts 3.x | Analytics charts |
+| React Hook Form | Form management |
+| React Toastify | Toast notifications |
+| React DatePicker | Date selection |
 
 ### Integrations
 | Service | Purpose |
 |---------|---------|
-| M-Pesa Daraja API | Mobile payments |
-| Paystack | Card payments (Visa, Mastercard, local cards) |
+| M-Pesa Daraja API | Mobile payments (STK Push + B2C payouts) |
+| Paystack | Card payments (Visa, Mastercard) |
 | Google OAuth 2.0 | Social authentication |
-| Cloudinary | Image storage |
-| Web3Forms | Contact form |
+| Cloudinary | Image storage and optimization |
+| Web3Forms | Contact form submissions |
 
 ---
 
 ## Project Structure
 
 ```
-electronics-shop/
-├── backend/                    # Flask API
+quantum-gear-electronics/
+├── backend/                    # Flask API server
 │   ├── app/
-│   │   ├── config/             # Configuration
-│   │   ├── models/             # Database models
-│   │   ├── routes/             # API endpoints
-│   │   ├── services/           # Business logic
-│   │   └── utils/              # Utilities
-│   ├── migrations/             # Database migrations
-│   ├── .env.example            # Environment template
+│   │   ├── config/             # App configuration (dev/prod/test)
+│   │   ├── models/             # SQLAlchemy models (11 model classes)
+│   │   ├── routes/             # API endpoints (13 route files)
+│   │   ├── services/           # Business logic (email, mpesa, paystack, etc.)
+│   │   └── utils/              # Helpers (validation, responses, decorators)
+│   ├── migrations/             # Alembic database migrations
+│   ├── .env.example            # Environment variable template
 │   ├── requirements.txt        # Python dependencies
-│   ├── seed_all.py             # Database seeder
-│   ├── run.py                  # Entry point
-│   └── README.md               # Backend documentation
+│   ├── seed_all.py             # Database seeder with sample data
+│   ├── run.py                  # Application entry point
+│   └── README.md               # Backend API documentation
 │
 ├── frontend/
 │   └── electricalshop-app/     # React application
 │       ├── src/
-│       │   ├── components/     # Reusable components
-│       │   ├── pages/          # Page components
-│       │   ├── store/          # Redux store
-│       │   └── layouts/        # Layout components
-│       ├── .env.example        # Environment template
+│       │   ├── components/     # 15 reusable components
+│       │   ├── pages/          # 50+ page components
+│       │   │   ├── Admin/      # 18 admin pages
+│       │   │   ├── Supplier/   # 5 supplier pages
+│       │   │   ├── Delivery/   # 3 delivery agent pages
+│       │   │   └── Returns/    # 3 customer return pages
+│       │   ├── store/          # Redux store (5 slices)
+│       │   ├── hooks/          # Custom hooks (useAuth, usePayment)
+│       │   ├── utils/          # Axios API client
+│       │   └── layouts/        # MainLayout wrapper
+│       ├── .env.example        # Frontend env template
 │       ├── package.json        # Node dependencies
 │       └── README.md           # Frontend documentation
 │
@@ -147,8 +184,6 @@ electronics-shop/
 
 ## Prerequisites
 
-Ensure you have the following installed:
-
 | Tool | Version | Check Command |
 |------|---------|---------------|
 | Python | 3.10+ | `python3 --version` |
@@ -160,17 +195,13 @@ Ensure you have the following installed:
 
 ## Quick Start
 
-The fastest way to get started is using the automated setup script:
-
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/electronics-shop.git
-cd electronics-shop
+git clone https://github.com/your-username/quantum-gear-electronics.git
+cd quantum-gear-electronics
 
-# Make setup script executable
+# Make setup script executable and run
 chmod +x setup.sh
-
-# Run setup (installs dependencies, creates database, seeds data)
 ./setup.sh
 
 # Start both servers
@@ -186,41 +217,33 @@ Access the application:
 
 ## Manual Installation
 
-If you prefer to set up manually or the script doesn't work for your system:
-
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/your-username/electronics-shop.git
-cd electronics-shop
+git clone https://github.com/your-username/quantum-gear-electronics.git
+cd quantum-gear-electronics
 ```
 
 ### 2. Backend Setup
 
 ```bash
-# Navigate to backend
 cd backend
 
-# Create virtual environment
+# Create and activate virtual environment
 python3 -m venv venv
-
-# Activate virtual environment
 source venv/bin/activate  # Linux/macOS
 # venv\Scripts\activate   # Windows
 
-# Upgrade pip
-pip install --upgrade pip
-
 # Install dependencies
+pip install --upgrade pip
 pip install -r requirements.txt
 
-# Copy environment file
+# Copy and configure environment
 cp .env.example .env
 # Edit .env with your credentials
 
 # Create database
 sudo -u postgres createdb electronics_shop
-# Or: PGPASSWORD=postgres psql -U postgres -h localhost -c "CREATE DATABASE electronics_shop;"
 
 # Run migrations
 export FLASK_APP=run.py
@@ -229,30 +252,27 @@ flask db upgrade
 # Seed sample data
 python seed_all.py
 
-# Return to project root
 cd ..
 ```
 
 ### 3. Frontend Setup
 
 ```bash
-# Navigate to frontend
 cd frontend/electricalshop-app
 
 # Install dependencies
 npm install
 
-# Copy environment file
+# Copy and configure environment
 cp .env.example .env
 # Edit .env if needed
 
-# Return to project root
 cd ../..
 ```
 
 ### 4. Configure Environment Variables
 
-**Backend (.env)**
+**Backend (.env)** — see [backend/.env.example](backend/.env.example) for all variables:
 ```env
 DATABASE_URL=postgresql://postgres:postgres@localhost:5432/electronics_shop
 JWT_SECRET_KEY=your-secret-key
@@ -265,50 +285,46 @@ CLOUDINARY_API_KEY=your-api-key
 CLOUDINARY_API_SECRET=your-api-secret
 MPESA_CONSUMER_KEY=your-consumer-key
 MPESA_CONSUMER_SECRET=your-consumer-secret
-PAYSTACK_SECRET_KEY=your-paystack-secret-key
-PAYSTACK_PUBLIC_KEY=your-paystack-public-key
+PAYSTACK_SECRET_KEY=sk_test_your-secret-key
+PAYSTACK_PUBLIC_KEY=pk_test_your-public-key
 ```
 
-**Frontend (.env)**
+**Frontend (.env)**:
 ```env
-VITE_API_URL=http://localhost:5000/api
 VITE_BACKEND_URL=http://localhost:5000
 VITE_GOOGLE_CLIENT_ID=your-google-client-id
+VITE_WEB3FORMS_ACCESS_KEY=your-web3forms-key
+VITE_CONTACT_EMAIL=your-email@example.com
 ```
 
 ---
 
 ## Running the Application
 
-### Option 1: Run Both Servers Together
-
+### Option 1: Both Servers Together
 ```bash
 ./start.sh
 ```
 
-### Option 2: Run Servers Separately
+### Option 2: Separate Terminals
 
-**Terminal 1 - Backend:**
+**Terminal 1 — Backend:**
 ```bash
 cd backend
 source venv/bin/activate
 python run.py
 ```
 
-**Terminal 2 - Frontend:**
+**Terminal 2 — Frontend:**
 ```bash
 cd frontend/electricalshop-app
 npm run dev
 ```
 
-### Option 3: Use Individual Scripts
-
+### Option 3: Individual Scripts
 ```bash
-# Backend only
-./start-backend.sh
-
-# Frontend only
-./start-frontend.sh
+./start-backend.sh   # Backend only
+./start-frontend.sh  # Frontend only
 ```
 
 ---
@@ -327,52 +343,81 @@ After running `seed_all.py`, these accounts are available:
 
 ## API Documentation
 
-The backend provides a RESTful API. Key endpoints:
+The backend provides 80+ RESTful API endpoints across 13 route modules. Key endpoint groups:
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/health` | GET | Health check |
-| `/api/auth/register` | POST | User registration |
-| `/api/auth/login` | POST | User login |
-| `/api/products` | GET | List products |
-| `/api/products/:id` | GET | Product details |
-| `/api/cart` | GET | Get cart |
-| `/api/orders` | GET/POST | Orders |
-| `/api/payments/mpesa/initiate` | POST | M-Pesa payment |
-| `/api/payments/card/initiate` | POST | Card payment (Paystack) |
+| Group | Prefix | Endpoints | Description |
+|-------|--------|-----------|-------------|
+| Auth | `/api/auth` | 20 | Registration, login, OAuth, OTP, 2FA, password reset |
+| Products | `/api/products` | 9 | CRUD, categories, brands, search, filtering |
+| Cart | `/api/cart` | 7 | Add, update, remove items, validate, count |
+| Orders | `/api/orders` | 12 | Create, track, addresses, delivery zones |
+| Payments | `/api/payments` | 15 | M-Pesa STK Push, Paystack cards, B2C payouts |
+| Returns | `/api/returns` | 5 | Create, list, review, status updates, stats |
+| Supplier | `/api/supplier` | 10 | Dashboard, returns management, terms |
+| Admin | `/api/admin` | 10+ | Dashboard, analytics, returns, payouts |
+| Delivery | `/api/delivery` | 8+ | Agent dashboard, orders, payouts |
+| Uploads | `/api/uploads` | 6 | Product, return, brand, profile images |
+| Contact | `/api/contact` | 2 | Contact form submission |
 
 For complete API documentation, see [Backend README](backend/README.md).
 
 ---
 
-## Refund Policy
+## User Roles
 
-Electronics Shop implements an enterprise-level refund system with multiple policies:
+The platform supports 7 user roles with granular access control:
 
-- **Supplier Fault:** Defective/wrong products - Supplier pays 100%
+| Role | Access Level | Key Capabilities |
+|------|-------------|------------------|
+| `customer` | Customer portal | Browse, purchase, orders, returns |
+| `supplier` | Supplier portal | Products, orders, returns, analytics, payouts |
+| `delivery_agent` | Delivery portal | Deliveries, earnings, payouts |
+| `admin` | Full platform access | All management features |
+| `product_manager` | Product management | Products, categories, brands |
+| `finance_admin` | Financial management | Financial reports, payouts |
+| `support_admin` | Support management | Delivery management, support |
+
+---
+
+## Returns & Refund System
+
+The platform implements a multi-party returns workflow:
+
+**Workflow:** Customer submits return → Supplier acknowledges & responds (accept/dispute) → Admin reviews supplier input → Admin approves/rejects → Refund processed
+
+**Return Statuses:** `requested` → `supplier_review` → `pending_review` / `disputed` → `approved` / `rejected` → `refund_completed`
+
+**Refund Policies:**
+- **Supplier Fault:** Defective/wrong products — Supplier pays 100%
 - **Customer Changed Mind:** 15% restocking fee applies
 - **Shipping Damage:** Platform absorbs full cost
 - **Fraud:** Supplier pays 110% (includes penalty)
 
-For complete refund policy documentation, see [REFUND_POLICY.md](REFUND_POLICY.md).
+**Features:**
+- 14-day return window from delivery
+- Warranty claim support with expiration tracking
+- Image upload for return evidence
+- Supplier can accept or dispute with evidence
+- Admin sees supplier response before making final decision
+- Refund tracking with reference numbers
 
 ---
 
-## Supplier Terms & Conditions
+## Payment Integration
 
-Suppliers must agree to platform terms including:
+### M-Pesa (Safaricom Daraja API)
+- **STK Push** — Customer receives payment prompt on phone
+- **B2C Payouts** — Automated supplier payouts via M-Pesa
+- **Status Polling** — Real-time payment verification
+- **Sandbox/Production** toggle via environment variable
 
-- **Commission:** 25% platform, 75% supplier
-- **Refund Policies:** 4 policies based on return reason
-- **Performance Metrics:** Return rate monitoring
-- **Payout Terms:** Weekly/monthly payouts via M-Pesa
+### Paystack
+- **Card Payments** — Visa, Mastercard, local cards
+- **Payment Verification** — Server-side verification
+- **Webhook Support** — Real-time payment event handling
 
-For complete supplier terms, see [SUPPLIER_TERMS.md](SUPPLIER_TERMS.md).
-
-**API Endpoints:**
-- `GET /api/supplier/terms` - View terms
-- `POST /api/supplier/terms/accept` - Accept terms
-- `GET /api/supplier/terms/status` - Check acceptance
+### Cash on Delivery
+- Admin-confirmed cash payments after delivery
 
 ---
 
@@ -381,7 +426,7 @@ For complete supplier terms, see [SUPPLIER_TERMS.md](SUPPLIER_TERMS.md).
 | Script | Description |
 |--------|-------------|
 | `setup.sh` | Full project setup (dependencies, database, seeding) |
-| `start.sh` | Start both backend and frontend |
+| `start.sh` | Start both backend and frontend servers |
 | `start-backend.sh` | Start backend server only |
 | `start-frontend.sh` | Start frontend dev server only |
 
@@ -392,44 +437,30 @@ For complete supplier terms, see [SUPPLIER_TERMS.md](SUPPLIER_TERMS.md).
 ### Ubuntu/Debian
 
 ```bash
-# Install Python
 sudo apt update
-sudo apt install python3 python3-pip python3-venv
+sudo apt install python3 python3-pip python3-venv libpq-dev python3-dev
 
-# Install Node.js (via NodeSource)
+# Node.js (via NodeSource)
 curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
 sudo apt install nodejs
 
-# Install PostgreSQL
+# PostgreSQL
 sudo apt install postgresql postgresql-contrib
 sudo systemctl start postgresql
-
-# Install PostgreSQL dev headers (for psycopg2)
-sudo apt install libpq-dev python3-dev
 ```
 
 ### macOS
 
 ```bash
-# Install Homebrew (if not installed)
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-# Install Python
-brew install python
-
-# Install Node.js
-brew install node
-
-# Install PostgreSQL
-brew install postgresql
+brew install python node postgresql
 brew services start postgresql
 ```
 
 ### Windows
 
-1. Download and install [Python](https://www.python.org/downloads/)
-2. Download and install [Node.js](https://nodejs.org/)
-3. Download and install [PostgreSQL](https://www.postgresql.org/download/windows/)
+1. Install [Python](https://www.python.org/downloads/)
+2. Install [Node.js](https://nodejs.org/)
+3. Install [PostgreSQL](https://www.postgresql.org/download/windows/)
 4. Use Git Bash or WSL for running shell scripts
 
 ---
@@ -437,52 +468,31 @@ brew services start postgresql
 ## Troubleshooting
 
 ### Database Connection Issues
-
 ```bash
-# Check PostgreSQL is running
 sudo systemctl status postgresql
-
-# Start PostgreSQL
 sudo systemctl start postgresql
 ```
 
 ### Port Already in Use
-
 ```bash
-# Find process using port 5000
-lsof -i :5000
-# Kill it
-kill -9 <PID>
-
-# Find process using port 5173
-lsof -i :5173
-# Kill it
+lsof -i :5000  # Find backend process
+lsof -i :5173  # Find frontend process
 kill -9 <PID>
 ```
 
 ### Permission Denied on Scripts
-
 ```bash
 chmod +x setup.sh start.sh start-backend.sh start-frontend.sh
 ```
 
 ### npm/pip Install Fails
-
 ```bash
-# Clear npm cache
+# Clear caches and reinstall
 npm cache clean --force
+rm -rf node_modules package-lock.json && npm install
 
-# Clear pip cache
 pip cache purge
-
-# Reinstall
-rm -rf node_modules package-lock.json
-npm install
-
-rm -rf venv
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+rm -rf venv && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
 ```
 
 ---
@@ -507,4 +517,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 For issues and questions:
 - Open an issue on GitHub
-- Check existing documentation in [backend/README.md](backend/README.md) and [frontend/README.md](frontend/electricalshop-app/README.md)
+- Check [Backend README](backend/README.md) for API details
+- Check [Frontend README](frontend/electricalshop-app/README.md) for UI documentation
