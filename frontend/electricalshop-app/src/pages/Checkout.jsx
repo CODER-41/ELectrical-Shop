@@ -207,7 +207,18 @@ const Checkout = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
+        <div className="flex items-center justify-between">
+          <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
+          <button
+            onClick={() => navigate('/cart')}
+            className="btn btn-outline flex items-center space-x-2"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span>Cancel & Return to Cart</span>
+          </button>
+        </div>
         
         {/* Progress Steps */}
         <div className="mt-6 flex items-center justify-center">
