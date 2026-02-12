@@ -63,6 +63,7 @@ const Header = () => {
                   <>
                     <Link to="/supplier/dashboard" className="text-orange-600 hover:text-black px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-50">Dashboard</Link>
                     <Link to="/supplier/products" className="text-orange-600 hover:text-black px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-50">Products</Link>
+                    <Link to="/supplier/orders" className="text-orange-600 hover:text-black px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-gray-50">Orders</Link>
                   </>
                 )}
 
