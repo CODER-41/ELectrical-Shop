@@ -163,7 +163,7 @@ const SupplierDashboard = () => {
       )}
       
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Link to="/add-product" className="card hover:shadow-lg transition-shadow">
           <div className="flex items-center">
             <div className="p-3 bg-gradient-to-r from-orange-600 to-yellow-600 rounded-lg">
@@ -177,7 +177,7 @@ const SupplierDashboard = () => {
             </div>
           </div>
         </Link>
-        
+
         <Link to="/supplier-products" className="card hover:shadow-lg transition-shadow">
           <div className="flex items-center">
             <div className="p-3 bg-gradient-to-r from-yellow-600 to-orange-600 rounded-lg">
@@ -191,7 +191,21 @@ const SupplierDashboard = () => {
             </div>
           </div>
         </Link>
-        
+
+        <Link to="/supplier/orders" className="card hover:shadow-lg transition-shadow">
+          <div className="flex items-center">
+            <div className="p-3 bg-gradient-to-r from-orange-600 to-yellow-500 rounded-lg">
+              <svg className="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+            </div>
+            <div className="ml-4">
+              <h3 className="font-semibold text-gray-900">My Orders</h3>
+              <p className="text-sm text-gray-600">View customer orders</p>
+            </div>
+          </div>
+        </Link>
+
         <Link to="/supplier/analytics" className="card hover:shadow-lg transition-shadow">
           <div className="flex items-center">
             <div className="p-3 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-lg">
