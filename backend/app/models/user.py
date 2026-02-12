@@ -6,7 +6,7 @@ from app.models import db
 
 
 class UserRole(str, Enum):
-    """User role enumeration matching masterplan."""
+    """User roles"""
     CUSTOMER = 'customer'
     SUPPLIER = 'supplier'
     ADMIN = 'admin'
@@ -17,13 +17,13 @@ class UserRole(str, Enum):
 
 
 class AuthProvider(str, Enum):
-    """Authentication provider enumeration."""
+    """Auth providers"""
     LOCAL = 'local'
     GOOGLE = 'google'
 
 
 class User(db.Model):
-    """User model for authentication and authorization."""
+    """Main user model"""
 
     __tablename__ = 'users'
 
@@ -39,12 +39,12 @@ class User(db.Model):
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     last_login = db.Column(db.DateTime, nullable=True)
 
-    # OAuth fields
+    # OAuth stuff
     auth_provider = db.Column(db.Enum(AuthProvider), default=AuthProvider.LOCAL, nullable=False)
     google_id = db.Column(db.String(100), unique=True, nullable=True, index=True)
     profile_picture = db.Column(db.String(500), nullable=True)
     
-    # Relationships
+    # relationships
     customer_profile = db.relationship('CustomerProfile', backref='user', uselist=False, cascade='all, delete-orphan')
     supplier_profile = db.relationship('SupplierProfile', backref='user', uselist=False, cascade='all, delete-orphan')
     admin_profile = db.relationship('AdminProfile', backref='user', uselist=False, cascade='all, delete-orphan')
@@ -54,22 +54,22 @@ class User(db.Model):
     notifications = db.relationship('Notification', backref='user', cascade='all, delete-orphan')
     
     def set_password(self, password):
-        """Hash and set user password."""
+        """Hash and set password"""
         salt = bcrypt.gensalt(rounds=12)
         self.password_hash = bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
     
     def check_password(self, password):
-        """Verify password against hash."""
+        """Check password"""
         if not self.password_hash:
-            return False  # OAuth users without password
+            return False
         return bcrypt.checkpw(password.encode('utf-8'), self.password_hash.encode('utf-8'))
 
     def has_password(self):
-        """Check if user has a password set (local auth)."""
+        """Check if user has password set"""
         return self.password_hash is not None
     
     def to_dict(self, include_profile=False):
-        """Convert user to dictionary."""
+        """Convert to dict"""
         data = {
             'id': self.id,
             'email': self.email,
@@ -101,7 +101,7 @@ class User(db.Model):
 
 
 class CustomerProfile(db.Model):
-    """Customer profile model."""
+    """Customer profile"""
     
     __tablename__ = 'customer_profiles'
     
@@ -115,11 +115,11 @@ class CustomerProfile(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
-    # Relationships
+    # relationships
     orders = db.relationship('Order', backref='customer', lazy='dynamic')
     
     def to_dict(self):
-        """Convert customer profile to dictionary."""
+        """Convert to dict"""
         return {
             'id': self.id,
             'first_name': self.first_name,
@@ -135,14 +135,14 @@ class CustomerProfile(db.Model):
 
 
 class PaymentPhoneChangeStatus(str, Enum):
-    """Status for payment phone change requests."""
+    """Payment phone change status"""
     PENDING = 'pending'
     APPROVED = 'approved'
     REJECTED = 'rejected'
 
 
 class SupplierProfile(db.Model):
-    """Supplier profile model."""
+    """Supplier profile"""
 
     __tablename__ = 'supplier_profiles'
 
@@ -161,7 +161,7 @@ class SupplierProfile(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
-    # Payment phone change request fields
+    # payment phone change fields
     payment_phone_pending = db.Column(db.String(20), nullable=True)
     payment_phone_change_status = db.Column(db.Enum(PaymentPhoneChangeStatus), nullable=True)
     payment_phone_change_requested_at = db.Column(db.DateTime, nullable=True)
@@ -169,11 +169,11 @@ class SupplierProfile(db.Model):
     payment_phone_change_reviewed_by = db.Column(db.String(36), nullable=True)
     payment_phone_change_reason = db.Column(db.String(500), nullable=True)
 
-    # Relationships
+    # relationships
     products = db.relationship('Product', backref='supplier', lazy='dynamic')
 
     def request_payment_phone_change(self, new_phone, reason=None):
-        """Request a payment phone number change."""
+        """Request payment phone change"""
         self.payment_phone_pending = new_phone
         self.payment_phone_change_status = PaymentPhoneChangeStatus.PENDING
         self.payment_phone_change_requested_at = datetime.utcnow()
@@ -182,7 +182,7 @@ class SupplierProfile(db.Model):
         self.payment_phone_change_reviewed_by = None
 
     def approve_payment_phone_change(self, admin_id):
-        """Approve a pending payment phone change."""
+        """Approve phone change"""
         if self.payment_phone_pending and self.payment_phone_change_status == PaymentPhoneChangeStatus.PENDING:
             self.mpesa_number = self.payment_phone_pending
             self.payment_phone_pending = None
@@ -193,7 +193,7 @@ class SupplierProfile(db.Model):
         return False
 
     def reject_payment_phone_change(self, admin_id, reason=None):
-        """Reject a pending payment phone change."""
+        """Reject phone change"""
         if self.payment_phone_change_status == PaymentPhoneChangeStatus.PENDING:
             self.payment_phone_pending = None
             self.payment_phone_change_status = PaymentPhoneChangeStatus.REJECTED
@@ -205,7 +205,7 @@ class SupplierProfile(db.Model):
         return False
 
     def to_dict(self):
-        """Convert supplier profile to dictionary."""
+        """Convert to dict"""
         return {
             'id': self.id,
             'business_name': self.business_name,
@@ -221,7 +221,7 @@ class SupplierProfile(db.Model):
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'payment_phone_pending': self.payment_phone_pending,
             'payment_phone_change_status': self.payment_phone_change_status.value if self.payment_phone_change_status else None,
-            'payment_phone_change_requested_at': self.payment_phone_change_requested_at.isoformat() if self.payment_phone_change_requested_at else None,
+            'payment_phone_change_requested_at': self.payment_phone_change_requested_at.isoformat() if self.payment_phone_change_requested_at else None
         }
 
     def __repr__(self):

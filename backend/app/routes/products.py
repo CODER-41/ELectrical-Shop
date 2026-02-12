@@ -21,105 +21,81 @@ def slugify(text):
 
 @products_bp.route('', methods=['GET'])
 def get_products():
-    """
-    Get all active products with optional filtering and pagination.
+    # pagination params
+    page = request.args.get('page', 1, type=int)
+    per_page = min(request.args.get('per_page', 20, type=int), 100)
     
-    Query Parameters:
-    - page: int (default: 1)
-    - per_page: int (default: 20, max: 100)
-    - category: string (category slug)
-    - brand: string (brand name)
-    - search: string (search in name and description)
-    - min_price: float
-    - max_price: float
-    - condition: string ('new' or 'refurbished')
-    - in_stock: boolean
-    - sort_by: string ('price_asc', 'price_desc', 'newest', 'popular')
-    """
-    try:
-        # Pagination
-        page = request.args.get('page', 1, type=int)
-        per_page = min(request.args.get('per_page', 20, type=int), 100)
+    query = Product.query.filter_by(is_active=True)
+    
+    # category filter
+    category_slug = request.args.get('category')
+    if category_slug:
+        category_slug_lower = category_slug.lower()
         
-        # Build query
-        query = Product.query.filter_by(is_active=True)
-        
-        # Filter by category
-        category_slug = request.args.get('category')
-        if category_slug:
-            # Case-insensitive category lookup
-            category_slug_lower = category_slug.lower()
+        # accessories shows everything
+        if category_slug_lower != 'accessories':
+            category = Category.query.filter(
+                db.func.lower(Category.slug) == category_slug_lower,
+                Category.is_active == True
+            ).first()
             
-            if category_slug_lower == 'accessories':
-                # For accessories, show all products from ALL categories
-                # This is the special case - no filtering needed
-                pass
+            if category:
+                query = query.filter_by(category_id=category.id)
             else:
-                # Normal category filtering - match by slug
-                category = Category.query.filter(
-                    db.func.lower(Category.slug) == category_slug_lower,
-                    Category.is_active == True
-                ).first()
-                
-                if category:
-                    query = query.filter_by(category_id=category.id)
-                else:
-                    # If category not found, return empty results
-                    query = query.filter(Product.id == None)
+                query = query.filter(Product.id == None)  # return empty
         
-        # Filter by brand
-        brand_name = request.args.get('brand')
-        if brand_name:
-            brand = Brand.query.filter_by(name=brand_name, is_active=True).first()
-            if brand:
-                query = query.filter_by(brand_id=brand.id)
-        
-        # Search
-        search_term = request.args.get('search')
-        if search_term:
-            search_pattern = f'%{search_term}%'
-            query = query.filter(
-                or_(
-                    Product.name.ilike(search_pattern),
-                    Product.short_description.ilike(search_pattern),
-                    Product.long_description.ilike(search_pattern)
-                )
+    # brand filter
+    brand_name = request.args.get('brand')
+    if brand_name:
+        brand = Brand.query.filter_by(name=brand_name, is_active=True).first()
+        if brand:
+            query = query.filter_by(brand_id=brand.id)
+    
+    # search
+    search_term = request.args.get('search')
+    if search_term:
+        pattern = f'%{search_term}%'
+        query = query.filter(
+            or_(
+                Product.name.ilike(pattern),
+                Product.short_description.ilike(pattern),
+                Product.long_description.ilike(pattern)
             )
+        )
         
-        # Price range
-        min_price = request.args.get('min_price', type=float)
-        max_price = request.args.get('max_price', type=float)
-        if min_price is not None:
-            query = query.filter(Product.price >= min_price)
-        if max_price is not None:
-            query = query.filter(Product.price <= max_price)
+    # price range
+    min_price = request.args.get('min_price', type=float)
+    max_price = request.args.get('max_price', type=float)
+    if min_price:
+        query = query.filter(Product.price >= min_price)
+    if max_price:
+        query = query.filter(Product.price <= max_price)
+    
+    # condition filter
+    condition = request.args.get('condition')
+    if condition in ['new', 'refurbished']:
+        query = query.filter_by(condition=condition)
+    
+    # stock filter
+    if request.args.get('in_stock', '').lower() == 'true':
+        query = query.filter(Product.stock_quantity > 0)
+    
+    # sorting
+    sort_by = request.args.get('sort_by', 'newest')
+    if sort_by == 'price_asc':
+        query = query.order_by(Product.price.asc())
+    elif sort_by == 'price_desc':
+        query = query.order_by(Product.price.desc())
+    elif sort_by == 'popular':
+        query = query.order_by(Product.purchase_count.desc())
+    else:
+        query = query.order_by(Product.created_at.desc())
         
-        # Condition
-        condition = request.args.get('condition')
-        if condition and condition in ['new', 'refurbished']:
-            query = query.filter_by(condition=condition)
-        
-        # In stock
-        in_stock = request.args.get('in_stock')
-        if in_stock and in_stock.lower() == 'true':
-            query = query.filter(Product.stock_quantity > 0)
-        
-        # Sorting
-        sort_by = request.args.get('sort_by', 'newest')
-        if sort_by == 'price_asc':
-            query = query.order_by(Product.price.asc())
-        elif sort_by == 'price_desc':
-            query = query.order_by(Product.price.desc())
-        elif sort_by == 'popular':
-            query = query.order_by(Product.purchase_count.desc())
-        else:  # newest (default)
-            query = query.order_by(Product.created_at.desc())
-        
-        # Paginate
+    try:
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         
         return success_response(data={
-            'products': [product.to_dict() for product in pagination.items],
+            'products': [p.to_dict() for p in pagination.items],
             'pagination': {
                 'page': page,
                 'per_page': per_page,
@@ -129,26 +105,21 @@ def get_products():
                 'has_prev': pagination.has_prev
             }
         })
-        
     except Exception as e:
         return error_response(f'Failed to fetch products: {str(e)}', 500)
 
 
 @products_bp.route('/<product_id>', methods=['GET'])
 def get_product(product_id):
-    """Get single product details by ID."""
     try:
         product = Product.query.get(product_id)
-        
         if not product or not product.is_active:
             return error_response('Product not found', 404)
         
-        # Increment view count
         product.increment_view_count()
         db.session.commit()
         
         return success_response(data=product.to_dict())
-        
     except Exception as e:
         return error_response(f'Failed to fetch product: {str(e)}', 500)
 

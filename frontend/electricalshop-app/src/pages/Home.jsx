@@ -18,43 +18,42 @@ const Home = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   
   useEffect(() => {
-    // Fetch diverse products from different categories
+    // grab some products from different categories
     const fetchFeaturedProducts = async () => {
       try {
         const categories = ['mobile-phones-tablets', 'laptops-computers', 'tvs-home-entertainment', 'kitchen-appliances', 'gaming', 'accessories'];
-        const diverseProducts = [];
+        const products = [];
         
-        // Fetch one product from each category
-        for (const category of categories) {
+        for (const cat of categories) {
           try {
-            const response = await axios.get(`${API_URL}/products?category=${category}&page=1&per_page=1`);
-            const products = response.data.data.products || [];
-            if (products.length > 0 && products[0].image_url) {
-              diverseProducts.push(products[0]);
+            const res = await axios.get(`${API_URL}/products?category=${cat}&page=1&per_page=1`);
+            const items = res.data.data.products || [];
+            if (items.length > 0 && items[0].image_url) {
+              products.push(items[0]);
             }
           } catch (err) {
-            console.log(`No products found for ${category}`);
+            console.log(`No products in ${cat}`);
           }
         }
         
-        setFeaturedProducts(diverseProducts.length > 0 ? diverseProducts : []);
+        setFeaturedProducts(products.length > 0 ? products : []);
       } catch (error) {
-        console.error('Failed to fetch featured products:', error);
+        console.error('Failed to fetch products:', error);
       }
     };
     
     fetchFeaturedProducts();
   }, []);
   
-  // Auto-rotate slides
+  // auto-rotate slides
   useEffect(() => {
     if (featuredProducts.length === 0) return;
     
-    const interval = setInterval(() => {
+    const timer = setInterval(() => {
       setCurrentSlide((prev) => (prev + 1) % featuredProducts.length);
-    }, 8000); // Change slide every 8 seconds (slower)
+    }, 8000);
     
-    return () => clearInterval(interval);
+    return () => clearInterval(timer);
   }, [featuredProducts.length]);
   
   const nextSlide = () => {
@@ -69,24 +68,24 @@ const Home = () => {
     return new Intl.NumberFormat('en-KE', {
       style: 'currency',
       currency: 'KES',
-      minimumFractionDigits: 0,
+      minimumFractionDigits: 0
     }).format(price);
   };
   
   return (
   
     <div className="bg-white">
-      {/* Hero Section with Product Background */}
+      {/* Hero Section */}
       <div className="relative bg-white overflow-hidden h-[60vh] sm:h-[70vh]">
         
-        {/* Full Background Product Slideshow - Clear and Visible */}
+        {/* Product slideshow background */}
         {featuredProducts.length > 0 && (
           <div className="absolute inset-0">
-            {featuredProducts.map((product, index) => (
+            {featuredProducts.map((product, idx) => (
               <div
                 key={product.id}
                 className={`absolute inset-0 transition-opacity duration-1000 ${
-                  index === currentSlide ? 'opacity-100' : 'opacity-0'
+                  idx === currentSlide ? 'opacity-100' : 'opacity-0'
                 }`}
               >
                 <img
@@ -102,7 +101,7 @@ const Home = () => {
         
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-full flex items-center">
           <div className="w-full">
-            {/* Text Content - Centered */}
+            {/* Main content */}
             <div className="text-center">
               <div className="mb-4 sm:mb-6">
                 <div className="w-12 h-12 sm:w-16 sm:h-16 bg-white bg-opacity-20 backdrop-blur-sm rounded-full mx-auto flex items-center justify-center mb-3 sm:mb-4">
@@ -112,10 +111,10 @@ const Home = () => {
                 </div>
               </div>
               <h1 className="text-3xl font-extrabold text-white sm:text-4xl md:text-5xl mb-4 drop-shadow-2xl">
-                Welcome to <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Q-Gear Electronics Shop</span>
+                Welcome to <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Q-Gear Electronics</span>
               </h1>
               <p className="mt-2 sm:mt-4 text-sm sm:text-base md:text-lg text-white font-semibold leading-relaxed max-w-2xl mx-auto mb-6 sm:mb-8 drop-shadow-lg px-4">
-                Your trusted marketplace for quality electronics in Kenya. Shop from verified suppliers with warranty protection.
+                Your trusted marketplace for quality electronics in Kenya. Shop from verified suppliers.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
                 {isAuthenticated ? (
@@ -155,7 +154,7 @@ const Home = () => {
           </div>
         </div>
         
-        {/* Navigation Arrows */}
+        {/* Nav arrows */}
         {featuredProducts.length > 1 && (
           <>
             <button
@@ -175,14 +174,14 @@ const Home = () => {
               </svg>
             </button>
             
-            {/* Dots Indicator */}
+            {/* Slide indicators */}
             <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex justify-center space-x-2 sm:space-x-3 z-10">
-              {featuredProducts.map((_, index) => (
+              {featuredProducts.map((_, idx) => (
                 <button
-                  key={index}
-                  onClick={() => setCurrentSlide(index)}
+                  key={idx}
+                  onClick={() => setCurrentSlide(idx)}
                   className={`h-2 sm:h-2.5 rounded-full transition-all duration-300 ${
-                    index === currentSlide
+                    idx === currentSlide
                       ? 'bg-white w-6 sm:w-8 shadow-lg'
                       : 'bg-white bg-opacity-50 hover:bg-opacity-75 w-2 sm:w-2.5'
                   }`}

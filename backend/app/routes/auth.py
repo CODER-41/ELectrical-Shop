@@ -28,40 +28,42 @@ auth_bp = Blueprint('auth', __name__, url_prefix='/api/auth')
 
 @auth_bp.route('/register', methods=['POST'])
 @validate_required_fields(['email', 'password', 'role'])
-
 def register():
     data = request.get_json()
-
     email = data.get('email', '').strip().lower()
+    
+    # quick email check
     if not validate_email(email):
         return validation_error_response({'email': 'Invalid email format'})
     
-    if User.query.filter_by(email=email).first():
+    # check if email taken
+    existing_user = User.query.filter_by(email=email).first()
+    if existing_user:
         return error_response('Email already exists', 409)
     
     password = data.get('password')
-    is_valid, message = validate_password(password)
+    is_valid, msg = validate_password(password)
     if not is_valid:
-        return validation_error_response({'password': message})
+        return validation_error_response({'password': msg})
     
     role = data.get('role', '').lower()
     if role not in ['customer', 'supplier']:
-        return validation_error_response({'role': 'Invalid role. Must be customer or supplier'})
+        return validation_error_response({'role': 'Role must be customer or supplier'})
 
     try:
+        # create user account
         user = User(
             email=email,
-            role=UserRole.CUSTOMER if role == 'customer' else UserRole.SUPPLIER,
+            role=UserRole.CUSTOMER if role == 'customer' else UserRole.SUPPLIER
         )
         user.set_password(password)
 
+        # handle profile based on role
         if role == 'customer':
-            required_customer_fields = ['first_name', 'last_name', 'phone_number']
-            missing_fields = [field for field in required_customer_fields if not data.get(field)]
-            if missing_fields:
-                return validation_error_response({
-                    'profile': f'Missing customer fields: {", ".join(missing_fields)}'
-                })
+            required_fields = ['first_name', 'last_name', 'phone_number']
+            missing = [f for f in required_fields if not data.get(f)]
+            if missing:
+                return validation_error_response({'profile': f'Missing fields: {", ".join(missing)}'})
             
             phone_number = data.get('phone_number', '').strip()
             if not validate_phone_number(phone_number):
@@ -106,12 +108,12 @@ def register():
         db.session.add(profile)
         db.session.commit()
 
-        # Send OTP for email verification
+        # send verification email
         try:
             otp = OTP.create_otp(email, purpose='verification')
             send_otp_email(email, otp.code, purpose='verification')
         except Exception as e:
-            current_app.logger.error(f'Failed to send OTP: {str(e)}')
+            current_app.logger.error(f'OTP send failed: {str(e)}')
 
         return success_response(
             data=user.to_dict(include_profile=True),
@@ -127,40 +129,33 @@ def register():
 @auth_bp.route('/send-otp', methods=['POST'])
 @validate_required_fields(['email'])
 def send_otp():
-    """Send or resend OTP to email."""
     try:
         data = request.get_json()
         email = data.get('email', '').strip().lower()
         purpose = data.get('purpose', 'verification')
 
         if not validate_email(email):
-            return validation_error_response({'email': 'Invalid email format'})
+            return validation_error_response({'email': 'Invalid email'})
 
-        # Check if user exists
         user = User.query.filter_by(email=email).first()
 
         if purpose == 'verification':
             if not user:
-                return error_response('Email not registered', 404)
+                return error_response('Email not found', 404)
             if user.is_verified:
-                return error_response('Email is already verified', 400)
-
+                return error_response('Already verified', 400)
         elif purpose == 'password_reset':
             if not user:
-                # Don't reveal if email exists for security
-                return success_response(
-                    message='If the email exists, an OTP has been sent.'
-                )
+                # don't reveal if email exists
+                return success_response(message='If email exists, OTP sent')
 
-        # Create and send OTP
         otp = OTP.create_otp(email, purpose=purpose)
         send_otp_email(email, otp.code, purpose=purpose)
 
         return success_response(
-            message='OTP sent successfully. Please check your email.',
+            message='OTP sent to your email',
             data={'email': email, 'expires_in_minutes': 10}
         )
-
     except Exception as e:
         return error_response(f'Failed to send OTP: {str(e)}', 500)
 
@@ -231,54 +226,48 @@ def verify_otp():
 @validate_required_fields(['email', 'password'])
 def login():
     data = request.get_json()
-
     email = data.get('email', '').strip().lower()
-    password =  data.get('password')
+    password = data.get('password')
 
     user = User.query.filter_by(email=email).first()
-
     if not user or not user.check_password(password):
-        return error_response('Invalid email or password', 401)
+        return error_response('Invalid credentials', 401)
     
     if not user.is_active:
-        return error_response('Account is deactivated. Please contact support.', 401)
+        return error_response('Account deactivated. Contact support.', 401)
     
+    # suppliers need approval first
     if user.role == UserRole.SUPPLIER and user.supplier_profile:
         if not user.supplier_profile.is_approved:
-            return error_response('Your supplier account is pending approval. Please wait for admin approval.', 403)
+            return error_response('Supplier account pending approval', 403)
 
 
     try:
         access_token = create_access_token(identity=user.id)
         refresh_token = create_refresh_token(identity=user.id)
 
-        ip_address = request.remote_addr
-        user_agent = request.headers.get('User-Agent', '')
-
-        expires_at = datetime.utcnow() + timedelta(minutes = 15)
-
+        # create session record
         session = Session(
-            user_id = user.id,
-            token = access_token,
-            refresh_token = refresh_token,
-            ip_address = ip_address,
-            user_agent = user_agent,
-            expires_at = expires_at
-        ) 
+            user_id=user.id,
+            token=access_token,
+            refresh_token=refresh_token,
+            ip_address=request.remote_addr,
+            user_agent=request.headers.get('User-Agent', ''),
+            expires_at=datetime.utcnow() + timedelta(minutes=15)
+        )
         user.last_login = datetime.utcnow()
         db.session.add(session)
         db.session.commit()
 
         return success_response(
-            data = {
+            data={
                 'access_token': access_token,
                 'refresh_token': refresh_token,
-                'token-type': 'Bearer',
-                'expires_in': 900, # 15 minutes in seconds
-                'user': user.to_dict(include_profile=True) 
+                'token_type': 'Bearer',
+                'expires_in': 900,
+                'user': user.to_dict(include_profile=True)
             },
-            message='Login successful',
-            status_code=200
+            message='Login successful'
         )
 
     except Exception as e:
