@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { removeFromCart, updateQuantity, clearCart } from '../store/slices/cartSlice';
 import { toast } from 'react-toastify';
+import { getProductImage } from '../utils/imageOverrides';
 
 const Cart = () => {
   const dispatch = useDispatch();
@@ -77,7 +78,7 @@ const Cart = () => {
                 {items.map((item) => (
                   <div key={item.id} className="p-6 flex space-x-6">
                     <img 
-                      src={item.image_url} 
+                      src={getProductImage(item.name, item.image_url, item.category)} 
                       alt={item.name} 
                       className="h-24 w-24 object-cover rounded" 
                     />

@@ -12,6 +12,7 @@ import {
 import { clearCart } from '../store/slices/cartSlice';
 import { usePayment } from '../hooks/usePayment';
 import { toast } from 'react-toastify';
+import { getProductImage } from '../utils/imageOverrides';
 
 // Kenya counties list
 const KENYA_COUNTIES = [
@@ -625,7 +626,7 @@ const Checkout = () => {
                         <div key={item.id} className="flex items-center space-x-4 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
                           <div className="relative">
                             <img
-                              src={item.image_url || '/placeholder.png'}
+                              src={getProductImage(item.name, item.image_url || '/placeholder.png', item.category)}
                               alt={item.name}
                               className="w-20 h-20 object-cover rounded-lg border border-gray-200"
                             />
@@ -780,7 +781,7 @@ const Checkout = () => {
                 {items.map((item) => (
                   <div key={item.id} className="flex items-center space-x-3 py-2">
                     <img
-                      src={item.image_url || '/placeholder.png'}
+                      src={getProductImage(item.name, item.image_url || '/placeholder.png', item.category)}
                       alt={item.name}
                       className="w-12 h-12 object-cover rounded-lg border border-gray-200"
                     />

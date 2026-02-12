@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getProductBySlug, clearCurrentProduct, reset } from '../store/slices/productsSlice';
 import { addToCart } from '../store/slices/cartSlice';
 import { toast } from 'react-toastify';
+import { getProductImage } from '../utils/imageOverrides';
 
 const ProductDetail = () => {
   const { slug } = useParams();
@@ -107,7 +108,7 @@ const ProductDetail = () => {
           <div className="aspect-w-1 aspect-h-1 w-full bg-gray-100 rounded-lg overflow-hidden">
             {product.image_url ? (
               <img
-                src={product.image_url}
+                src={getProductImage(product.name, product.image_url, product.category?.name)}
                 alt={product.name}
                 className="w-full h-full object-cover"
               />

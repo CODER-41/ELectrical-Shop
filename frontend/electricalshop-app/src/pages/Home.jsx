@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { getProductImage } from '../utils/imageOverrides';
 import mobileImg from '../assets/mobile phones.jpg';
 import laptopsImg from '../assets/Lpatops.webp';
 import tvsImg from '../assets/TVs.jpeg';
@@ -90,7 +91,7 @@ const Home = () => {
                 }`}
               >
                 <img
-                  src={product.image_url || '/placeholder.png'}
+                  src={getProductImage(product.name, product.image_url || '/placeholder.png', product.category?.name)}
                   alt={product.name}
                   className="w-full h-full object-cover"
                   loading="lazy"
