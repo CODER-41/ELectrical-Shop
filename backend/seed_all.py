@@ -540,7 +540,7 @@ def seed_sample_products(suppliers, categories, brands):
             'specifications': {'Screen Size': '58 inches', 'Resolution': '4K UHD', 'Smart TV': 'VIDAA', 'HDR': 'Dolby Vision'},
             'stock_quantity': 20,
             'warranty_months': 24,
-            'image_url': 'https://images.unsplash.com/photo-1593784991095-a205069470b6?w=400&h=400&fit=crop'
+            'image_url': 'https://ke.jumia.is/unsafe/fit-in/500x500/filters:fill(white)/product/75/0209462/1.jpg?6173'
         },
         # Kitchen Appliances (5 products)
         {
@@ -585,7 +585,7 @@ def seed_sample_products(suppliers, categories, brands):
             'specifications': {'Capacity': '7.3L', 'Power': '2225W', 'Features': 'Digital Display, Rapid Air'},
             'stock_quantity': 35,
             'warranty_months': 24,
-            'image_url': 'https://images.unsplash.com/photo-1585515320310-259814833e62?w=400&h=400&fit=crop'
+            'image_url': 'https://images.philips.com/is/image/philipsconsumer/vrs_1defac742e4f1743824d94fd3314ecc0a83c0add?$pnglarge$&wid=1250'
         },
         {
             'name': 'Ramtons Blender 1.5L',
@@ -798,7 +798,7 @@ def seed_sample_products(suppliers, categories, brands):
             'specifications': {'Sensor': '20.9MP APS-C', 'Video': '4K 30fps', 'Screen': '3.2" Tilting'},
             'stock_quantity': 12,
             'warranty_months': 24,
-            'image_url': 'https://images.unsplash.com/photo-1502920917128-1aa500764cbd?w=800&h=800&fit=crop'
+            'image_url': 'https://rondamo.co.ke/photok/48033.jpg'
         },
         {
             'name': 'Canon EF 50mm f/1.8 Lens',
