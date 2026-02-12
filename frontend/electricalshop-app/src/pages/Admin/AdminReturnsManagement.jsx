@@ -226,8 +226,15 @@ const AdminReturnsManagement = () => {
                       <span className="text-xs text-gray-400 italic">No response</span>
                     )}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap font-bold text-green-600">
-                    {ret.refund_amount ? formatPrice(ret.refund_amount) : '-'}
+                  <td className="px-6 py-4 whitespace-nowrap text-sm">
+                    <div className="font-bold text-gray-900">
+                      {formatPrice(ret.refund_amount || ret.item_subtotal || 0)}
+                    </div>
+                    {ret.supplier_deduction > 0 && (
+                      <div className="text-xs text-red-600 mt-0.5">
+                        Deduction: {formatPrice(ret.supplier_deduction)}
+                      </div>
+                    )}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(ret.status)}`}>
@@ -367,26 +374,48 @@ const AdminReturnsManagement = () => {
                 </div>
               )}
 
-              {/* Financial Impact */}
-              {(selectedReturn.refund_amount > 0 || selectedReturn.supplier_deduction > 0) && (
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                  <p className="text-sm font-semibold text-orange-800 mb-2">Financial Details</p>
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    {selectedReturn.refund_amount > 0 && (
-                      <div>
-                        <span className="text-orange-700">Refund Amount:</span>
-                        <span className="ml-2 font-medium">{formatPrice(selectedReturn.refund_amount)}</span>
-                      </div>
-                    )}
-                    {selectedReturn.supplier_deduction > 0 && (
-                      <div>
-                        <span className="text-orange-700">Supplier Deduction:</span>
-                        <span className="ml-2 font-medium">{formatPrice(selectedReturn.supplier_deduction)}</span>
-                      </div>
-                    )}
+              {/* Financial Details */}
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <p className="text-sm font-semibold text-orange-800 mb-2">Financial Details</p>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  {selectedReturn.item_price > 0 && (
+                    <div>
+                      <span className="text-gray-600">Item Price:</span>
+                      <span className="ml-2 font-medium">{formatPrice(selectedReturn.item_price)}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-gray-600">Return Value:</span>
+                    <span className="ml-2 font-bold text-gray-900">
+                      {formatPrice(selectedReturn.refund_amount || selectedReturn.item_subtotal || 0)}
+                    </span>
                   </div>
+                  {selectedReturn.supplier_deduction > 0 && (
+                    <div>
+                      <span className="text-red-700">Supplier Deduction:</span>
+                      <span className="ml-2 font-bold text-red-900">{formatPrice(selectedReturn.supplier_deduction)}</span>
+                    </div>
+                  )}
+                  {selectedReturn.customer_refund > 0 && (
+                    <div>
+                      <span className="text-green-700">Customer Refund:</span>
+                      <span className="ml-2 font-medium">{formatPrice(selectedReturn.customer_refund)}</span>
+                    </div>
+                  )}
+                  {selectedReturn.restocking_fee > 0 && (
+                    <div>
+                      <span className="text-gray-600">Restocking Fee:</span>
+                      <span className="ml-2 font-medium">{formatPrice(selectedReturn.restocking_fee)}</span>
+                    </div>
+                  )}
+                  {selectedReturn.refund_policy && (
+                    <div className="col-span-2">
+                      <span className="text-gray-600">Refund Policy:</span>
+                      <span className="ml-2 font-medium capitalize">{(selectedReturn.refund_policy || '').replace(/_/g, ' ')}</span>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
             </div>
 
             <div className="flex gap-3">

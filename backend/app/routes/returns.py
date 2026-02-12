@@ -71,11 +71,16 @@ def create_return():
             quantity=quantity,
             images=data.get('images', []),
             is_warranty_claim=is_warranty,
-            status='requested'
+            status='requested',
+            user_id=user_id
         )
-        
+
         return_request.generate_return_number()
-        
+
+        # Set estimated refund amount based on item price
+        item_total = float(order_item.product_price) * quantity
+        return_request.refund_amount = item_total
+
         db.session.add(return_request)
         db.session.commit()
         
