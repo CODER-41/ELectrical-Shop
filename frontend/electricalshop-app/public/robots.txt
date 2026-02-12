@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /supplier/
+Disallow: /delivery/
+Disallow: /profile
+Disallow: /cart
+Disallow: /checkout
+Disallow: /orders
+
+Sitemap: https://quantumgear.co.ke/sitemap.xml

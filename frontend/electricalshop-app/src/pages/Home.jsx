@@ -92,6 +92,8 @@ const Home = () => {
                   src={product.image_url || '/placeholder.png'}
                   alt={product.name}
                   className="w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60"></div>
               </div>
@@ -281,6 +283,8 @@ const Home = () => {
                       src={category.image} 
                       alt={category.displayName}
                       className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                      loading="lazy"
+                      decoding="async"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
                   </div>

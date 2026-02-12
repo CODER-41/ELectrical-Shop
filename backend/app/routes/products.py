@@ -12,7 +12,7 @@ products_bp = Blueprint('products', __name__, url_prefix='/api/products')
 
 
 def slugify(text):
-    """Convert text to URL-friendly slug."""
+    """Convert text to URL-friendly slug"""
     text = text.lower().strip()
     text = re.sub(r'[^\w\s-]', '', text)
     text = re.sub(r'[-\s]+', '-', text)
@@ -24,6 +24,13 @@ def get_products():
     # pagination params
     page = request.args.get('page', 1, type=int)
     per_page = min(request.args.get('per_page', 20, type=int), 100)
+    
+    # cache key based on query params
+    from flask import current_app
+    cache_key = f"products_{request.query_string.decode()}"
+    cached = current_app.cache.get(cache_key)
+    if cached:
+        return success_response(data=cached)
     
     query = Product.query.filter_by(is_active=True)
     
@@ -94,7 +101,7 @@ def get_products():
     try:
         pagination = query.paginate(page=page, per_page=per_page, error_out=False)
         
-        return success_response(data={
+        result = {
             'products': [p.to_dict() for p in pagination.items],
             'pagination': {
                 'page': page,
@@ -104,7 +111,12 @@ def get_products():
                 'has_next': pagination.has_next,
                 'has_prev': pagination.has_prev
             }
-        })
+        }
+        
+        # cache for 5 minutes
+        current_app.cache.set(cache_key, result, timeout=300)
+        
+        return success_response(data=result)
     except Exception as e:
         return error_response(f'Failed to fetch products: {str(e)}', 500)
 
@@ -364,10 +376,20 @@ def delete_product(product_id):
 # Category routes
 @products_bp.route('/categories', methods=['GET'])
 def get_categories():
-    """Get all active categories."""
+    """Get all active categories"""
     try:
+        from flask import current_app
+        cached = current_app.cache.get('categories')
+        if cached:
+            return success_response(data=cached)
+        
         categories = Category.query.filter_by(is_active=True).all()
-        return success_response(data=[cat.to_dict() for cat in categories])
+        result = [cat.to_dict() for cat in categories]
+        
+        # cache for 1 hour
+        current_app.cache.set('categories', result, timeout=3600)
+        
+        return success_response(data=result)
     except Exception as e:
         return error_response(f'Failed to fetch categories: {str(e)}', 500)
 
@@ -375,10 +397,20 @@ def get_categories():
 # Brand routes
 @products_bp.route('/brands', methods=['GET'])
 def get_brands():
-    """Get all active brands."""
+    """Get all active brands"""
     try:
+        from flask import current_app
+        cached = current_app.cache.get('brands')
+        if cached:
+            return success_response(data=cached)
+        
         brands = Brand.query.filter_by(is_active=True).all()
-        return success_response(data=[brand.to_dict() for brand in brands])
+        result = [brand.to_dict() for brand in brands]
+        
+        # cache for 1 hour
+        current_app.cache.set('brands', result, timeout=3600)
+        
+        return success_response(data=result)
     except Exception as e:
         return error_response(f'Failed to fetch brands: {str(e)}', 500)
 
