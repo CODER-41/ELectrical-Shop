@@ -1,0 +1,26 @@
+{
+  "name": "Quantum Gear Electronics",
+  "short_name": "Q-Gear",
+  "description": "Buy quality electronics in Kenya - Phones, Laptops, TVs & More",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#f97316",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/elogo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/elogo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["shopping", "electronics"],
+  "lang": "en-KE"
+}
