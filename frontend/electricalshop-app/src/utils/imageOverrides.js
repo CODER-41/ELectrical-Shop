@@ -4,7 +4,7 @@ const CATEGORY_OVERRIDES = {
     'Hisense 58" 4K Smart TV': '/assets/hisense.jpg',
   },
   'Kitchen Appliances': {
-    'Philips Air Fryer XXL': '/src/assets/Phiillips Air Fryer.webp',
+    'Philips Air Fryer XXL': '/assets/philips-air-fryer.jpg',
   },
   'Accessories': {
     'Nikon Z50 Mirrorless Camera': '/assets/nikon-z50-mirrorless-camera.jpg',
