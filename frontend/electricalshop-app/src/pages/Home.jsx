@@ -8,6 +8,7 @@ import tvsImg from '../assets/TVs.jpeg';
 import kitchenImg from '../assets/Kitchen.jpg';
 import gamingImg from '../assets/Gaming.jpg';
 import accessoriesImg from '../Accessories.jpg';
+import z50CameraImg from '../assets/Nikon Z50 mirrorless camerra.jpeg';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -110,8 +111,8 @@ const Home = () => {
                   </svg>
                 </div>
               </div>
-              <h1 className="text-2xl font-extrabold text-white sm:text-3xl md:text-4xl lg:text-5xl mb-3 sm:mb-4 drop-shadow-2xl px-2">
-                Welcome to <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Q-Gear Electronics</span>
+              <h1 className="text-3xl font-extrabold text-white sm:text-4xl md:text-5xl mb-4 drop-shadow-2xl">
+                Welcome to <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Q-Gear Electronics Shop</span>
               </h1>
               <p className="mt-2 sm:mt-4 text-sm sm:text-base md:text-lg text-white font-semibold leading-relaxed max-w-2xl mx-auto mb-6 sm:mb-8 drop-shadow-lg px-4">
                 Your trusted marketplace for quality electronics in Kenya. Shop from verified suppliers with warranty protection.
