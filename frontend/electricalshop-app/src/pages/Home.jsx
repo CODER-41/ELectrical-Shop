@@ -18,25 +18,26 @@ const Home = () => {
   const [currentSlide, setCurrentSlide] = useState(0);
   
   useEffect(() => {
-    // grab some products from different categories
+    // Fetch diverse products from different categories
     const fetchFeaturedProducts = async () => {
       try {
         const categories = ['mobile-phones-tablets', 'laptops-computers', 'tvs-home-entertainment', 'kitchen-appliances', 'gaming', 'accessories'];
-        const products = [];
+        const diverseProducts = [];
         
-        for (const cat of categories) {
+        // Fetch one product from each category
+        for (const category of categories) {
           try {
-            const res = await axios.get(`${API_URL}/products?category=${cat}&page=1&per_page=1`);
-            const items = res.data.data.products || [];
-            if (items.length > 0 && items[0].image_url) {
-              products.push(items[0]);
+            const response = await axios.get(`${API_URL}/products?category=${category}&page=1&per_page=1`);
+            const products = response.data.data.products || [];
+            if (products.length > 0 && products[0].image_url) {
+              diverseProducts.push(products[0]);
             }
           } catch (err) {
-            console.log(`No products in ${cat}`);
+            console.log(`No products found for ${category}`);
           }
         }
         
-        setFeaturedProducts(products.length > 0 ? products : []);
+        setFeaturedProducts(diverseProducts.length > 0 ? diverseProducts : []);
       } catch (error) {
         console.error('Failed to fetch products:', error);
       }
@@ -75,7 +76,7 @@ const Home = () => {
   return (
   
     <div className="bg-white">
-      {/* Hero Section */}
+      {/* Hero Section with Product Background */}
       <div className="relative bg-white overflow-hidden h-[60vh] sm:h-[70vh]">
         
         {/* Product slideshow background */}
@@ -112,11 +113,11 @@ const Home = () => {
                   </svg>
                 </div>
               </div>
-              <h1 className="text-3xl font-extrabold text-white sm:text-4xl md:text-5xl mb-4 drop-shadow-2xl">
+              <h1 className="text-2xl font-extrabold text-white sm:text-3xl md:text-4xl lg:text-5xl mb-3 sm:mb-4 drop-shadow-2xl px-2">
                 Welcome to <span className="bg-gradient-to-r from-yellow-300 to-yellow-400 bg-clip-text text-transparent">Q-Gear Electronics</span>
               </h1>
               <p className="mt-2 sm:mt-4 text-sm sm:text-base md:text-lg text-white font-semibold leading-relaxed max-w-2xl mx-auto mb-6 sm:mb-8 drop-shadow-lg px-4">
-                Your trusted marketplace for quality electronics in Kenya. Shop from verified suppliers.
+                Your trusted marketplace for quality electronics in Kenya. Shop from verified suppliers with warranty protection.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center px-4">
                 {isAuthenticated ? (
@@ -176,14 +177,14 @@ const Home = () => {
               </svg>
             </button>
             
-            {/* Slide indicators */}
+            {/* Dots Indicator */}
             <div className="absolute bottom-4 sm:bottom-6 left-1/2 -translate-x-1/2 flex justify-center space-x-2 sm:space-x-3 z-10">
-              {featuredProducts.map((_, idx) => (
+              {featuredProducts.map((_, index) => (
                 <button
-                  key={idx}
-                  onClick={() => setCurrentSlide(idx)}
+                  key={index}
+                  onClick={() => setCurrentSlide(index)}
                   className={`h-2 sm:h-2.5 rounded-full transition-all duration-300 ${
-                    idx === currentSlide
+                    index === currentSlide
                       ? 'bg-white w-6 sm:w-8 shadow-lg'
                       : 'bg-white bg-opacity-50 hover:bg-opacity-75 w-2 sm:w-2.5'
                   }`}
