@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { Link } from 'react-router-dom';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
+import { getProductImage } from '../../utils/imageOverrides';
 
 const AdminProductManagement = () => {
   const { token } = useSelector((state) => state.auth);
@@ -240,7 +241,7 @@ const AdminProductManagement = () => {
                   <td className="px-6 py-4">
                     <div className="flex items-center">
                       {product.image_url && (
-                        <img src={product.image_url} alt={product.name} className="w-12 h-12 object-cover rounded mr-3" />
+                        <img src={getProductImage(product.name, product.image_url, product.category?.name)} alt={product.name} className="w-12 h-12 object-cover rounded mr-3" />
                       )}
                       <div>
                         <div className="text-sm font-medium text-gray-900">{product.name}</div>

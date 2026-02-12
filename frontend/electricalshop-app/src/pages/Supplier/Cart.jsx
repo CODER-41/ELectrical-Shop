@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { removeFromCart, incrementQuantity, decrementQuantity, updateQuantity } from '../store/slices/cartSlice';
 import { useAuth } from '../hooks/useAuth';
+import { getProductImage } from '../../utils/imageOverrides';
 
 const Cart = () => {
   const dispatch = useDispatch();
@@ -78,7 +79,7 @@ const Cart = () => {
                   <div className="w-24 h-24 bg-gray-100 rounded-lg overflow-hidden">
                     {item.image_url ? (
                       <img
-                        src={item.image_url}
+                        src={getProductImage(item.name, item.image_url, item.category)}
                         alt={item.name}
                         className="w-full h-full object-cover"
                       />

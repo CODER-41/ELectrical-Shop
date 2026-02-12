@@ -2,21 +2,7 @@ import { Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { addToCart } from '../store/slices/cartSlice';
 import {toast} from 'react-toastify';
-
-// Helper to get image URL (handles both local and remote images)
-const getImageUrl = (imageUrl) => {
-  if (!imageUrl) return null;
-  // If it's a local asset path, import it dynamically
-  if (imageUrl.startsWith('/src/assets/')) {
-    const fileName = imageUrl.replace('/src/assets/', '');
-    try {
-      return new URL(`../assets/${fileName}`, import.meta.url).href;
-    } catch {
-      return imageUrl; // Fallback to original URL
-    }
-  }
-  return imageUrl; // Return remote URL as-is
-};
+import { getProductImage } from '../utils/imageOverrides';
 
 const ProductCard = ({product}) => {
     const dispatch = useDispatch();
@@ -45,7 +31,7 @@ const ProductCard = ({product}) => {
         <div className="relative w-full h-48 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
           {product.image_url ? (
             <img
-              src={getImageUrl(product.image_url)}
+              src={getProductImage(product.name, product.image_url, product.category?.name)}
               alt={product.name}
               className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
               onError={(e) => {
