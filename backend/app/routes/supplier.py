@@ -6,7 +6,7 @@ from app.models import db
 from app.models.user import User, UserRole
 from app.models.order import Order, OrderItem, OrderStatus, PaymentStatus
 from app.models.product import Product
-from app.models.returns import Return, SupplierPayout
+from app.models.returns import Return, ReturnStatus, SupplierPayout
 from app.utils.responses import success_response, error_response
 
 supplier_bp = Blueprint('supplier', __name__, url_prefix='/api/supplier')
@@ -66,11 +66,11 @@ def get_dashboard():
             ).scalar() or 0
         
         # Returns
-        total_returns = db.session.query(Return)\
+        total_returns = db.session.query(func.count(Return.id.distinct()))\
             .join(Order, Return.order_id == Order.id)\
             .join(OrderItem, OrderItem.order_id == Order.id)\
             .filter(OrderItem.supplier_id == supplier_id)\
-            .distinct().count()
+            .scalar() or 0
         
         # Low stock products
         low_stock = Product.query.filter(
@@ -628,3 +628,235 @@ def cancel_payment_phone_request():
     except Exception as e:
         db.session.rollback()
         return error_response(f'Failed to cancel request: {str(e)}', 500)
+
+
+# ===================== SUPPLIER RETURNS MANAGEMENT =====================
+
+@supplier_bp.route('/returns', methods=['GET'])
+@jwt_required()
+def get_supplier_returns():
+    """Get returns for supplier's products with filtering and pagination."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if user.role != UserRole.SUPPLIER:
+            return error_response('Only suppliers can access this', 403)
+
+        if not user.supplier_profile:
+            return error_response('Supplier profile not found', 404)
+
+        supplier_id = user.supplier_profile.id
+        status_filter = request.args.get('status')
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+
+        # Subquery: order IDs that contain this supplier's products
+        supplier_order_ids = db.session.query(OrderItem.order_id)\
+            .filter(OrderItem.supplier_id == supplier_id)\
+            .distinct().subquery()
+
+        query = Return.query.filter(Return.order_id.in_(supplier_order_ids))
+
+        if status_filter and status_filter != 'all':
+            query = query.filter(Return.status == status_filter)
+
+        returns = query.order_by(Return.created_at.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False)
+
+        return success_response(data={
+            'returns': [r.to_dict() for r in returns.items],
+            'pagination': {
+                'page': returns.page,
+                'per_page': returns.per_page,
+                'total': returns.total,
+                'pages': returns.pages
+            }
+        })
+    except Exception as e:
+        return error_response(f'Failed to fetch returns: {str(e)}', 500)
+
+
+@supplier_bp.route('/returns/stats', methods=['GET'])
+@jwt_required()
+def get_supplier_return_stats():
+    """Get return statistics for supplier."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if user.role != UserRole.SUPPLIER:
+            return error_response('Only suppliers can access this', 403)
+
+        supplier_id = user.supplier_profile.id
+
+        # Subquery: order IDs that contain this supplier's products
+        supplier_order_ids = db.session.query(OrderItem.order_id)\
+            .filter(OrderItem.supplier_id == supplier_id)\
+            .distinct().subquery()
+
+        base_query = Return.query.filter(Return.order_id.in_(supplier_order_ids))
+
+        total = base_query.count()
+
+        pending = base_query.filter(
+            Return.status.in_(['requested', 'pending', 'supplier_review'])
+        ).count()
+
+        needs_response = base_query.filter(
+            Return.supplier_action.is_(None),
+            Return.status.in_(['requested', 'pending', 'supplier_review'])
+        ).count()
+
+        disputed = base_query.filter(Return.status == 'disputed').count()
+        approved = base_query.filter(Return.status == 'approved').count()
+        completed = base_query.filter(
+            Return.status.in_(['completed', 'refund_completed'])
+        ).count()
+
+        total_deductions = db.session.query(func.sum(Return.supplier_deduction))\
+            .filter(
+                Return.order_id.in_(supplier_order_ids),
+                Return.status.in_(['approved', 'completed', 'refund_completed'])
+            ).scalar() or 0
+
+        return success_response(data={
+            'total': total,
+            'pending': pending,
+            'needs_response': needs_response,
+            'disputed': disputed,
+            'approved': approved,
+            'completed': completed,
+            'total_deductions': float(total_deductions)
+        })
+    except Exception as e:
+        return error_response(f'Failed to fetch return stats: {str(e)}', 500)
+
+
+@supplier_bp.route('/returns/<return_id>', methods=['GET'])
+@jwt_required()
+def get_supplier_return_detail(return_id):
+    """Get single return detail for supplier."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if user.role != UserRole.SUPPLIER:
+            return error_response('Only suppliers can access this', 403)
+
+        return_request = Return.query.get(return_id)
+        if not return_request:
+            return error_response('Return not found', 404)
+
+        # Verify supplier owns a product in this return's order
+        has_items = OrderItem.query.filter_by(
+            order_id=return_request.order_id,
+            supplier_id=user.supplier_profile.id
+        ).first()
+        if not has_items:
+            return error_response('Unauthorized', 403)
+
+        return success_response(data=return_request.to_dict())
+    except Exception as e:
+        return error_response(f'Failed to fetch return: {str(e)}', 500)
+
+
+@supplier_bp.route('/returns/<return_id>/acknowledge', methods=['POST'])
+@jwt_required()
+def acknowledge_return(return_id):
+    """Supplier acknowledges they have seen the return request."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if user.role != UserRole.SUPPLIER:
+            return error_response('Only suppliers can access this', 403)
+
+        return_request = Return.query.get(return_id)
+        if not return_request:
+            return error_response('Return not found', 404)
+
+        has_items = OrderItem.query.filter_by(
+            order_id=return_request.order_id,
+            supplier_id=user.supplier_profile.id
+        ).first()
+        if not has_items:
+            return error_response('Unauthorized', 403)
+
+        if return_request.supplier_acknowledged:
+            return error_response('Already acknowledged', 400)
+
+        return_request.supplier_acknowledged = True
+        return_request.supplier_acknowledged_at = datetime.utcnow()
+
+        db.session.commit()
+
+        return success_response(
+            data=return_request.to_dict(),
+            message='Return acknowledged successfully'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to acknowledge return: {str(e)}', 500)
+
+
+@supplier_bp.route('/returns/<return_id>/respond', methods=['POST'])
+@jwt_required()
+def respond_to_return(return_id):
+    """Supplier responds to a return request (accept or dispute)."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if user.role != UserRole.SUPPLIER:
+            return error_response('Only suppliers can access this', 403)
+
+        return_request = Return.query.get(return_id)
+        if not return_request:
+            return error_response('Return not found', 404)
+
+        has_items = OrderItem.query.filter_by(
+            order_id=return_request.order_id,
+            supplier_id=user.supplier_profile.id
+        ).first()
+        if not has_items:
+            return error_response('Unauthorized', 403)
+
+        if return_request.status not in ['requested', 'pending', 'supplier_review']:
+            return error_response('Cannot respond to a return in this status', 400)
+
+        data = request.get_json()
+        action = data.get('action')
+
+        if action not in ['accept', 'dispute']:
+            return error_response('Action must be "accept" or "dispute"', 400)
+
+        # Auto-acknowledge if not already done
+        if not return_request.supplier_acknowledged:
+            return_request.supplier_acknowledged = True
+            return_request.supplier_acknowledged_at = datetime.utcnow()
+
+        return_request.supplier_action = action
+        return_request.supplier_action_at = datetime.utcnow()
+        return_request.supplier_response = data.get('response', '').strip()
+        return_request.supplier_evidence = data.get('evidence', [])
+
+        if action == 'dispute':
+            dispute_reason = data.get('dispute_reason', '').strip()
+            if not dispute_reason:
+                return error_response('Dispute reason is required', 400)
+            return_request.supplier_dispute_reason = dispute_reason
+            return_request.status = 'disputed'
+        else:
+            # Supplier accepts -- move to pending admin review
+            return_request.status = 'pending_review'
+
+        db.session.commit()
+
+        return success_response(
+            data=return_request.to_dict(),
+            message=f'Return {action}ed successfully'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to respond to return: {str(e)}', 500)

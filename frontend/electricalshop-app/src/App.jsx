@@ -41,6 +41,7 @@ import SupplierDashboard from './pages/Supplier/SupplierDashboard';
 import SupplierOrders from './pages/Supplier/SupplierOrders';
 import SupplierAnalytics from './pages/Supplier/SupplierAnalytics';
 import SupplierPayouts from './pages/Supplier/SupplierPayouts';
+import SupplierReturns from './pages/Supplier/SupplierReturns';
 
 // Delivery Agent Pages
 import DeliveryDashboard from './pages/Delivery/DeliveryDashboard';
@@ -246,6 +247,14 @@ function App() {
               element={
                 <ProtectedRoute allowedRoles={['supplier']}>
                   <SupplierPayouts />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/supplier/returns"
+              element={
+                <ProtectedRoute allowedRoles={['supplier']}>
+                  <SupplierReturns />
                 </ProtectedRoute>
               }
             />
