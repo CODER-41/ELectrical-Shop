@@ -540,7 +540,7 @@ def seed_sample_products(suppliers, categories, brands):
             'specifications': {'Screen Size': '58 inches', 'Resolution': '4K UHD', 'Smart TV': 'VIDAA', 'HDR': 'Dolby Vision'},
             'stock_quantity': 20,
             'warranty_months': 24,
-            'image_url': 'https://images.unsplash.com/photo-1539874754764-5a96559165b0?w=400&h=400&fit=crop'
+            'image_url': '/src/assets/Hisense smart TV.webp'
         },
         # Kitchen Appliances (5 products)
         {
