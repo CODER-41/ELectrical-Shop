@@ -14,6 +14,7 @@ A full-stack multi-vendor e-commerce platform for electronics, built with Flask 
 - [Running the Application](#running-the-application)
 - [Default Accounts](#default-accounts)
 - [API Documentation](#api-documentation)
+- [M-Pesa Integration](#m-pesa-integration)
 - [Refund Policy](#refund-policy)
 - [Contributing](#contributing)
 - [License](#license)
@@ -342,6 +343,91 @@ The backend provides a RESTful API. Key endpoints:
 | `/api/payments/card/initiate` | POST | Card payment (Paystack) |
 
 For complete API documentation, see [Backend README](backend/README.md).
+
+---
+
+## M-Pesa Integration
+
+The platform integrates with Safaricom's M-Pesa Daraja API for seamless mobile payments.
+
+### Features
+- **STK Push Payments:** Customers receive payment prompts on their phones
+- **B2C Payouts:** Automated supplier payouts to M-Pesa accounts
+- **Real-time Verification:** Instant payment confirmation
+- **Multi-operator Support:** Safaricom, Airtel, Telkom
+
+### Quick Setup
+
+1. **Get Daraja Credentials:**
+   - Visit [Daraja Portal](https://developer.safaricom.co.ke/)
+   - Create sandbox app for testing
+   - Note Consumer Key, Consumer Secret, Shortcode, Passkey
+
+2. **Configure Environment:**
+   ```env
+   MPESA_ENVIRONMENT=sandbox
+   MPESA_CONSUMER_KEY=your_consumer_key
+   MPESA_CONSUMER_SECRET=your_consumer_secret
+   MPESA_SHORTCODE=174379
+   MPESA_PASSKEY=your_passkey
+   MPESA_CALLBACK_URL=https://your-ngrok-url.ngrok-free.app/api/payments/mpesa/callback
+   ```
+
+3. **Setup ngrok for Local Testing:**
+   ```bash
+   # Install ngrok
+   brew install ngrok  # macOS
+   
+   # Start tunnel
+   ngrok http 5000
+   
+   # Update MPESA_CALLBACK_URL in .env with ngrok HTTPS URL
+   ```
+
+4. **Test Payment:**
+   ```bash
+   # Use sandbox test number
+   Phone: 254708374149
+   ```
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/payments/mpesa/initiate` | POST | Initiate STK Push |
+| `/api/payments/mpesa/query` | POST | Check payment status |
+| `/api/payments/mpesa/callback` | POST | M-Pesa webhook |
+| `/api/payments/supplier/payout` | POST | Send B2C payout (Admin) |
+
+### Documentation
+
+For complete M-Pesa integration guide including:
+- Detailed setup instructions
+- API reference and examples
+- Frontend integration code
+- Troubleshooting guide
+- Production deployment checklist
+- Security best practices
+
+See **[MPESA_INTEGRATION.md](MPESA_INTEGRATION.md)**
+
+### Troubleshooting
+
+Common issues and solutions:
+
+**Payments stuck in pending?**
+- Ensure ngrok is running and URL is updated in `.env`
+- Implement frontend polling (recommended)
+- See troubleshooting section in [MPESA_INTEGRATION.md](MPESA_INTEGRATION.md)
+
+**Invalid phone number?**
+- Use format: `254XXXXXXXXX` (12 digits)
+- Valid prefixes: `2547`, `2541`, `2542`
+
+**Callback not working?**
+- Verify ngrok HTTPS URL is accessible
+- Check Flask logs for callback receipt
+- Use query endpoint as fallback
 
 ---
 
