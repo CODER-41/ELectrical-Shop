@@ -107,6 +107,9 @@ class Product(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
     
+    # Relationships
+    supplier = db.relationship('SupplierProfile', backref='products', lazy=True)
+    
     def calculate_commission(self):
         """Calculate supplier earnings and platform commission."""
         self.supplier_earnings = float(self.price) * 0.75
