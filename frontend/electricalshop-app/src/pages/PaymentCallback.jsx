@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { usePayment } from '../hooks/usePayment';
 import { toast } from 'react-toastify';
@@ -8,11 +8,15 @@ const PaymentCallback = () => {
   const navigate = useNavigate();
   const { verifyCardPayment } = usePayment();
   const [status, setStatus] = useState('verifying'); // verifying, success, failed
+  const hasVerified = useRef(false);
 
   useEffect(() => {
+    if (hasVerified.current) return;
+    hasVerified.current = true;
+
     const verifyPayment = async () => {
       const reference = searchParams.get('reference');
-      
+
       if (!reference) {
         toast.error('Invalid payment reference');
         setStatus('failed');
@@ -22,7 +26,7 @@ const PaymentCallback = () => {
 
       try {
         const result = await verifyCardPayment(reference);
-        
+
         if (result.success) {
           setStatus('success');
           toast.success('Payment successful!');
@@ -42,7 +46,7 @@ const PaymentCallback = () => {
     };
 
     verifyPayment();
-  }, [searchParams, verifyCardPayment, navigate]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">

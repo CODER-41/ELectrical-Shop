@@ -162,30 +162,25 @@ const Checkout = () => {
     try {
       // Create order
       const order = await dispatch(createOrder(orderData)).unwrap();
-      toast.success('Order placed successfully!');
-      
+
       // Clear cart
       dispatch(clearCart());
-      
+
       // If M-Pesa, initiate payment
       if (paymentMethod === 'mpesa') {
-        toast.info('Initiating M-Pesa payment...');
-        
         const paymentResult = await initiateMpesaPayment(order.id, mpesaNumber);
-        
+
         if (paymentResult.success) {
           toast.success('Check your phone for M-Pesa prompt');
         } else {
           toast.warning('Order created but payment failed. You can retry payment from order details.');
         }
       }
-      
+
       // If Card, initiate Paystack payment
       if (paymentMethod === 'card') {
-        toast.info('Redirecting to payment page...');
-        
         const paymentResult = await initiateCardPayment(order.id);
-        
+
         if (paymentResult.success && paymentResult.data.authorization_url) {
           // Redirect to Paystack payment page
           window.location.href = paymentResult.data.authorization_url;
@@ -194,7 +189,12 @@ const Checkout = () => {
           toast.warning('Order created but payment failed. You can retry payment from order details.');
         }
       }
-      
+
+      // For cash on delivery, show success toast
+      if (paymentMethod === 'cash') {
+        toast.success('Order placed successfully!');
+      }
+
       // Redirect to order confirmation
       navigate(`/orders/${order.id}/confirmation`);
     } catch (error) {
