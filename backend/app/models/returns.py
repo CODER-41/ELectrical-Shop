@@ -377,11 +377,16 @@ class DeliveryZoneRequest(db.Model):
         self.admin_notes = notes
 
         # Add zone to agent's assigned zones (use zone name, not ID)
-        if self.delivery_agent and self.zone:
-            if self.delivery_agent.assigned_zones is None:
-                self.delivery_agent.assigned_zones = []
-            if self.zone.name not in self.delivery_agent.assigned_zones:
-                self.delivery_agent.assigned_zones = self.delivery_agent.assigned_zones + [self.zone.name]
+        if self.delivery_agent and self.zone_id:
+            # Fetch zone if not loaded
+            from app.models.order import DeliveryZone
+            zone = self.zone if self.zone else DeliveryZone.query.get(self.zone_id)
+            
+            if zone:
+                if self.delivery_agent.assigned_zones is None:
+                    self.delivery_agent.assigned_zones = []
+                if zone.name not in self.delivery_agent.assigned_zones:
+                    self.delivery_agent.assigned_zones = self.delivery_agent.assigned_zones + [zone.name]
 
         return True
 
