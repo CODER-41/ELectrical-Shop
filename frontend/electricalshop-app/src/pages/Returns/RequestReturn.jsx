@@ -9,7 +9,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const RequestReturn = () => {
   const { orderId, itemId } = useParams();
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
+  const { user, token } = useSelector((state) => state.auth);
   const [orderItem, setOrderItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -26,7 +26,7 @@ const RequestReturn = () => {
   const fetchOrderItem = async () => {
     try {
       const response = await axios.get(`${API_URL}/orders/${orderId}`, {
-        headers: { Authorization: `Bearer ${user.token}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       const item = response.data.data.items?.find(i => i.id === itemId);
       if (item) {
@@ -52,7 +52,7 @@ const RequestReturn = () => {
           order_item_id: itemId,
           ...formData
         },
-        { headers: { Authorization: `Bearer ${user.token}` } }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       toast.success('Return request submitted successfully');

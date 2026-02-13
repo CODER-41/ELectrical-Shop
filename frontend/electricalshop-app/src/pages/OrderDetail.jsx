@@ -377,12 +377,21 @@ const OrderDetail = () => {
                 </button>
               )}
               
+              {order.status === 'delivered' && order.items?.length > 0 && (
+                <Link 
+                  to={`/orders/${order.id}/items/${order.items[0].id}/return`}
+                  className="btn btn-primary w-full text-center"
+                >
+                  Request Return/Refund
+                </Link>
+              )}
+              
               <Link to="/orders" className="btn btn-outline w-full text-center">
                 View All Orders
               </Link>
               
               {order.status === 'delivered' && (
-                <button className="btn btn-primary w-full">
+                <button className="btn btn-outline w-full">
                   Leave a Review
                 </button>
               )}
