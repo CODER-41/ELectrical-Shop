@@ -9,15 +9,12 @@ app = create_app()
 
 with app.app_context():
     try:
-        # Add order_item_id column if it doesn't exist
+        # Add all missing columns to returns table
         db.session.execute(text("""
             ALTER TABLE returns 
-            ADD COLUMN IF NOT EXISTS order_item_id VARCHAR(36);
-        """))
-        
-        # Add supplier response columns if they don't exist
-        db.session.execute(text("""
-            ALTER TABLE returns 
+            ADD COLUMN IF NOT EXISTS order_item_id VARCHAR(36),
+            ADD COLUMN IF NOT EXISTS customer_id VARCHAR(36),
+            ADD COLUMN IF NOT EXISTS product_id VARCHAR(36),
             ADD COLUMN IF NOT EXISTS supplier_acknowledged BOOLEAN DEFAULT FALSE,
             ADD COLUMN IF NOT EXISTS supplier_acknowledged_at TIMESTAMP,
             ADD COLUMN IF NOT EXISTS supplier_response TEXT,
