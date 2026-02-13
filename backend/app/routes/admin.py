@@ -66,9 +66,13 @@ def get_dashboard():
             ).scalar() or 0
         
         # Platform commission (25% of total)
-        platform_earnings = db.session.query(func.sum(OrderItem.platform_commission))\
-            .join(Order)\
-            .filter(Order.payment_status == PaymentStatus.COMPLETED).scalar() or 0
+        try:
+            platform_earnings = db.session.query(func.sum(OrderItem.platform_commission))\
+                .join(Order)\
+                .filter(Order.payment_status == PaymentStatus.COMPLETED).scalar() or 0
+        except Exception:
+            # Fallback if column doesn't exist yet
+            platform_earnings = total_revenue * 0.25
         
         # Returns
         pending_returns = Return.query.filter(
@@ -128,30 +132,36 @@ def get_analytics():
             .order_by(func.date(Order.created_at)).all()
         
         # Top selling products
-        top_products = db.session.query(
-            Product.name,
-            Product.image_url,
-            func.sum(OrderItem.quantity).label('quantity_sold'),
-            func.sum(OrderItem.subtotal).label('revenue')
-        ).join(OrderItem)\
-            .join(Order)\
-            .filter(Order.payment_status == PaymentStatus.COMPLETED)\
-            .group_by(Product.id, Product.name, Product.image_url)\
-            .order_by(func.sum(OrderItem.quantity).desc())\
-            .limit(10).all()
+        try:
+            top_products = db.session.query(
+                Product.name,
+                Product.image_url,
+                func.sum(OrderItem.quantity).label('quantity_sold'),
+                func.sum(OrderItem.subtotal).label('revenue')
+            ).join(OrderItem)\
+                .join(Order)\
+                .filter(Order.payment_status == PaymentStatus.COMPLETED)\
+                .group_by(Product.id, Product.name, Product.image_url)\
+                .order_by(func.sum(OrderItem.quantity).desc())\
+                .limit(10).all()
+        except Exception:
+            top_products = []
         
         # Top suppliers
-        top_suppliers = db.session.query(
-            SupplierProfile.business_name,
-            SupplierProfile.contact_person,
-            func.count(OrderItem.id).label('orders'),
-            func.sum(OrderItem.supplier_earnings).label('earnings')
-        ).join(OrderItem, OrderItem.supplier_id == SupplierProfile.id)\
-            .join(Order)\
-            .filter(Order.payment_status == PaymentStatus.COMPLETED)\
-            .group_by(SupplierProfile.id, SupplierProfile.business_name, SupplierProfile.contact_person)\
-            .order_by(func.sum(OrderItem.supplier_earnings).desc())\
-            .limit(10).all()
+        try:
+            top_suppliers = db.session.query(
+                SupplierProfile.business_name,
+                SupplierProfile.contact_person,
+                func.count(OrderItem.id).label('orders'),
+                func.sum(OrderItem.supplier_earnings).label('earnings')
+            ).join(OrderItem, OrderItem.supplier_id == SupplierProfile.id)\
+                .join(Order)\
+                .filter(Order.payment_status == PaymentStatus.COMPLETED)\
+                .group_by(SupplierProfile.id, SupplierProfile.business_name, SupplierProfile.contact_person)\
+                .order_by(func.sum(OrderItem.supplier_earnings).desc())\
+                .limit(10).all()
+        except Exception:
+            top_suppliers = []
         
         # Order status distribution
         order_status = db.session.query(

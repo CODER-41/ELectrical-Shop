@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { getOrder, clearCurrentOrder } from '../store/slices/ordersSlice';
@@ -15,52 +15,63 @@ const OrderConfirmation = () => {
   const { currentOrder: order, isLoading } = useSelector((state) => state.orders);
   const { initiateMpesaPayment, checkPaymentStatus, isProcessing } = usePayment();
   const { token } = useSelector((state) => state.auth);
-  
+
   const [mpesaNumber, setMpesaNumber] = useState('');
   const [showPaymentRetry, setShowPaymentRetry] = useState(false);
   const [pollingPaymentStatus, setPollingPaymentStatus] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
   const [isCancelling, setIsCancelling] = useState(false);
-  
+  const paymentConfirmedRef = useRef(false);
+  const pollingRef = useRef(false);
+
   useEffect(() => {
     dispatch(getOrder(orderId));
-    
+
     return () => {
       dispatch(clearCurrentOrder());
     };
   }, [dispatch, orderId]);
-  
+
   // Poll payment status for M-Pesa orders
   useEffect(() => {
     if (!order || order.payment_method !== 'mpesa' || order.payment_status === 'completed') {
       return;
     }
-    
+
+    // Prevent duplicate polling setup from unstable deps
+    if (pollingRef.current) return;
+    pollingRef.current = true;
+
     setPollingPaymentStatus(true);
-    
+
     // Poll every 5 seconds for 2 minutes
     const pollInterval = setInterval(async () => {
       const result = await checkPaymentStatus(orderId);
       if (result.success && result.data.payment_status === 'completed') {
         dispatch(getOrder(orderId)); // Refresh order
-        toast.success('Payment confirmed!');
+        if (!paymentConfirmedRef.current) {
+          paymentConfirmedRef.current = true;
+          toast.success('Payment confirmed!');
+        }
         setPollingPaymentStatus(false);
         clearInterval(pollInterval);
       }
     }, 5000);
-    
+
     // Stop polling after 2 minutes
     const timeout = setTimeout(() => {
       setPollingPaymentStatus(false);
       clearInterval(pollInterval);
+      pollingRef.current = false;
     }, 120000);
-    
+
     return () => {
       clearInterval(pollInterval);
       clearTimeout(timeout);
+      pollingRef.current = false;
     };
-  }, [order, orderId, checkPaymentStatus, dispatch]);
+  }, [order?.payment_method, order?.payment_status, orderId]); // eslint-disable-line react-hooks/exhaustive-deps
   
   const handleRetryPayment = async () => {
     if (!mpesaNumber) {
