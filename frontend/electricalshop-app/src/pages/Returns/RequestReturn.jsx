@@ -43,6 +43,9 @@ const RequestReturn = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (submitting) return; // Prevent duplicate submissions
+    
     setSubmitting(true);
 
     try {
@@ -59,7 +62,6 @@ const RequestReturn = () => {
       navigate(`/returns/${response.data.data.id}`);
     } catch (error) {
       toast.error(error.response?.data?.error || 'Failed to submit return');
-    } finally {
       setSubmitting(false);
     }
   };
