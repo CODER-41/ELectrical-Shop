@@ -9,7 +9,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const ReturnDetail = () => {
   const { returnId } = useParams();
   const navigate = useNavigate();
-  const { user } = useSelector((state) => state.auth);
+  const { user, token } = useSelector((state) => state.auth);
   const [returnData, setReturnData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -20,7 +20,7 @@ const ReturnDetail = () => {
   const fetchReturn = async () => {
     try {
       const response = await axios.get(`${API_URL}/returns/${returnId}`, {
-        headers: { Authorization: `Bearer ${user.token}` }
+        headers: { Authorization: `Bearer ${token}` }
       });
       setReturnData(response.data.data);
     } catch (error) {
