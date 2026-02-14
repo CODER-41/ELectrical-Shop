@@ -110,6 +110,7 @@ def create_app(config_name=None):
             db.session.execute(text("ALTER TABLE supplier_payouts ADD COLUMN IF NOT EXISTS payout_number VARCHAR(50) UNIQUE"))
             db.session.execute(text("ALTER TABLE supplier_payouts ADD COLUMN IF NOT EXISTS net_amount NUMERIC(10,2)"))
             db.session.execute(text("ALTER TABLE supplier_payouts ADD COLUMN IF NOT EXISTS reference VARCHAR(100)"))
+            db.session.execute(text("ALTER TABLE supplier_payouts ADD COLUMN IF NOT EXISTS payment_reference VARCHAR(100)"))
             
             # Update null values
             db.session.execute(text("UPDATE returns SET return_number = 'RET-' || LPAD(id::text, 8, '0') WHERE return_number IS NULL"))
