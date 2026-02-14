@@ -1966,20 +1966,28 @@ def get_financial_report():
                         supplier_revenue[supplier_name]['orders'] += 1
         
         # Calculate refunds - separate by who pays
-        returns_query = Return.query.filter(
-            Return.status.in_(['approved', 'completed', 'refund_completed'])
-        )
-        if start_date:
-            returns_query = returns_query.filter(Return.created_at >= datetime.fromisoformat(start_date))
-        if end_date:
-            end_dt = datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59)
-            returns_query = returns_query.filter(Return.created_at <= end_dt)
-        
-        returns = returns_query.all()
-        total_refunds_to_customers = sum(float(r.customer_refund or r.refund_amount or 0) for r in returns)
-        platform_paid_refunds = sum(float(r.platform_deduction or 0) for r in returns)  # Only what platform paid
-        supplier_paid_refunds = sum(float(r.supplier_deduction or 0) for r in returns)  # What suppliers paid
-        refund_count = len(returns)
+        try:
+            returns_query = Return.query.filter(
+                Return.status.in_(['approved', 'completed', 'refund_completed'])
+            )
+            if start_date:
+                returns_query = returns_query.filter(Return.created_at >= datetime.fromisoformat(start_date))
+            if end_date:
+                end_dt = datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59)
+                returns_query = returns_query.filter(Return.created_at <= end_dt)
+            
+            returns = returns_query.all()
+            total_refunds_to_customers = sum(float(r.customer_refund or r.refund_amount or 0) for r in returns)
+            platform_paid_refunds = sum(float(r.platform_deduction or 0) for r in returns)
+            supplier_paid_refunds = sum(float(r.supplier_deduction or 0) for r in returns)
+            refund_count = len(returns)
+        except Exception as e:
+            current_app.logger.error(f'Returns query error: {str(e)}')
+            returns = []
+            total_refunds_to_customers = 0
+            platform_paid_refunds = 0
+            supplier_paid_refunds = 0
+            refund_count = 0
         
         # Calculate supplier payouts
         payouts_query = SupplierPayout.query.filter_by(status='completed')
