@@ -7,15 +7,9 @@ import os
 # Create a special blueprint for migrations
 migrate_bp = Blueprint('migrate', __name__, url_prefix='/api/migrate')
 
-@migrate_bp.route('/fix-columns', methods=['POST'])
+@migrate_bp.route('/fix-columns', methods=['POST', 'GET'])
 def fix_missing_columns():
     """Fix missing columns in production database."""
-    # Security: Only allow in production with secret key
-    secret = os.getenv('MIGRATION_SECRET', 'your-secret-key-here')
-    from flask import request
-    
-    if request.headers.get('X-Migration-Secret') != secret:
-        return error_response('Unauthorized', 403)
     
     try:
         results = []
