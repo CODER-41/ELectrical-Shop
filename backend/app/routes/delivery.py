@@ -1120,6 +1120,43 @@ def complete_delivery_payout(payout_id):
         return error_response(f'Failed to complete payout: {str(e)}', 500)
 
 
+@delivery_bp.route('/admin/delivery-payouts/<payout_id>/cancel', methods=['POST'])
+@jwt_required()
+@require_admin
+def cancel_delivery_payout(payout_id):
+    """Cancel a delivery payout that is in pending status."""
+    from app.models.returns import DeliveryPayout
+
+    try:
+        payout = DeliveryPayout.query.get(payout_id)
+        if not payout:
+            return error_response('Payout not found', 404)
+
+        if payout.status == 'completed':
+            return error_response('Cannot cancel completed payout', 400)
+
+        if payout.status == 'processing':
+            return error_response(
+                'Payout is being processed. Cannot cancel at this stage. Contact M-Pesa support if needed.',
+                400
+            )
+
+        data = request.get_json() or {}
+        reason = data.get('reason', 'Cancelled by admin')
+
+        payout.status = 'cancelled'
+        payout.notes = f"{payout.notes or ''}\n\nCancelled: {reason}"
+        db.session.commit()
+
+        return success_response(
+            data=payout.to_dict(),
+            message='Delivery payout cancelled successfully'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to cancel payout: {str(e)}', 500)
+
+
 @delivery_bp.route('/agent/payouts', methods=['GET'])
 @jwt_required()
 @require_delivery_agent

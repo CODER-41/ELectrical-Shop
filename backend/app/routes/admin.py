@@ -615,6 +615,14 @@ def initiate_mpesa_payout(payout_id):
         if not is_valid:
             return error_response(f'Invalid M-Pesa number: {result}', 400)
 
+        # Generate payout number if not exists
+        if not payout.payout_number:
+            payout.generate_payout_number()
+
+        # Set net_amount if not set
+        if not payout.net_amount:
+            payout.net_amount = payout.amount
+
         # Mark payout as processing
         payout.status = 'processing'
         db.session.commit()
@@ -654,6 +662,41 @@ def initiate_mpesa_payout(payout_id):
         db.session.rollback()
         current_app.logger.error(f'M-Pesa payout error: {str(e)}')
         return error_response(f'Failed to initiate M-Pesa payout: {str(e)}', 500)
+
+
+@admin_bp.route('/payouts/<payout_id>/cancel', methods=['POST'])
+@jwt_required()
+@require_admin
+def cancel_payout(payout_id):
+    """Cancel a payout that is in pending or processing status."""
+    try:
+        payout = SupplierPayout.query.get(payout_id)
+        if not payout:
+            return error_response('Payout not found', 404)
+
+        if payout.status == 'completed':
+            return error_response('Cannot cancel completed payout', 400)
+
+        if payout.status == 'processing':
+            return error_response(
+                'Payout is being processed. Cannot cancel at this stage. Contact M-Pesa support if needed.',
+                400
+            )
+
+        data = request.get_json() or {}
+        reason = data.get('reason', 'Cancelled by admin')
+
+        payout.status = 'cancelled'
+        payout.notes = f"{payout.notes or ''}\n\nCancelled: {reason}"
+        db.session.commit()
+
+        return success_response(
+            data=payout.to_dict(),
+            message='Payout cancelled successfully'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to cancel payout: {str(e)}', 500)
 
 
 @admin_bp.route('/payouts/batch-mpesa', methods=['POST'])

@@ -216,9 +216,12 @@ class SupplierPayout(db.Model):
     __tablename__ = 'supplier_payouts'
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    payout_number = db.Column(db.String(50), unique=True, nullable=True, index=True)
     supplier_id = db.Column(db.String(36), db.ForeignKey('supplier_profiles.id'), nullable=False)
     amount = db.Column(db.Numeric(10, 2), nullable=False)
+    net_amount = db.Column(db.Numeric(10, 2), nullable=True)
     status = db.Column(db.String(50), default='pending', nullable=False)
+    payment_reference = db.Column(db.String(100), nullable=True)
     reference = db.Column(db.String(100), nullable=True)
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -227,12 +230,24 @@ class SupplierPayout(db.Model):
     # Relationships
     supplier = db.relationship('SupplierProfile', backref=db.backref('payouts', lazy='dynamic'))
 
+    def generate_payout_number(self):
+        """Generate unique payout number."""
+        if not self.payout_number:
+            date_str = datetime.utcnow().strftime('%Y%m%d')
+            count = SupplierPayout.query.filter(
+                SupplierPayout.created_at >= datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            ).count() + 1
+            self.payout_number = f'SPO-{date_str}-{count:04d}'
+
     def to_dict(self):
         return {
             'id': self.id,
+            'payout_number': self.payout_number,
             'supplier_id': self.supplier_id,
             'amount': float(self.amount) if self.amount else 0,
+            'net_amount': float(self.net_amount) if self.net_amount else float(self.amount) if self.amount else 0,
             'status': self.status,
+            'payment_reference': self.payment_reference or self.reference,
             'reference': self.reference,
             'notes': self.notes,
             'created_at': self.created_at.isoformat() if self.created_at else None,
