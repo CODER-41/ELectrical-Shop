@@ -286,6 +286,32 @@ const OrderDetail = () => {
             </div>
           </div>
           
+          {/* Customer Information */}
+          {order.customer && (
+            <div className="card">
+              <h2 className="text-xl font-bold text-gray-900 mb-4">Customer Information</h2>
+              
+              <div className="space-y-2 text-gray-700">
+                <div>
+                  <span className="text-sm text-gray-600">Name:</span>
+                  <p className="font-semibold">{order.customer.name}</p>
+                </div>
+                {order.customer.email && (
+                  <div>
+                    <span className="text-sm text-gray-600">Email:</span>
+                    <p className="font-medium">{order.customer.email}</p>
+                  </div>
+                )}
+                {order.customer.phone && (
+                  <div>
+                    <span className="text-sm text-gray-600">Phone:</span>
+                    <p className="font-medium">{order.customer.phone}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          
           {/* Delivery Address */}
           <div className="card">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Delivery Address</h2>
