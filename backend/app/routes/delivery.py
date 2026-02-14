@@ -1762,7 +1762,7 @@ def approve_zone_request(request_id):
         if zone_request.status != ZoneRequestStatus.PENDING:
             return error_response('Only pending requests can be approved', 400)
 
-        data = request.get_json() or {}
+        data = request.get_json(force=True, silent=True) or {}
         notes = data.get('notes')
 
         zone_request.approve(user_id, notes)
