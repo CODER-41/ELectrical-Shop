@@ -1992,20 +1992,33 @@ def get_financial_report():
             refund_count = 0
         
         # Calculate supplier payouts
-        payouts_query = SupplierPayout.query.filter_by(status='completed')
-        if start_date:
-            payouts_query = payouts_query.filter(SupplierPayout.paid_at >= datetime.fromisoformat(start_date))
-        if end_date:
-            end_dt = datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59)
-            payouts_query = payouts_query.filter(SupplierPayout.paid_at <= end_dt)
-        
-        payouts = payouts_query.all()
-        total_payouts = sum(float(p.amount) for p in payouts)
-        payout_count = len(payouts)
+        try:
+            payouts_query = SupplierPayout.query.filter_by(status='completed')
+            if start_date:
+                payouts_query = payouts_query.filter(SupplierPayout.paid_at >= datetime.fromisoformat(start_date))
+            if end_date:
+                end_dt = datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59)
+                payouts_query = payouts_query.filter(SupplierPayout.paid_at <= end_dt)
+            
+            payouts = payouts_query.all()
+            total_payouts = sum(float(p.amount) for p in payouts)
+            payout_count = len(payouts)
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Payouts query error: {str(e)}')
+            payouts = []
+            total_payouts = 0
+            payout_count = 0
         
         # Calculate pending payouts
-        pending_payouts = SupplierPayout.query.filter_by(status='pending').all()
-        total_pending_payouts = sum(float(p.amount) for p in pending_payouts)
+        try:
+            pending_payouts = SupplierPayout.query.filter_by(status='pending').all()
+            total_pending_payouts = sum(float(p.amount) for p in pending_payouts)
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Pending payouts query error: {str(e)}')
+            pending_payouts = []
+            total_pending_payouts = 0
         
         # Calculate delivery agent earnings
         delivery_query = Order.query.filter(
@@ -2117,70 +2130,88 @@ def get_financial_report():
         
         # 6. SUPPLIER PERFORMANCE
         supplier_performance = []
-        for supplier_name, data in supplier_revenue.items():
-            supplier_profile = SupplierProfile.query.filter_by(business_name=supplier_name).first()
-            if supplier_profile:
-                supplier_payouts_made = sum(float(p.amount) for p in payouts if p.supplier_id == supplier_profile.id)
-                pending_payout = data['earnings'] - supplier_payouts_made
-                
-                # Calculate average payout time
-                supplier_completed_payouts = [p for p in payouts if p.supplier_id == supplier_profile.id and p.paid_at]
-                if supplier_completed_payouts:
-                    avg_payout_days = sum(
-                        (p.paid_at - p.created_at).days for p in supplier_completed_payouts
-                    ) / len(supplier_completed_payouts)
-                else:
-                    avg_payout_days = 0
-                
-                supplier_performance.append({
-                    'name': supplier_name,
-                    'revenue': data['revenue'],
-                    'earnings': data['earnings'],
-                    'orders': data['orders'],
-                    'paid_out': supplier_payouts_made,
-                    'pending_payout': pending_payout,
-                    'avg_payout_days': round(avg_payout_days, 1)
-                })
-        
-        supplier_performance = sorted(supplier_performance, key=lambda x: x['revenue'], reverse=True)[:10]
+        try:
+            for supplier_name, data in supplier_revenue.items():
+                supplier_profile = SupplierProfile.query.filter_by(business_name=supplier_name).first()
+                if supplier_profile:
+                    supplier_payouts_made = sum(float(p.amount) for p in payouts if p.supplier_id == supplier_profile.id)
+                    pending_payout = data['earnings'] - supplier_payouts_made
+                    
+                    # Calculate average payout time
+                    supplier_completed_payouts = [p for p in payouts if p.supplier_id == supplier_profile.id and p.paid_at]
+                    if supplier_completed_payouts:
+                        avg_payout_days = sum(
+                            (p.paid_at - p.created_at).days for p in supplier_completed_payouts
+                        ) / len(supplier_completed_payouts)
+                    else:
+                        avg_payout_days = 0
+                    
+                    supplier_performance.append({
+                        'name': supplier_name,
+                        'revenue': data['revenue'],
+                        'earnings': data['earnings'],
+                        'orders': data['orders'],
+                        'paid_out': supplier_payouts_made,
+                        'pending_payout': pending_payout,
+                        'avg_payout_days': round(avg_payout_days, 1)
+                    })
+            
+            supplier_performance = sorted(supplier_performance, key=lambda x: x['revenue'], reverse=True)[:10]
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Supplier performance error: {str(e)}')
+            supplier_performance = []
         
         # 7. RETURN RATE ANALYSIS
         # By category
         return_by_category = {}
-        for ret in returns:
-            if ret.product_id:
-                product = Product.query.get(ret.product_id)
-                if product and product.category:
-                    cat_name = product.category.name
-                    if cat_name not in return_by_category:
-                        return_by_category[cat_name] = {'count': 0, 'amount': 0}
-                    return_by_category[cat_name]['count'] += 1
-                    return_by_category[cat_name]['amount'] += float(ret.customer_refund or ret.refund_amount or 0)
+        return_by_supplier = {}
+        return_by_policy = {}
+        
+        try:
+            for ret in returns:
+                if ret.product_id:
+                    product = Product.query.get(ret.product_id)
+                    if product and product.category:
+                        cat_name = product.category.name
+                        if cat_name not in return_by_category:
+                            return_by_category[cat_name] = {'count': 0, 'amount': 0}
+                        return_by_category[cat_name]['count'] += 1
+                        return_by_category[cat_name]['amount'] += float(ret.customer_refund or ret.refund_amount or 0)
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Return by category error: {str(e)}')
         
         # By supplier
-        return_by_supplier = {}
-        for ret in returns:
-            if ret.order_item_id:
-                from app.models.order import OrderItem
-                item = OrderItem.query.get(ret.order_item_id)
-                if item and item.supplier_id:
-                    supplier = SupplierProfile.query.get(item.supplier_id)
-                    if supplier:
-                        sup_name = supplier.business_name
-                        if sup_name not in return_by_supplier:
-                            return_by_supplier[sup_name] = {'count': 0, 'amount': 0}
-                        return_by_supplier[sup_name]['count'] += 1
-                        return_by_supplier[sup_name]['amount'] += float(ret.customer_refund or ret.refund_amount or 0)
+        try:
+            for ret in returns:
+                if ret.order_item_id:
+                    from app.models.order import OrderItem
+                    item = OrderItem.query.get(ret.order_item_id)
+                    if item and item.supplier_id:
+                        supplier = SupplierProfile.query.get(item.supplier_id)
+                        if supplier:
+                            sup_name = supplier.business_name
+                            if sup_name not in return_by_supplier:
+                                return_by_supplier[sup_name] = {'count': 0, 'amount': 0}
+                            return_by_supplier[sup_name]['count'] += 1
+                            return_by_supplier[sup_name]['amount'] += float(ret.customer_refund or ret.refund_amount or 0)
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Return by supplier error: {str(e)}')
         
         # By policy
-        return_by_policy = {}
-        for ret in returns:
-            policy = ret.refund_policy or 'unknown'
-            if policy not in return_by_policy:
-                return_by_policy[policy] = {'count': 0, 'platform_cost': 0, 'supplier_cost': 0}
-            return_by_policy[policy]['count'] += 1
-            return_by_policy[policy]['platform_cost'] += float(ret.platform_deduction or 0)
-            return_by_policy[policy]['supplier_cost'] += float(ret.supplier_deduction or 0)
+        try:
+            for ret in returns:
+                policy = ret.refund_policy or 'unknown'
+                if policy not in return_by_policy:
+                    return_by_policy[policy] = {'count': 0, 'platform_cost': 0, 'supplier_cost': 0}
+                return_by_policy[policy]['count'] += 1
+                return_by_policy[policy]['platform_cost'] += float(ret.platform_deduction or 0)
+                return_by_policy[policy]['supplier_cost'] += float(ret.supplier_deduction or 0)
+        except Exception as e:
+            db.session.rollback()
+            current_app.logger.error(f'Return by policy error: {str(e)}')
         
         return success_response(data={
             # Revenue Metrics
