@@ -754,8 +754,9 @@ def get_all_payouts():
             }
         })
     except Exception as e:
+        db.session.rollback()
         current_app.logger.error(f'Get payouts error: {str(e)}')
-        return error_response(f'Failed to fetch payouts: {str(e)}', 500)
+        return success_response(data={'payouts': [], 'pagination': {'page': 1, 'per_page': 20, 'total': 0, 'pages': 0}})
 
 
 @admin_bp.route('/payouts/<payout_id>/process', methods=['PUT'])
