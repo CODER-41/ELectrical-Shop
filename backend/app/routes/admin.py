@@ -1982,6 +1982,7 @@ def get_financial_report():
             supplier_paid_refunds = sum(float(r.supplier_deduction or 0) for r in returns)
             refund_count = len(returns)
         except Exception as e:
+            db.session.rollback()
             current_app.logger.error(f'Returns query error: {str(e)}')
             returns = []
             total_refunds_to_customers = 0
