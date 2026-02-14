@@ -1748,6 +1748,11 @@ def approve_zone_request(request_id):
     """Approve a zone request (admin only)."""
     try:
         user_id = get_jwt_identity()
+        
+        # Verify user exists
+        user = User.query.get(user_id)
+        if not user:
+            return error_response('User not found. Please log in again.', 401)
 
         zone_request = DeliveryZoneRequest.query.get(request_id)
 
@@ -1769,6 +1774,9 @@ def approve_zone_request(request_id):
         )
     except Exception as e:
         db.session.rollback()
+        import traceback
+        print(f"Approve zone request error: {str(e)}")
+        print(traceback.format_exc())
         return error_response(f'Failed to approve request: {str(e)}', 500)
 
 
