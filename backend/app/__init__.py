@@ -78,8 +78,40 @@ def create_app(config_name=None):
         # Fix missing columns
         try:
             from sqlalchemy import text
+            # Returns table columns
             db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS return_number VARCHAR(50) UNIQUE"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS description TEXT"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS quantity INTEGER DEFAULT 1"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS images JSON"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS is_warranty_claim BOOLEAN DEFAULT FALSE"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS reviewed_by VARCHAR(36)"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMP"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS rejection_reason TEXT"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_policy VARCHAR(50) DEFAULT 'supplier_fault'"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_amount NUMERIC(12,2)"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_method VARCHAR(50)"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS restocking_fee NUMERIC(12,2) DEFAULT 0"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS supplier_deduction NUMERIC(12,2) DEFAULT 0"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS platform_deduction NUMERIC(12,2) DEFAULT 0"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS customer_refund NUMERIC(12,2)"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_processed_at TIMESTAMP"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS refund_reference VARCHAR(100)"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS refunded_at TIMESTAMP"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS admin_notes TEXT"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS supplier_acknowledged BOOLEAN DEFAULT FALSE"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS supplier_acknowledged_at TIMESTAMP"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS supplier_response TEXT"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS supplier_evidence JSON"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS supplier_action VARCHAR(20)"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS supplier_action_at TIMESTAMP"))
+            db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS supplier_dispute_reason TEXT"))
+            
+            # Supplier payouts table
             db.session.execute(text("ALTER TABLE supplier_payouts ADD COLUMN IF NOT EXISTS payout_number VARCHAR(50) UNIQUE"))
+            db.session.execute(text("ALTER TABLE supplier_payouts ADD COLUMN IF NOT EXISTS net_amount NUMERIC(10,2)"))
+            db.session.execute(text("ALTER TABLE supplier_payouts ADD COLUMN IF NOT EXISTS reference VARCHAR(100)"))
+            
+            # Update null values
             db.session.execute(text("UPDATE returns SET return_number = 'RET-' || LPAD(id::text, 8, '0') WHERE return_number IS NULL"))
             db.session.execute(text("UPDATE supplier_payouts SET payout_number = 'PAY-' || LPAD(id::text, 8, '0') WHERE payout_number IS NULL"))
             db.session.commit()
