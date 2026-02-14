@@ -662,6 +662,8 @@ def generate_payouts():
         else:
             start_date = end_date - timedelta(days=30)
         
+        current_app.logger.info(f'Generating {period} payouts from {start_date} to {end_date}')
+        
         # Get all suppliers with delivered orders in period
         suppliers = db.session.query(SupplierProfile.id).distinct()\
             .join(OrderItem)\
@@ -672,6 +674,8 @@ def generate_payouts():
                 Order.created_at >= start_date,
                 Order.created_at <= end_date
             ).all()
+        
+        current_app.logger.info(f'Found {len(suppliers)} suppliers with delivered orders')
         
         payouts_created = 0
         
@@ -687,6 +691,8 @@ def generate_payouts():
                     Order.created_at <= end_date
                 ).scalar() or 0
             
+            current_app.logger.info(f'Supplier {supplier_id}: earnings = {gross}')
+            
             if float(gross) <= 0:
                 continue
             
@@ -694,22 +700,28 @@ def generate_payouts():
             payout = SupplierPayout(
                 supplier_id=supplier_id,
                 amount=gross,
+                net_amount=gross,
                 status='pending',
                 notes=f'{period.capitalize()} payout: {start_date.date()} to {end_date.date()}'
             )
+            payout.generate_payout_number()
             
             db.session.add(payout)
             payouts_created += 1
         
         db.session.commit()
         
+        current_app.logger.info(f'Created {payouts_created} payouts')
+        
         return success_response(
-            data={'payouts_created': payouts_created},
+            data={'payouts_created': payouts_created, 'period': period, 'start_date': str(start_date.date()), 'end_date': str(end_date.date())},
             message=f'Generated {payouts_created} payouts successfully'
         )
     except Exception as e:
         db.session.rollback()
         current_app.logger.error(f'Generate payouts error: {str(e)}')
+        import traceback
+        traceback.print_exc()
         return error_response(f'Failed to generate payouts: {str(e)}', 500)
 
 

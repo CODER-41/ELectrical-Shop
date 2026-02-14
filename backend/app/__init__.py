@@ -78,6 +78,14 @@ def create_app(config_name=None):
         # Fix missing columns
         try:
             from sqlalchemy import text
+            
+            # Add new ENUM values to returns.status if they don't exist
+            db.session.execute(text("ALTER TYPE returnstatus ADD VALUE IF NOT EXISTS 'approved'"))
+            db.session.execute(text("ALTER TYPE returnstatus ADD VALUE IF NOT EXISTS 'completed'"))
+            db.session.execute(text("ALTER TYPE returnstatus ADD VALUE IF NOT EXISTS 'refund_completed'"))
+            db.session.execute(text("ALTER TYPE returnstatus ADD VALUE IF NOT EXISTS 'supplier_review'"))
+            db.session.commit()
+            
             # Returns table columns
             db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS return_number VARCHAR(50) UNIQUE"))
             db.session.execute(text("ALTER TABLE returns ADD COLUMN IF NOT EXISTS description TEXT"))
