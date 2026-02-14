@@ -32,6 +32,18 @@ def _run_startup_fixes(db, Product):
     except Exception as e:
         db.session.rollback()
         print(f"[Startup Fix] Image update skipped: {e}")
+    
+    # Fix missing columns
+    try:
+        db.session.execute("ALTER TABLE returns ADD COLUMN IF NOT EXISTS return_number VARCHAR(50) UNIQUE")
+        db.session.execute("ALTER TABLE supplier_payouts ADD COLUMN IF NOT EXISTS payout_number VARCHAR(50) UNIQUE")
+        db.session.execute("UPDATE returns SET return_number = 'RET-' || LPAD(id::text, 8, '0') WHERE return_number IS NULL")
+        db.session.execute("UPDATE supplier_payouts SET payout_number = 'PAY-' || LPAD(id::text, 8, '0') WHERE payout_number IS NULL")
+        db.session.commit()
+        print("[Startup Fix] Database columns verified")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[Startup Fix] Column fix skipped: {e}")
 
 
 def create_app(config_name=None):
