@@ -16,12 +16,12 @@ with app.app_context():
     hisense = Product.query.filter_by(name='Hisense 58" 4K Smart TV').first()
     
     if not philips:
-        print("❌ Philips Air Fryer XXL not found")
+        print(" Philips Air Fryer XXL not found")
     else:
         print(f"Current Philips image: {philips.image_url}")
         
     if not hisense:
-        print("❌ Hisense Smart TV not found")
+        print(" Hisense Smart TV not found")
     else:
         print(f"Current Hisense image: {hisense.image_url}")
     
@@ -37,7 +37,7 @@ with app.app_context():
     # Upload to Cloudinary
     try:
         if philips and os.path.exists(philips_img):
-            print("\n📤 Uploading Philips Air Fryer image to Cloudinary...")
+            print("\n Uploading Philips Air Fryer image to Cloudinary...")
             result = cloudinary.uploader.upload(
                 philips_img,
                 folder="products",
@@ -46,10 +46,10 @@ with app.app_context():
                 resource_type="image"
             )
             philips.image_url = result['secure_url']
-            print(f"✅ Philips updated: {result['secure_url']}")
+            print(f" Philips updated: {result['secure_url']}")
         
         if hisense and os.path.exists(hisense_img):
-            print("\n📤 Uploading Hisense Smart TV image to Cloudinary...")
+            print("\n Uploading Hisense Smart TV image to Cloudinary...")
             result = cloudinary.uploader.upload(
                 hisense_img,
                 folder="products",
@@ -58,23 +58,23 @@ with app.app_context():
                 resource_type="image"
             )
             hisense.image_url = result['secure_url']
-            print(f"✅ Hisense updated: {result['secure_url']}")
+            print(f" Hisense updated: {result['secure_url']}")
         
         db.session.commit()
-        print("\n✅ Database updated successfully!")
+        print("\n Database updated successfully!")
         
     except Exception as e:
-        print(f"\n❌ Error: {e}")
+        print(f"\n Error: {e}")
         print("\nCloudinary might not be configured. Using direct URLs instead...")
         
         # Fallback: Use better placeholder URLs
         if philips:
             philips.image_url = 'https://images.unsplash.com/photo-1585659722983-3a675dabf23d?w=800&h=800&fit=crop'
-            print(f"✅ Philips updated with placeholder")
+            print(f" Philips updated with placeholder")
         
         if hisense:
             hisense.image_url = 'https://images.unsplash.com/photo-1593359677879-a4bb92f829d1?w=800&h=800&fit=crop'
-            print(f"✅ Hisense updated with placeholder")
+            print(f" Hisense updated with placeholder")
         
         db.session.commit()
-        print("✅ Database updated with placeholders!")
+        print(" Database updated with placeholders!")

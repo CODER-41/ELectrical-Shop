@@ -1,7 +1,7 @@
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
-from sqlalchemy import func, desc
+from sqlalchemy import func, desc, case
 from app.models import db
 from app.models.user import User, UserRole, SupplierProfile, PaymentPhoneChangeStatus
 from app.models.order import Order, OrderItem, OrderStatus, DeliveryZone, PaymentMethod, PaymentStatus
@@ -117,54 +117,69 @@ def get_dashboard():
 @jwt_required()
 @require_admin
 def get_analytics():
-    """Get detailed analytics and charts."""
+    """Get enterprise-level analytics with comprehensive metrics."""
     try:
-        # Revenue trend (last 30 days)
-        days = 30
+        # Daily revenue (last 30 days)
         end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=days)
+        start_date_30 = end_date - timedelta(days=30)
+        start_date_90 = end_date - timedelta(days=90)
+        start_date_12m = end_date - timedelta(days=365)
         
         daily_revenue = db.session.query(
             func.date(Order.created_at).label('date'),
             func.sum(Order.total).label('revenue'),
-            func.count(Order.id).label('orders')
-        ).filter(
-            Order.payment_status == PaymentStatus.COMPLETED,
-            Order.created_at >= start_date
-        ).group_by(func.date(Order.created_at))\
+            func.count(Order.id).label('orders'),
+            func.sum(OrderItem.quantity).label('items_sold')
+        ).join(OrderItem)\
+            .filter(
+                Order.payment_status == PaymentStatus.COMPLETED,
+                Order.created_at >= start_date_30
+            ).group_by(func.date(Order.created_at))\
             .order_by(func.date(Order.created_at)).all()
         
-        # Top selling products
-        try:
-            top_products = db.session.query(
-                Product.name,
-                Product.image_url,
-                func.sum(OrderItem.quantity).label('quantity_sold'),
-                func.sum(OrderItem.subtotal).label('revenue')
-            ).join(OrderItem)\
-                .join(Order)\
-                .filter(Order.payment_status == PaymentStatus.COMPLETED)\
-                .group_by(Product.id, Product.name, Product.image_url)\
-                .order_by(func.sum(OrderItem.quantity).desc())\
-                .limit(10).all()
-        except Exception:
-            top_products = []
+        # Monthly revenue (last 12 months)
+        monthly_revenue = db.session.query(
+            func.to_char(Order.created_at, 'YYYY-MM').label('month'),
+            func.sum(Order.total).label('revenue'),
+            func.sum(OrderItem.platform_commission).label('commission'),
+            func.count(Order.id).label('orders')
+        ).join(OrderItem)\
+            .filter(
+                Order.payment_status == PaymentStatus.COMPLETED,
+                Order.created_at >= start_date_12m
+            ).group_by(func.to_char(Order.created_at, 'YYYY-MM'))\
+            .order_by(func.to_char(Order.created_at, 'YYYY-MM')).all()
         
-        # Top suppliers
-        try:
-            top_suppliers = db.session.query(
-                SupplierProfile.business_name,
-                SupplierProfile.contact_person,
-                func.count(OrderItem.id).label('orders'),
-                func.sum(OrderItem.supplier_earnings).label('earnings')
-            ).join(OrderItem, OrderItem.supplier_id == SupplierProfile.id)\
-                .join(Order)\
-                .filter(Order.payment_status == PaymentStatus.COMPLETED)\
-                .group_by(SupplierProfile.id, SupplierProfile.business_name, SupplierProfile.contact_person)\
-                .order_by(func.sum(OrderItem.supplier_earnings).desc())\
-                .limit(10).all()
-        except Exception:
-            top_suppliers = []
+        # Top products
+        top_products = db.session.query(
+            Product.name,
+            Product.image_url,
+            func.sum(OrderItem.quantity).label('quantity_sold'),
+            func.sum(OrderItem.subtotal).label('revenue'),
+            func.count(func.distinct(Order.id)).label('orders')
+        ).select_from(Product)\
+            .join(OrderItem, OrderItem.product_id == Product.id)\
+            .join(Order, Order.id == OrderItem.order_id)\
+            .filter(Order.payment_status == PaymentStatus.COMPLETED)\
+            .group_by(Product.id, Product.name, Product.image_url)\
+            .order_by(func.sum(OrderItem.quantity).desc())\
+            .limit(20).all()
+        
+        # Top suppliers with performance metrics
+        top_suppliers = db.session.query(
+            SupplierProfile.id,
+            SupplierProfile.business_name,
+            func.count(func.distinct(Order.id)).label('orders'),
+            func.sum(OrderItem.supplier_earnings).label('earnings'),
+            func.sum(OrderItem.quantity).label('items_sold'),
+            func.avg(OrderItem.subtotal).label('avg_order_value')
+        ).select_from(SupplierProfile)\
+            .join(OrderItem, OrderItem.supplier_id == SupplierProfile.id)\
+            .join(Order, Order.id == OrderItem.order_id)\
+            .filter(Order.payment_status == PaymentStatus.COMPLETED)\
+            .group_by(SupplierProfile.id, SupplierProfile.business_name)\
+            .order_by(func.sum(OrderItem.supplier_earnings).desc())\
+            .limit(20).all()
         
         # Order status distribution
         order_status = db.session.query(
@@ -172,7 +187,7 @@ def get_analytics():
             func.count(Order.id).label('count')
         ).group_by(Order.status).all()
         
-        # Payment method distribution
+        # Payment methods
         payment_methods = db.session.query(
             Order.payment_method,
             func.count(Order.id).label('count'),
@@ -180,51 +195,185 @@ def get_analytics():
         ).filter(Order.payment_status == PaymentStatus.COMPLETED)\
             .group_by(Order.payment_method).all()
         
+        # Category performance
+        category_performance = db.session.query(
+            Category.name,
+            func.sum(OrderItem.subtotal).label('revenue'),
+            func.sum(OrderItem.quantity).label('quantity'),
+            func.count(func.distinct(Order.id)).label('orders')
+        ).select_from(Category)\
+            .join(Product, Product.category_id == Category.id)\
+            .join(OrderItem, OrderItem.product_id == Product.id)\
+            .join(Order, Order.id == OrderItem.order_id)\
+            .filter(Order.payment_status == PaymentStatus.COMPLETED)\
+            .group_by(Category.id, Category.name)\
+            .order_by(func.sum(OrderItem.subtotal).desc()).all()
+        
+        # User growth (last 12 months)
+        user_growth = db.session.query(
+            func.to_char(User.created_at, 'YYYY-MM').label('month'),
+            func.sum(case((User.role == UserRole.CUSTOMER, 1), else_=0)).label('customers'),
+            func.sum(case((User.role == UserRole.SUPPLIER, 1), else_=0)).label('suppliers'),
+            func.sum(case((User.role == UserRole.DELIVERY_AGENT, 1), else_=0)).label('delivery_agents')
+        ).filter(User.created_at >= start_date_12m)\
+            .group_by(func.to_char(User.created_at, 'YYYY-MM'))\
+            .order_by(func.to_char(User.created_at, 'YYYY-MM')).all()
+        
+        # Customer metrics
+        total_customers = User.query.filter_by(role=UserRole.CUSTOMER).count()
+        customers_with_orders = db.session.query(func.count(func.distinct(Order.customer_id)))\
+            .filter(Order.payment_status == PaymentStatus.COMPLETED).scalar() or 0
+        repeat_customers = db.session.query(func.count(func.distinct(Order.customer_id)))\
+            .filter(Order.payment_status == PaymentStatus.COMPLETED)\
+            .group_by(Order.customer_id)\
+            .having(func.count(Order.id) > 1).count()
+        
+        # AOV trend (last 30 days)
+        aov_trend = db.session.query(
+            func.date(Order.created_at).label('date'),
+            func.avg(Order.total).label('aov')
+        ).filter(
+            Order.payment_status == PaymentStatus.COMPLETED,
+            Order.created_at >= start_date_30
+        ).group_by(func.date(Order.created_at))\
+            .order_by(func.date(Order.created_at)).all()
+        
+        # Peak hours (last 90 days)
+        peak_hours = db.session.query(
+            func.extract('hour', Order.created_at).label('hour'),
+            func.count(Order.id).label('orders'),
+            func.sum(Order.total).label('revenue')
+        ).filter(
+            Order.payment_status == PaymentStatus.COMPLETED,
+            Order.created_at >= start_date_90
+        ).group_by(func.extract('hour', Order.created_at))\
+            .order_by(func.extract('hour', Order.created_at)).all()
+        
+        # Growth metrics (MoM, YoY)
+        this_month_start = end_date.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_month_start = (this_month_start - timedelta(days=1)).replace(day=1)
+        this_year_start = end_date.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_year_start = this_year_start.replace(year=this_year_start.year - 1)
+        
+        this_month_revenue = db.session.query(func.sum(Order.total))\
+            .filter(
+                Order.payment_status == PaymentStatus.COMPLETED,
+                Order.created_at >= this_month_start
+            ).scalar() or 0
+        
+        last_month_revenue = db.session.query(func.sum(Order.total))\
+            .filter(
+                Order.payment_status == PaymentStatus.COMPLETED,
+                Order.created_at >= last_month_start,
+                Order.created_at < this_month_start
+            ).scalar() or 0
+        
+        this_year_revenue = db.session.query(func.sum(Order.total))\
+            .filter(
+                Order.payment_status == PaymentStatus.COMPLETED,
+                Order.created_at >= this_year_start
+            ).scalar() or 0
+        
+        last_year_revenue = db.session.query(func.sum(Order.total))\
+            .filter(
+                Order.payment_status == PaymentStatus.COMPLETED,
+                Order.created_at >= last_year_start,
+                Order.created_at < this_year_start
+            ).scalar() or 0
+        
+        mom_growth = ((float(this_month_revenue) - float(last_month_revenue)) / float(last_month_revenue) * 100) if last_month_revenue > 0 else 0
+        yoy_growth = ((float(this_year_revenue) - float(last_year_revenue)) / float(last_year_revenue) * 100) if last_year_revenue > 0 else 0
+        
+        # Platform commission metrics
+        total_commission = db.session.query(func.sum(OrderItem.platform_commission))\
+            .join(Order)\
+            .filter(Order.payment_status == PaymentStatus.COMPLETED).scalar() or 0
+        
+        total_revenue = db.session.query(func.sum(Order.total))\
+            .filter(Order.payment_status == PaymentStatus.COMPLETED).scalar() or 0
+        
+        # Return analysis
+        total_returns = Return.query.count()
+        return_rate = (total_returns / Order.query.filter_by(payment_status=PaymentStatus.COMPLETED).count() * 100) if Order.query.filter_by(payment_status=PaymentStatus.COMPLETED).count() > 0 else 0
+        
+        return_by_reason = db.session.query(
+            Return.reason,
+            func.count(Return.id).label('count')
+        ).group_by(Return.reason).all()
+        
+        # Delivery metrics
+        total_delivery_agents = User.query.filter_by(role=UserRole.DELIVERY_AGENT).count()
+        active_delivery_agents = db.session.query(func.count(func.distinct(Order.assigned_delivery_agent)))\
+            .filter(
+                Order.status == OrderStatus.DELIVERED,
+                Order.created_at >= start_date_30
+            ).scalar() or 0
+        
+        avg_delivery_time = db.session.query(
+            func.avg(func.extract('epoch', Order.updated_at - Order.created_at) / 86400)
+        ).filter(
+            Order.status == OrderStatus.DELIVERED,
+            Order.created_at >= start_date_30
+        ).scalar() or 0
+        
+        # Geographic distribution (by delivery zone)
+        geographic_revenue = db.session.query(
+            DeliveryZone.name,
+            func.count(Order.id).label('orders'),
+            func.sum(Order.total).label('revenue')
+        ).select_from(DeliveryZone)\
+            .join(Order, Order.delivery_zone == DeliveryZone.name)\
+            .filter(Order.payment_status == PaymentStatus.COMPLETED)\
+            .group_by(DeliveryZone.id, DeliveryZone.name)\
+            .order_by(func.sum(Order.total).desc()).all()
+        
         return success_response(data={
-            'daily_revenue': [
-                {
-                    'date': str(day[0]),
-                    'revenue': float(day[1]) if day[1] else 0,
-                    'orders': day[2]
-                }
-                for day in daily_revenue
-            ],
-            'top_products': [
-                {
-                    'name': p[0],
-                    'image': p[1],
-                    'quantity_sold': p[2],
-                    'revenue': float(p[3])
-                }
-                for p in top_products
-            ],
-            'top_suppliers': [
-                {
-                    'business_name': s[0],
-                    'contact_person': s[1],
-                    'orders': s[2],
-                    'earnings': float(s[3])
-                }
-                for s in top_suppliers
-            ],
-            'order_status': [
-                {
-                    'status': s[0].value,
-                    'count': s[1]
-                }
-                for s in order_status
-            ],
-            'payment_methods': [
-                {
-                    'method': pm[0].value,
-                    'count': pm[1],
-                    'revenue': float(pm[2])
-                }
-                for pm in payment_methods
-            ]
+            'daily_revenue': [{'date': str(d[0]), 'revenue': float(d[1] or 0), 'orders': d[2], 'items_sold': d[3]} for d in daily_revenue],
+            'monthly_revenue': [{'month': m[0], 'revenue': float(m[1] or 0), 'commission': float(m[2] or 0), 'orders': m[3]} for m in monthly_revenue],
+            'top_products': [{'name': p[0], 'image': p[1], 'quantity_sold': p[2], 'revenue': float(p[3]), 'orders': p[4]} for p in top_products],
+            'top_suppliers': [{'id': s[0], 'business_name': s[1], 'orders': s[2], 'earnings': float(s[3]), 'items_sold': s[4], 'avg_order_value': float(s[5] or 0)} for s in top_suppliers],
+            'order_status': [{'status': s[0].value, 'count': s[1]} for s in order_status],
+            'payment_methods': [{'method': pm[0].value, 'count': pm[1], 'revenue': float(pm[2])} for pm in payment_methods],
+            'category_performance': [{'name': c[0], 'revenue': float(c[1]), 'quantity': c[2], 'orders': c[3]} for c in category_performance],
+            'user_growth': [{'month': u[0], 'customers': u[1], 'suppliers': u[2], 'delivery_agents': u[3]} for u in user_growth],
+            'customer_metrics': {
+                'total_customers': total_customers,
+                'customers_with_orders': customers_with_orders,
+                'repeat_customers': repeat_customers,
+                'repeat_rate': (repeat_customers / customers_with_orders * 100) if customers_with_orders > 0 else 0,
+                'conversion_rate': (customers_with_orders / total_customers * 100) if total_customers > 0 else 0
+            },
+            'aov_trend': [{'date': str(a[0]), 'aov': float(a[1] or 0)} for a in aov_trend],
+            'peak_hours': [{'hour': int(h[0]), 'orders': h[1], 'revenue': float(h[2])} for h in peak_hours],
+            'growth_metrics': {
+                'mom_growth': round(mom_growth, 2),
+                'yoy_growth': round(yoy_growth, 2),
+                'this_month': float(this_month_revenue),
+                'last_month': float(last_month_revenue),
+                'this_year': float(this_year_revenue),
+                'last_year': float(last_year_revenue)
+            },
+            'platform_metrics': {
+                'total_commission': float(total_commission),
+                'total_revenue': float(total_revenue),
+                'commission_rate': (float(total_commission) / float(total_revenue) * 100) if total_revenue > 0 else 0
+            },
+            'return_analysis': {
+                'total_returns': total_returns,
+                'return_rate': round(return_rate, 2),
+                'by_reason': [{'reason': r[0], 'count': r[1]} for r in return_by_reason]
+            },
+            'delivery_metrics': {
+                'total_agents': total_delivery_agents,
+                'active_agents': active_delivery_agents,
+                'avg_delivery_days': round(float(avg_delivery_time), 1)
+            },
+            'geographic_revenue': [{'zone': g[0], 'orders': g[1], 'revenue': float(g[2])} for g in geographic_revenue]
         })
     except Exception as e:
         current_app.logger.error(f'Analytics error: {str(e)}')
+        import traceback
+        traceback.print_exc()
         return error_response(f'Failed to fetch analytics: {str(e)}', 500)
 
 
@@ -270,6 +419,9 @@ def get_users():
 def update_user_status(user_id):
     """Approve, suspend, or activate user."""
     try:
+        from app.services.notification_service import notification_service
+        
+        admin_id = get_jwt_identity()
         user = User.query.get(user_id)
         if not user:
             return error_response('User not found', 404)
@@ -280,12 +432,62 @@ def update_user_status(user_id):
         if action == 'approve' and user.role == UserRole.SUPPLIER:
             user.supplier_profile.is_approved = True
             message = 'Supplier approved successfully'
+            
+            # Audit log
+            notification_service.create_audit_log(
+                action='supplier_approved',
+                entity_type='supplier',
+                entity_id=user.supplier_profile.id,
+                user_id=admin_id,
+                description=f"Supplier '{user.supplier_profile.business_name}' approved"
+            )
+            
+            # Notify supplier
+            notification_service.create_notification(
+                user_id=user.id,
+                title='Supplier Account Approved',
+                message='Congratulations! Your supplier account has been approved. You can now start listing products.',
+                notification_type='success',
+                link='/supplier/dashboard'
+            )
+            
         elif action == 'suspend':
             user.is_active = False
             message = 'User suspended successfully'
+            
+            notification_service.create_audit_log(
+                action='user_suspended',
+                entity_type='user',
+                entity_id=user.id,
+                user_id=admin_id,
+                description=f"User '{user.email}' suspended"
+            )
+            
+            notification_service.create_notification(
+                user_id=user.id,
+                title='Account Suspended',
+                message='Your account has been suspended. Please contact support for more information.',
+                notification_type='warning'
+            )
+            
         elif action == 'activate':
             user.is_active = True
             message = 'User activated successfully'
+            
+            notification_service.create_audit_log(
+                action='user_activated',
+                entity_type='user',
+                entity_id=user.id,
+                user_id=admin_id,
+                description=f"User '{user.email}' activated"
+            )
+            
+            notification_service.create_notification(
+                user_id=user.id,
+                title='Account Activated',
+                message='Your account has been activated. You can now access the platform.',
+                notification_type='success'
+            )
         else:
             return error_response('Invalid action', 400)
         
@@ -562,6 +764,9 @@ def get_all_payouts():
 def process_payout(payout_id):
     """Mark payout as processed (manual processing)."""
     try:
+        from app.services.notification_service import notification_service
+        
+        admin_id = get_jwt_identity()
         payout = SupplierPayout.query.get(payout_id)
         if not payout:
             return error_response('Payout not found', 404)
@@ -576,6 +781,25 @@ def process_payout(payout_id):
             payout.notes = data['notes']
 
         db.session.commit()
+        
+        # Audit log
+        notification_service.create_audit_log(
+            action='payout_processed',
+            entity_type='payout',
+            entity_id=payout.id,
+            user_id=admin_id,
+            description=f"Payout {payout.payout_number} processed - Amount: KES {payout.amount}"
+        )
+        
+        # Notify supplier
+        if payout.supplier:
+            notification_service.create_notification(
+                user_id=payout.supplier.user_id,
+                title='Payout Processed',
+                message=f'Your payout of KES {payout.amount:,.2f} has been processed successfully.',
+                notification_type='success',
+                link='/supplier/payouts'
+            )
 
         return success_response(
             data=payout.to_dict(),
@@ -1087,6 +1311,9 @@ def get_all_returns():
 def approve_return(return_id):
     """Approve return and calculate refund based on policy."""
     try:
+        from app.services.notification_service import notification_service
+        
+        admin_id = get_jwt_identity()
         return_request = Return.query.get(return_id)
         if not return_request:
             return error_response('Return not found', 404)
@@ -1105,6 +1332,35 @@ def approve_return(return_id):
         
         db.session.commit()
         
+        # Audit log
+        notification_service.create_audit_log(
+            action='return_approved',
+            entity_type='return',
+            entity_id=return_request.id,
+            user_id=admin_id,
+            description=f"Return {return_request.return_number} approved with {policy} policy"
+        )
+        
+        # Notify customer
+        if return_request.customer_id:
+            notification_service.create_notification(
+                user_id=return_request.customer.user_id,
+                title='Return Approved',
+                message=f'Your return request #{return_request.return_number} has been approved. Refund will be processed shortly.',
+                notification_type='success',
+                link=f'/returns/{return_request.id}'
+            )
+        
+        # Notify supplier
+        if return_request.supplier_id:
+            notification_service.create_notification(
+                user_id=return_request.supplier.user_id,
+                title='Return Approved',
+                message=f'Return request #{return_request.return_number} has been approved by admin.',
+                notification_type='info',
+                link=f'/supplier/returns/{return_request.id}'
+            )
+        
         return success_response(
             data=return_request.to_dict(),
             message='Return approved successfully'
@@ -1120,6 +1376,9 @@ def approve_return(return_id):
 def reject_return(return_id):
     """Reject return request."""
     try:
+        from app.services.notification_service import notification_service
+        
+        admin_id = get_jwt_identity()
         return_request = Return.query.get(return_id)
         if not return_request:
             return error_response('Return not found', 404)
@@ -1134,6 +1393,25 @@ def reject_return(return_id):
         return_request.admin_notes = admin_notes
         
         db.session.commit()
+        
+        # Audit log
+        notification_service.create_audit_log(
+            action='return_rejected',
+            entity_type='return',
+            entity_id=return_request.id,
+            user_id=admin_id,
+            description=f"Return {return_request.return_number} rejected"
+        )
+        
+        # Notify customer
+        if return_request.customer_id:
+            notification_service.create_notification(
+                user_id=return_request.customer.user_id,
+                title='Return Rejected',
+                message=f'Your return request #{return_request.return_number} has been rejected. Reason: {admin_notes}',
+                notification_type='error',
+                link=f'/returns/{return_request.id}'
+            )
         
         return success_response(
             data=return_request.to_dict(),
@@ -1157,20 +1435,123 @@ def process_return_refund(return_id):
         if return_request.status != 'approved':
             return error_response('Return must be approved first', 400)
 
-        data = request.get_json() or {}
-        refund_reference = data.get('refund_reference')
+        # Get order to determine payment method
+        order = Order.query.get(return_request.order_id)
+        if not order:
+            return error_response('Order not found', 404)
 
-        # Mark as completed
-        return_request.status = 'refund_completed'
-        return_request.refund_processed_at = datetime.utcnow()
-        return_request.refund_reference = refund_reference
-        
-        db.session.commit()
-        
-        return success_response(
-            data=return_request.to_dict(),
-            message='Refund processed successfully'
-        )
+        data = request.get_json() or {}
+        refund_method = data.get('refund_method', order.payment_method.value)
+        refund_amount = float(return_request.customer_refund or return_request.refund_amount)
+
+        refund_reference = None
+        refund_success = False
+
+        # Process refund based on payment method
+        if refund_method == 'mpesa' or (refund_method == 'cash' and data.get('refund_via_mpesa')):
+            # M-Pesa refund via B2C
+            from app.services.mpesa_service import mpesa_service
+            from app.models.user import CustomerProfile
+            
+            # Get customer from return or order
+            customer = None
+            if return_request.customer_id:
+                customer = CustomerProfile.query.get(return_request.customer_id)
+            elif order.customer_id:
+                customer = CustomerProfile.query.get(order.customer_id)
+            
+            if not customer:
+                return error_response('Customer not found. Please provide phone number manually.', 400)
+            
+            # Get customer phone number
+            phone = data.get('phone_number')
+            if not phone and customer:
+                phone = customer.phone_number
+            
+            if not phone:
+                return error_response('Phone number required for M-Pesa refund', 400)
+            
+            # Validate phone
+            is_valid, validated_phone = mpesa_service.validate_phone_number(phone)
+            if not is_valid:
+                return error_response(f'Invalid phone number: {validated_phone}', 400)
+            
+            # Initiate B2C refund
+            response = mpesa_service.b2c_payment(
+                phone_number=validated_phone,
+                amount=refund_amount,
+                remarks=f'Refund for return {return_request.return_number or return_request.id}',
+                occasion='Product Return Refund'
+            )
+            
+            if response.get('success'):
+                refund_reference = response.get('conversation_id')
+                refund_success = True
+            else:
+                return error_response(f"M-Pesa refund failed: {response.get('error')}", 400)
+                
+        elif refund_method == 'card':
+            # Paystack card refund
+            import os
+            import requests
+            
+            paystack_key = os.getenv('PAYSTACK_SECRET_KEY')
+            if not paystack_key:
+                return error_response('Paystack not configured', 500)
+            
+            if not order.payment_reference:
+                return error_response('No payment reference found for card refund', 400)
+            
+            # Initiate Paystack refund
+            headers = {
+                'Authorization': f'Bearer {paystack_key}',
+                'Content-Type': 'application/json'
+            }
+            
+            payload = {
+                'transaction': order.payment_reference,
+                'amount': int(refund_amount * 100)  # Convert to kobo
+            }
+            
+            response = requests.post(
+                'https://api.paystack.co/refund',
+                json=payload,
+                headers=headers
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                if result.get('status'):
+                    refund_reference = result['data'].get('id')
+                    refund_success = True
+                else:
+                    return error_response(f"Paystack refund failed: {result.get('message')}", 400)
+            else:
+                return error_response('Paystack refund request failed', 400)
+                
+        elif refund_method == 'cash':
+            # Manual cash refund - just mark as completed
+            refund_reference = data.get('refund_reference', f'CASH-{datetime.utcnow().strftime("%Y%m%d%H%M%S")}')
+            refund_success = True
+        else:
+            return error_response(f'Unsupported refund method: {refund_method}', 400)
+
+        if refund_success:
+            # Mark as completed
+            return_request.status = 'refund_completed'
+            return_request.refund_processed_at = datetime.utcnow()
+            return_request.refund_reference = refund_reference
+            return_request.refund_method = refund_method
+            
+            db.session.commit()
+            
+            return success_response(
+                data=return_request.to_dict(),
+                message=f'Refund of KES {refund_amount:,.2f} processed successfully via {refund_method}'
+            )
+        else:
+            return error_response('Refund processing failed', 500)
+            
     except Exception as e:
         db.session.rollback()
         return error_response(f'Failed to process refund: {str(e)}', 500)
@@ -1303,12 +1684,43 @@ def get_all_products():
 def toggle_product_status(product_id):
     """Activate or deactivate a product."""
     try:
+        from app.services.notification_service import notification_service
+        
+        user_id = get_jwt_identity()
         product = Product.query.get(product_id)
         if not product:
             return error_response('Product not found', 404)
         
+        old_status = product.is_active
         product.is_active = not product.is_active
         db.session.commit()
+        
+        # Create audit log
+        notification_service.create_audit_log(
+            action='product_activated' if product.is_active else 'product_deactivated',
+            entity_type='product',
+            entity_id=product.id,
+            user_id=user_id,
+            old_values={'is_active': old_status},
+            new_values={'is_active': product.is_active},
+            description=f"Product '{product.name}' {'activated' if product.is_active else 'deactivated'}"
+        )
+        
+        # Notify supplier
+        if product.supplier:
+            notification_service.create_notification(
+                user_id=product.supplier.user_id,
+                title=f"Product {'Activated' if product.is_active else 'Deactivated'}",
+                message=f"Your product '{product.name}' has been {'activated' if product.is_active else 'deactivated'} by admin.",
+                notification_type='info',
+                link=f'/supplier/products/{product.id}'
+            )
+        
+        # Clear product cache
+        cache_keys = current_app.cache.cache._cache.keys()
+        for key in list(cache_keys):
+            if key.startswith('products_'):
+                current_app.cache.delete(key)
         
         return success_response(
             data=product.to_dict(),
@@ -1340,6 +1752,12 @@ def bulk_product_action():
         
         db.session.commit()
         
+        # Clear product cache
+        cache_keys = current_app.cache.cache._cache.keys()
+        for key in list(cache_keys):
+            if key.startswith('products_'):
+                current_app.cache.delete(key)
+        
         return success_response(
             message=f'{len(products)} products {action}d successfully'
         )
@@ -1358,21 +1776,19 @@ def bulk_product_action():
 def get_settings():
     """Get system settings."""
     try:
-        # Return current settings (you can store these in a settings table)
-        settings = {
-            'platform_commission_rate': 0.25,
-            'tax_rate': 0.16,
-            'return_window_days': 14,
-            'warranty_default_months': 12,
-            'low_stock_threshold': 10,
-            'maintenance_mode': False,
-            'allow_cod': True,
-            'allow_mpesa': True,
-            'min_order_amount': 100,
-            'max_order_amount': 1000000,
-        }
+        from app.models.settings import SystemSettings
+        
+        # Get all settings from database
+        settings = SystemSettings.get_all_settings()
+        
+        # If no settings exist, initialize defaults
+        if not settings:
+            SystemSettings.initialize_defaults()
+            settings = SystemSettings.get_all_settings()
+        
         return success_response(data=settings)
     except Exception as e:
+        current_app.logger.error(f'Get settings error: {str(e)}')
         return error_response(f'Failed to fetch settings: {str(e)}', 500)
 
 
@@ -1382,14 +1798,55 @@ def get_settings():
 def update_settings():
     """Update system settings."""
     try:
+        from app.models.settings import SystemSettings
+        from app.services.notification_service import notification_service
+        
+        user_id = get_jwt_identity()
         data = request.get_json()
-        # Store settings in database or config file
-        # For now, just return success
+        
+        # Define value types for each setting
+        setting_types = {
+            'platform_commission_rate': 'float',
+            'tax_rate': 'float',
+            'return_window_days': 'int',
+            'warranty_default_months': 'int',
+            'low_stock_threshold': 'int',
+            'maintenance_mode': 'bool',
+            'allow_cod': 'bool',
+            'allow_mpesa': 'bool',
+            'min_order_amount': 'float',
+            'max_order_amount': 'float',
+        }
+        
+        # Update each setting
+        for key, value in data.items():
+            SystemSettings.set_setting(
+                key=key,
+                value=value,
+                user_id=user_id
+            )
+        
+        db.session.commit()
+        
+        # Create audit log
+        notification_service.create_audit_log(
+            action='settings_updated',
+            entity_type='system',
+            entity_id='settings',
+            user_id=user_id,
+            description=f"System settings updated: {', '.join(data.keys())}"
+        )
+        
+        # Get updated settings
+        updated_settings = SystemSettings.get_all_settings()
+        
         return success_response(
-            data=data,
+            data=updated_settings,
             message='Settings updated successfully'
         )
     except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f'Update settings error: {str(e)}')
         return error_response(f'Failed to update settings: {str(e)}', 500)
 
 
@@ -1444,11 +1901,12 @@ def get_audit_logs():
 @jwt_required(optional=True)
 @require_admin
 def get_financial_report():
-    """Get financial report."""
+    """Get comprehensive financial report with enterprise-level metrics."""
     try:
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         
+        # Base query for completed orders
         query = Order.query.filter(Order.payment_status == PaymentStatus.COMPLETED)
         
         if start_date:
@@ -1459,17 +1917,55 @@ def get_financial_report():
         
         orders = query.all()
         
-        total_revenue = sum(float(o.total) for o in orders)
+        # Initialize metrics
+        total_revenue = 0
+        total_subtotal = 0
+        total_delivery_fees = 0
         total_commission = 0
         total_supplier_earnings = 0
+        payment_method_breakdown = {'mpesa': 0, 'card': 0, 'cash': 0}
+        category_revenue = {}
+        supplier_revenue = {}
         
+        # Calculate order metrics
         for order in orders:
-            items = order.items.all()
-            for item in items:
+            total_revenue += float(order.total)
+            total_subtotal += float(order.subtotal)
+            total_delivery_fees += float(order.delivery_fee)
+            
+            # Payment method breakdown
+            method = order.payment_method.value if hasattr(order.payment_method, 'value') else str(order.payment_method)
+            payment_method_breakdown[method] = payment_method_breakdown.get(method, 0) + float(order.total)
+            
+            # Process order items
+            for item in order.items:
                 total_commission += float(item.platform_commission)
                 total_supplier_earnings += float(item.supplier_earnings)
+                
+                # Category revenue
+                if item.product_id:
+                    product = Product.query.get(item.product_id)
+                    if product and product.category:
+                        cat_name = product.category.name
+                        category_revenue[cat_name] = category_revenue.get(cat_name, 0) + float(item.subtotal)
+                
+                # Supplier revenue
+                if item.supplier_id:
+                    from app.models.user import SupplierProfile
+                    supplier = SupplierProfile.query.get(item.supplier_id)
+                    if supplier:
+                        supplier_name = supplier.business_name
+                        if supplier_name not in supplier_revenue:
+                            supplier_revenue[supplier_name] = {
+                                'revenue': 0,
+                                'earnings': 0,
+                                'orders': 0
+                            }
+                        supplier_revenue[supplier_name]['revenue'] += float(item.subtotal)
+                        supplier_revenue[supplier_name]['earnings'] += float(item.supplier_earnings)
+                        supplier_revenue[supplier_name]['orders'] += 1
         
-        # Calculate refunds from approved/completed returns
+        # Calculate refunds - separate by who pays
         returns_query = Return.query.filter(
             Return.status.in_(['approved', 'completed', 'refund_completed'])
         )
@@ -1480,19 +1976,316 @@ def get_financial_report():
             returns_query = returns_query.filter(Return.created_at <= end_dt)
         
         returns = returns_query.all()
-        total_refunds = sum(float(r.order.total) if r.order else 0 for r in returns)
+        total_refunds_to_customers = sum(float(r.customer_refund or r.refund_amount or 0) for r in returns)
+        platform_paid_refunds = sum(float(r.platform_deduction or 0) for r in returns)  # Only what platform paid
+        supplier_paid_refunds = sum(float(r.supplier_deduction or 0) for r in returns)  # What suppliers paid
+        refund_count = len(returns)
+        
+        # Calculate supplier payouts
+        payouts_query = SupplierPayout.query.filter_by(status='completed')
+        if start_date:
+            payouts_query = payouts_query.filter(SupplierPayout.paid_at >= datetime.fromisoformat(start_date))
+        if end_date:
+            end_dt = datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59)
+            payouts_query = payouts_query.filter(SupplierPayout.paid_at <= end_dt)
+        
+        payouts = payouts_query.all()
+        total_payouts = sum(float(p.amount) for p in payouts)
+        payout_count = len(payouts)
+        
+        # Calculate pending payouts
+        pending_payouts = SupplierPayout.query.filter_by(status='pending').all()
+        total_pending_payouts = sum(float(p.amount) for p in pending_payouts)
+        
+        # Calculate delivery agent earnings
+        delivery_query = Order.query.filter(
+            Order.status == OrderStatus.DELIVERED,
+            Order.assigned_delivery_agent.isnot(None)
+        )
+        if start_date:
+            delivery_query = delivery_query.filter(Order.created_at >= datetime.fromisoformat(start_date))
+        if end_date:
+            end_dt = datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59)
+            delivery_query = delivery_query.filter(Order.created_at <= end_dt)
+        
+        # Calculate delivery agent earnings (what we owe them)
+        delivered_orders = delivery_query.all()
+        total_delivery_fees_collected = sum(float(o.delivery_fee) for o in delivered_orders)
+        delivery_agent_share = sum(float(o.delivery_fee) * 0.7 for o in delivered_orders)  # 70% to agent
+        platform_delivery_earnings = sum(float(o.delivery_fee) * 0.3 for o in delivered_orders)  # 30% to platform
+        
+        # Calculate net metrics
+        net_revenue = total_revenue - total_refunds_to_customers
+        
+        # Platform's actual earnings breakdown:
+        # 1. Commission from products (25%)
+        # 2. Cut from delivery fees (30%)
+        # Total platform earnings before payouts
+        platform_gross_earnings = total_commission + platform_delivery_earnings
+        
+        # Platform net earnings after only the refunds IT paid
+        platform_net_earnings = platform_gross_earnings - platform_paid_refunds
+        
+        # Calculate margins and ratios
+        commission_rate = (total_commission / total_subtotal * 100) if total_subtotal > 0 else 0
+        refund_rate = (refund_count / len(orders) * 100) if orders else 0
+        avg_order_value = total_revenue / len(orders) if orders else 0
+        
+        # Top categories
+        top_categories = sorted(
+            [{'name': k, 'revenue': v} for k, v in category_revenue.items()],
+            key=lambda x: x['revenue'],
+            reverse=True
+        )[:10]
+        
+        # Top suppliers
+        top_suppliers = sorted(
+            [{'name': k, **v} for k, v in supplier_revenue.items()],
+            key=lambda x: x['revenue'],
+            reverse=True
+        )[:10]
+        
+        # ===== ADDITIONAL COMPREHENSIVE METRICS =====
+        
+        # 1. CASH FLOW ANALYSIS
+        outstanding_supplier_payouts = total_supplier_earnings - total_payouts
+        outstanding_delivery_payouts = delivery_agent_share - 0  # Assume no delivery payouts tracked yet
+        pending_orders_query = Order.query.filter(Order.payment_status == PaymentStatus.PENDING)
+        if start_date:
+            pending_orders_query = pending_orders_query.filter(Order.created_at >= datetime.fromisoformat(start_date))
+        if end_date:
+            pending_orders_query = pending_orders_query.filter(Order.created_at <= datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59))
+        expected_incoming = sum(float(o.total) for o in pending_orders_query.all())
+        
+        # 2. PROFIT MARGINS
+        gross_profit = platform_gross_earnings
+        gross_profit_margin = (gross_profit / total_revenue * 100) if total_revenue > 0 else 0
+        net_profit_margin = (platform_net_earnings / total_revenue * 100) if total_revenue > 0 else 0
+        profit_per_order = platform_net_earnings / len(orders) if orders else 0
+        
+        # 3. GROWTH METRICS (compare to previous period)
+        if start_date and end_date:
+            period_days = (datetime.fromisoformat(end_date) - datetime.fromisoformat(start_date)).days
+            prev_start = (datetime.fromisoformat(start_date) - timedelta(days=period_days)).isoformat()
+            prev_end = start_date
+            
+            prev_orders = Order.query.filter(
+                Order.payment_status == PaymentStatus.COMPLETED,
+                Order.created_at >= datetime.fromisoformat(prev_start),
+                Order.created_at < datetime.fromisoformat(prev_end)
+            ).all()
+            
+            prev_revenue = sum(float(o.total) for o in prev_orders)
+            revenue_growth = ((total_revenue - prev_revenue) / prev_revenue * 100) if prev_revenue > 0 else 0
+            order_growth = ((len(orders) - len(prev_orders)) / len(prev_orders) * 100) if prev_orders else 0
+            
+            # Customer acquisition (new customers in period)
+            new_customers = User.query.filter(
+                User.role == UserRole.CUSTOMER,
+                User.created_at >= datetime.fromisoformat(start_date),
+                User.created_at <= datetime.fromisoformat(end_date).replace(hour=23, minute=59, second=59)
+            ).count()
+            customer_acquisition_cost = (platform_gross_earnings / new_customers) if new_customers > 0 else 0
+        else:
+            revenue_growth = 0
+            order_growth = 0
+            new_customers = 0
+            customer_acquisition_cost = 0
+        
+        # 4. OPERATIONAL COSTS (estimated transaction fees)
+        # M-Pesa: ~1.5% fee, Paystack: ~2.9% + KES 100
+        mpesa_revenue = payment_method_breakdown.get('mpesa', 0)
+        card_revenue = payment_method_breakdown.get('card', 0)
+        mpesa_fees = mpesa_revenue * 0.015
+        paystack_fees = (card_revenue * 0.029) + (100 * len([o for o in orders if o.payment_method.value == 'card']))
+        total_transaction_fees = mpesa_fees + paystack_fees
+        
+        # 5. TAX INFORMATION (16% VAT in Kenya)
+        vat_rate = 0.16
+        vat_collected = total_revenue * (vat_rate / (1 + vat_rate))  # VAT inclusive
+        tax_liability = platform_net_earnings * 0.30  # Estimated 30% corporate tax
+        
+        # 6. SUPPLIER PERFORMANCE
+        supplier_performance = []
+        for supplier_name, data in supplier_revenue.items():
+            supplier_profile = SupplierProfile.query.filter_by(business_name=supplier_name).first()
+            if supplier_profile:
+                supplier_payouts_made = sum(float(p.amount) for p in payouts if p.supplier_id == supplier_profile.id)
+                pending_payout = data['earnings'] - supplier_payouts_made
+                
+                # Calculate average payout time
+                supplier_completed_payouts = [p for p in payouts if p.supplier_id == supplier_profile.id and p.paid_at]
+                if supplier_completed_payouts:
+                    avg_payout_days = sum(
+                        (p.paid_at - p.created_at).days for p in supplier_completed_payouts
+                    ) / len(supplier_completed_payouts)
+                else:
+                    avg_payout_days = 0
+                
+                supplier_performance.append({
+                    'name': supplier_name,
+                    'revenue': data['revenue'],
+                    'earnings': data['earnings'],
+                    'orders': data['orders'],
+                    'paid_out': supplier_payouts_made,
+                    'pending_payout': pending_payout,
+                    'avg_payout_days': round(avg_payout_days, 1)
+                })
+        
+        supplier_performance = sorted(supplier_performance, key=lambda x: x['revenue'], reverse=True)[:10]
+        
+        # 7. RETURN RATE ANALYSIS
+        # By category
+        return_by_category = {}
+        for ret in returns:
+            if ret.product_id:
+                product = Product.query.get(ret.product_id)
+                if product and product.category:
+                    cat_name = product.category.name
+                    if cat_name not in return_by_category:
+                        return_by_category[cat_name] = {'count': 0, 'amount': 0}
+                    return_by_category[cat_name]['count'] += 1
+                    return_by_category[cat_name]['amount'] += float(ret.customer_refund or ret.refund_amount or 0)
+        
+        # By supplier
+        return_by_supplier = {}
+        for ret in returns:
+            if ret.order_item_id:
+                from app.models.order import OrderItem
+                item = OrderItem.query.get(ret.order_item_id)
+                if item and item.supplier_id:
+                    supplier = SupplierProfile.query.get(item.supplier_id)
+                    if supplier:
+                        sup_name = supplier.business_name
+                        if sup_name not in return_by_supplier:
+                            return_by_supplier[sup_name] = {'count': 0, 'amount': 0}
+                        return_by_supplier[sup_name]['count'] += 1
+                        return_by_supplier[sup_name]['amount'] += float(ret.customer_refund or ret.refund_amount or 0)
+        
+        # By policy
+        return_by_policy = {}
+        for ret in returns:
+            policy = ret.refund_policy or 'unknown'
+            if policy not in return_by_policy:
+                return_by_policy[policy] = {'count': 0, 'platform_cost': 0, 'supplier_cost': 0}
+            return_by_policy[policy]['count'] += 1
+            return_by_policy[policy]['platform_cost'] += float(ret.platform_deduction or 0)
+            return_by_policy[policy]['supplier_cost'] += float(ret.supplier_deduction or 0)
         
         return success_response(data={
-            'total_revenue': total_revenue,
-            'total_commission': total_commission,
-            'total_supplier_earnings': total_supplier_earnings,
-            'total_refunds': total_refunds,
-            'net_revenue': total_revenue - total_refunds,
-            'order_count': len(orders),
-            'revenue_by_category': []
+            # Revenue Metrics
+            'revenue': {
+                'total_revenue': float(total_revenue),
+                'total_subtotal': float(total_subtotal),
+                'total_delivery_fees': float(total_delivery_fees),
+                'net_revenue': float(net_revenue),
+                'avg_order_value': float(avg_order_value)
+            },
+            
+            # Commission & Earnings
+            'earnings': {
+                'total_commission': float(total_commission),
+                'total_supplier_earnings': float(total_supplier_earnings),
+                'total_delivery_fees_collected': float(total_delivery_fees_collected),
+                'delivery_agent_share': float(delivery_agent_share),
+                'platform_delivery_earnings': float(platform_delivery_earnings),
+                'platform_gross_earnings': float(platform_gross_earnings),
+                'platform_net_earnings': float(platform_net_earnings),
+                'commission_rate': float(commission_rate)
+            },
+            
+            # Cash Flow Analysis
+            'cash_flow': {
+                'outstanding_supplier_payouts': float(outstanding_supplier_payouts),
+                'outstanding_delivery_payouts': float(outstanding_delivery_payouts),
+                'expected_incoming_revenue': float(expected_incoming),
+                'net_cash_position': float(platform_net_earnings - outstanding_supplier_payouts - outstanding_delivery_payouts)
+            },
+            
+            # Profit Margins
+            'profit_margins': {
+                'gross_profit': float(gross_profit),
+                'gross_profit_margin': float(gross_profit_margin),
+                'net_profit_margin': float(net_profit_margin),
+                'profit_per_order': float(profit_per_order)
+            },
+            
+            # Growth Metrics
+            'growth': {
+                'revenue_growth': float(revenue_growth),
+                'order_growth': float(order_growth),
+                'new_customers': new_customers,
+                'customer_acquisition_cost': float(customer_acquisition_cost)
+            },
+            
+            # Operational Costs
+            'operational_costs': {
+                'mpesa_fees': float(mpesa_fees),
+                'paystack_fees': float(paystack_fees),
+                'total_transaction_fees': float(total_transaction_fees),
+                'net_after_fees': float(platform_net_earnings - total_transaction_fees)
+            },
+            
+            # Tax Information
+            'tax': {
+                'vat_collected': float(vat_collected),
+                'vat_rate': float(vat_rate * 100),
+                'estimated_tax_liability': float(tax_liability),
+                'net_after_tax': float(platform_net_earnings - tax_liability)
+            },
+            
+            # Payouts
+            'payouts': {
+                'total_payouts': float(total_payouts),
+                'payout_count': payout_count,
+                'pending_payouts': float(total_pending_payouts),
+                'pending_count': len(pending_payouts)
+            },
+            
+            # Refunds
+            'refunds': {
+                'total_refunds_to_customers': float(total_refunds_to_customers),
+                'platform_paid_refunds': float(platform_paid_refunds),
+                'supplier_paid_refunds': float(supplier_paid_refunds),
+                'refund_count': refund_count,
+                'refund_rate': float(refund_rate)
+            },
+            
+            # Return Analysis
+            'return_analysis': {
+                'by_category': [{'category': k, **v} for k, v in return_by_category.items()],
+                'by_supplier': [{'supplier': k, **v} for k, v in return_by_supplier.items()],
+                'by_policy': [{'policy': k, **v} for k, v in return_by_policy.items()]
+            },
+            
+            # Order Metrics
+            'orders': {
+                'total_orders': len(orders),
+                'delivered_orders': len(delivered_orders)
+            },
+            
+            # Payment Methods
+            'payment_methods': [
+                {'method': k, 'amount': float(v)}
+                for k, v in payment_method_breakdown.items()
+                if v > 0
+            ],
+            
+            # Top Performers
+            'top_categories': top_categories,
+            'top_suppliers': top_suppliers,
+            'supplier_performance': supplier_performance,
+            
+            # Date Range
+            'period': {
+                'start_date': start_date,
+                'end_date': end_date
+            }
         })
     except Exception as e:
         current_app.logger.error(f'Financial report error: {str(e)}')
+        import traceback
+        traceback.print_exc()
         return error_response(f'Failed to generate report: {str(e)}', 500)
 
 

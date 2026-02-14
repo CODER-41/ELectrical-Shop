@@ -118,6 +118,43 @@ def create_app(config_name=None):
     def revoked_token_callback(jwt_header, jwt_payload):
         return {'error': 'Token has been revoked'}, 401
 
+    # Maintenance mode check for all routes
+    @app.before_request
+    def check_maintenance():
+        from flask import request
+        from app.utils.maintenance import check_maintenance_mode
+        from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
+        
+        # Skip for health check, admin routes, and login
+        if request.path in ['/api/health', '/'] or \
+           request.path.startswith('/api/admin') or \
+           request.path.startswith('/api/auth/login') or \
+           request.path.startswith('/api/auth/register') or \
+           request.path.startswith('/api/docs') or \
+           request.path.startswith('/api/swagger'):
+            return None
+        
+        # Check if maintenance mode is enabled
+        if check_maintenance_mode():
+            try:
+                verify_jwt_in_request(optional=True)
+                user_id = get_jwt_identity()
+                if user_id:
+                    from app.models.user import User
+                    user = User.query.get(user_id)
+                    if user and user.role.lower() == 'admin':
+                        return None
+            except:
+                pass
+            
+            return jsonify({
+                'success': False,
+                'error': 'System is under maintenance. Please try again later.',
+                'maintenance_mode': True
+            }), 503
+        
+        return None
+
     @app.route('/api/health', methods=['GET'])
     def health_check():
         return {'status': 'healthy', 'message': 'Electronics Shop API is running'}, 200

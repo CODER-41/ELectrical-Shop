@@ -3,9 +3,9 @@ from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
 from sqlalchemy import func
 from app.models import db
-from app.models.user import User, UserRole
+from app.models.user import User, UserRole, CustomerProfile
 from app.models.order import Order, OrderItem, OrderStatus, PaymentStatus
-from app.models.product import Product
+from app.models.product import Product, Category
 from app.models.returns import Return, ReturnStatus, SupplierPayout
 from app.utils.responses import success_response, error_response
 
@@ -188,7 +188,7 @@ def create_supplier_product():
         db.session.add(product)
         db.session.commit()
 
-        return success_response(data=product.to_dict(include_supplier=True), message='Product created successfully'), 201
+        return success_response(data=product.to_dict(include_supplier=True), message='Product created successfully', status_code=201)
     except Exception as e:
         db.session.rollback()
         import traceback
@@ -279,6 +279,41 @@ def update_supplier_product(product_id):
         return error_response(f'Failed to update product: {str(e)}', 500)
 
 
+@supplier_bp.route('/products/<product_id>', methods=['DELETE'])
+@jwt_required()
+def delete_supplier_product(product_id):
+    """Delete a supplier's product."""
+    try:
+        user_id = get_jwt_identity()
+        user = User.query.get(user_id)
+
+        if user.role != UserRole.SUPPLIER:
+            return error_response('Only suppliers can access this', 403)
+
+        if not user.supplier_profile:
+            return error_response('Supplier profile not found', 404)
+
+        supplier_id = user.supplier_profile.id
+
+        # Find product and verify ownership
+        product = Product.query.filter_by(id=product_id, supplier_id=supplier_id).first()
+        if not product:
+            return error_response('Product not found', 404)
+
+        # Check if product has orders
+        has_orders = OrderItem.query.filter_by(product_id=product_id).first()
+        if has_orders:
+            return error_response('Cannot delete product with existing orders. Deactivate it instead.', 400)
+
+        db.session.delete(product)
+        db.session.commit()
+
+        return success_response(message='Product deleted successfully')
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to delete product: {str(e)}', 500)
+
+
 @supplier_bp.route('/products/<product_id>/status', methods=['PATCH'])
 @jwt_required()
 def update_product_status(product_id):
@@ -345,6 +380,16 @@ def get_supplier_orders():
         for order in orders.items:
             order_dict = order.to_dict(include_items=False)
             
+            # Extract customer info from the order's customer dict
+            if order_dict.get('customer'):
+                order_dict['customer_name'] = order_dict['customer'].get('name', 'N/A')
+                order_dict['customer_email'] = order_dict['customer'].get('email', 'N/A')
+                order_dict['customer_phone'] = order_dict['customer'].get('phone', 'N/A')
+            else:
+                order_dict['customer_name'] = 'N/A'
+                order_dict['customer_email'] = 'N/A'
+                order_dict['customer_phone'] = 'N/A'
+            
             # Get supplier's items in this order
             supplier_items = OrderItem.query.filter_by(
                 order_id=order.id,
@@ -371,7 +416,7 @@ def get_supplier_orders():
 @supplier_bp.route('/analytics', methods=['GET'])
 @jwt_required()
 def get_analytics():
-    """Get supplier analytics."""
+    """Get comprehensive enterprise-level supplier analytics."""
     try:
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
@@ -381,78 +426,223 @@ def get_analytics():
         
         supplier_id = user.supplier_profile.id
         
-        # Last 30 days sales
-        days = 30
-        end_date = datetime.utcnow()
-        start_date = end_date - timedelta(days=days)
+        # Date ranges
+        now = datetime.utcnow()
+        today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+        month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_month_start = (month_start - timedelta(days=1)).replace(day=1)
+        year_start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        last_year_start = year_start.replace(year=year_start.year - 1)
+        days_30_ago = now - timedelta(days=30)
+        days_90_ago = now - timedelta(days=90)
         
+        # === DAILY SALES (Last 30 days) ===
         daily_sales = db.session.query(
             func.date(Order.created_at).label('date'),
             func.sum(OrderItem.supplier_earnings).label('earnings'),
-            func.count(OrderItem.id).label('items_sold')
-        ).join(Order)\
-            .filter(
+            func.count(OrderItem.id).label('items_sold'),
+            func.count(func.distinct(Order.id)).label('orders')
+        ).join(Order).filter(
+            OrderItem.supplier_id == supplier_id,
+            Order.payment_status == PaymentStatus.COMPLETED,
+            Order.created_at >= days_30_ago
+        ).group_by(func.date(Order.created_at)).order_by(func.date(Order.created_at)).all()
+        
+        # === TOP PRODUCTS ===
+        top_products = db.session.query(
+            Product.id, Product.name, Product.price,
+            func.sum(OrderItem.quantity).label('quantity_sold'),
+            func.sum(OrderItem.supplier_earnings).label('earnings'),
+            func.count(func.distinct(Order.id)).label('orders')
+        ).select_from(Product).join(OrderItem, OrderItem.product_id == Product.id).join(Order, Order.id == OrderItem.order_id).filter(
+            OrderItem.supplier_id == supplier_id,
+            Order.payment_status == PaymentStatus.COMPLETED
+        ).group_by(Product.id, Product.name, Product.price).order_by(func.sum(OrderItem.quantity).desc()).limit(10).all()
+        
+        # === MONTHLY EARNINGS (Last 12 months) ===
+        monthly_earnings = []
+        for i in range(12):
+            m_start = (month_start - timedelta(days=30*i)).replace(day=1)
+            m_end = (m_start + timedelta(days=32)).replace(day=1)
+            
+            earnings = db.session.query(func.sum(OrderItem.supplier_earnings)).join(Order).filter(
                 OrderItem.supplier_id == supplier_id,
                 Order.payment_status == PaymentStatus.COMPLETED,
-                Order.created_at >= start_date
-            ).group_by(func.date(Order.created_at))\
-            .order_by(func.date(Order.created_at)).all()
-        
-        # Top selling products
-        top_products = db.session.query(
-            Product.name,
-            func.sum(OrderItem.quantity).label('quantity_sold'),
-            func.sum(OrderItem.supplier_earnings).label('earnings')
-        ).join(OrderItem)\
-            .join(Order)\
-            .filter(
-                OrderItem.supplier_id == supplier_id,
-                Order.payment_status == PaymentStatus.COMPLETED
-            ).group_by(Product.id, Product.name)\
-            .order_by(func.sum(OrderItem.quantity).desc())\
-            .limit(10).all()
-        
-        # Monthly earnings (last 6 months)
-        months = 6
-        monthly_earnings = []
-        for i in range(months):
-            month_start = (datetime.utcnow().replace(day=1) - timedelta(days=30*i)).replace(hour=0, minute=0, second=0, microsecond=0)
-            month_end = month_start + timedelta(days=31)
+                Order.created_at >= m_start,
+                Order.created_at < m_end
+            ).scalar() or 0
             
-            earnings = db.session.query(func.sum(OrderItem.supplier_earnings))\
-                .join(Order)\
-                .filter(
-                    OrderItem.supplier_id == supplier_id,
-                    Order.payment_status == PaymentStatus.COMPLETED,
-                    Order.created_at >= month_start,
-                    Order.created_at < month_end
-                ).scalar() or 0
+            orders = db.session.query(func.count(func.distinct(Order.id))).join(OrderItem).filter(
+                OrderItem.supplier_id == supplier_id,
+                Order.payment_status == PaymentStatus.COMPLETED,
+                Order.created_at >= m_start,
+                Order.created_at < m_end
+            ).scalar() or 0
             
             monthly_earnings.insert(0, {
-                'month': month_start.strftime('%B %Y'),
-                'earnings': float(earnings)
+                'month': m_start.strftime('%b %Y'),
+                'earnings': float(earnings),
+                'orders': orders
             })
         
+        # === CATEGORY PERFORMANCE ===
+        category_performance = db.session.query(
+            Category.name,
+            func.sum(OrderItem.supplier_earnings).label('earnings'),
+            func.sum(OrderItem.quantity).label('quantity')
+        ).select_from(Category).join(Product, Product.category_id == Category.id).join(OrderItem, OrderItem.product_id == Product.id).join(Order, Order.id == OrderItem.order_id).filter(
+            OrderItem.supplier_id == supplier_id,
+            Order.payment_status == PaymentStatus.COMPLETED
+        ).group_by(Category.id, Category.name).order_by(func.sum(OrderItem.supplier_earnings).desc()).all()
+        
+        # === RETURN RATE ANALYSIS ===
+        total_items_sold = db.session.query(func.sum(OrderItem.quantity)).join(Order).filter(
+            OrderItem.supplier_id == supplier_id,
+            Order.payment_status == PaymentStatus.COMPLETED
+        ).scalar() or 0
+        
+        supplier_order_ids = db.session.query(OrderItem.order_id).filter(OrderItem.supplier_id == supplier_id).distinct().subquery()
+        total_returns = Return.query.filter(Return.order_id.in_(supplier_order_ids)).count()
+        return_rate = (total_returns / total_items_sold * 100) if total_items_sold > 0 else 0
+        
+        returns_by_reason = db.session.query(
+            Return.reason,
+            func.count(Return.id).label('count')
+        ).filter(Return.order_id.in_(supplier_order_ids)).group_by(Return.reason).all()
+        
+        # === PROFIT MARGIN ANALYSIS ===
+        total_revenue = db.session.query(func.sum(OrderItem.supplier_earnings + OrderItem.platform_commission)).join(Order).filter(
+            OrderItem.supplier_id == supplier_id,
+            Order.payment_status == PaymentStatus.COMPLETED
+        ).scalar() or 0
+        
+        total_earnings = db.session.query(func.sum(OrderItem.supplier_earnings)).join(Order).filter(
+            OrderItem.supplier_id == supplier_id,
+            Order.payment_status == PaymentStatus.COMPLETED
+        ).scalar() or 0
+        
+        platform_commission = float(total_revenue) - float(total_earnings)
+        profit_margin = (float(total_earnings) / float(total_revenue) * 100) if total_revenue > 0 else 0
+        
+        # === INVENTORY TURNOVER ===
+        products = Product.query.filter_by(supplier_id=supplier_id, is_active=True).all()
+        avg_inventory = sum(p.stock_quantity for p in products) / len(products) if products else 0
+        inventory_turnover = (float(total_items_sold) / avg_inventory) if avg_inventory > 0 else 0
+        
+        # === CUSTOMER METRICS ===
+        unique_customers = db.session.query(func.count(func.distinct(Order.customer_id))).join(OrderItem).filter(
+            OrderItem.supplier_id == supplier_id,
+            Order.payment_status == PaymentStatus.COMPLETED
+        ).scalar() or 0
+        
+        repeat_customers = db.session.query(Order.customer_id).join(OrderItem).filter(
+            OrderItem.supplier_id == supplier_id,
+            Order.payment_status == PaymentStatus.COMPLETED
+        ).group_by(Order.customer_id).having(func.count(Order.id) > 1).count()
+        
+        repeat_rate = (repeat_customers / unique_customers * 100) if unique_customers > 0 else 0
+        
+        # === AVERAGE ORDER VALUE ===
+        aov_data = db.session.query(
+            func.date(Order.created_at).label('date'),
+            func.avg(OrderItem.supplier_earnings).label('aov')
+        ).join(Order).filter(
+            OrderItem.supplier_id == supplier_id,
+            Order.payment_status == PaymentStatus.COMPLETED,
+            Order.created_at >= days_30_ago
+        ).group_by(func.date(Order.created_at)).order_by(func.date(Order.created_at)).all()
+        
+        # === GROWTH METRICS ===
+        this_month_sales = db.session.query(func.sum(OrderItem.supplier_earnings)).join(Order).filter(
+            OrderItem.supplier_id == supplier_id,
+            Order.payment_status == PaymentStatus.COMPLETED,
+            Order.created_at >= month_start
+        ).scalar() or 0
+        
+        last_month_sales = db.session.query(func.sum(OrderItem.supplier_earnings)).join(Order).filter(
+            OrderItem.supplier_id == supplier_id,
+            Order.payment_status == PaymentStatus.COMPLETED,
+            Order.created_at >= last_month_start,
+            Order.created_at < month_start
+        ).scalar() or 0
+        
+        mom_growth = ((float(this_month_sales) - float(last_month_sales)) / float(last_month_sales) * 100) if last_month_sales > 0 else 0
+        
+        this_year_sales = db.session.query(func.sum(OrderItem.supplier_earnings)).join(Order).filter(
+            OrderItem.supplier_id == supplier_id,
+            Order.payment_status == PaymentStatus.COMPLETED,
+            Order.created_at >= year_start
+        ).scalar() or 0
+        
+        last_year_sales = db.session.query(func.sum(OrderItem.supplier_earnings)).join(Order).filter(
+            OrderItem.supplier_id == supplier_id,
+            Order.payment_status == PaymentStatus.COMPLETED,
+            Order.created_at >= last_year_start,
+            Order.created_at < year_start
+        ).scalar() or 0
+        
+        yoy_growth = ((float(this_year_sales) - float(last_year_sales)) / float(last_year_sales) * 100) if last_year_sales > 0 else 0
+        
+        # === PEAK HOURS ANALYSIS ===
+        peak_hours = db.session.query(
+            func.extract('hour', Order.created_at).label('hour'),
+            func.count(Order.id).label('orders'),
+            func.sum(OrderItem.supplier_earnings).label('earnings')
+        ).join(OrderItem).filter(
+            OrderItem.supplier_id == supplier_id,
+            Order.payment_status == PaymentStatus.COMPLETED,
+            Order.created_at >= days_90_ago
+        ).group_by(func.extract('hour', Order.created_at)).order_by(func.extract('hour', Order.created_at)).all()
+        
+        # === LOW STOCK ALERTS ===
+        low_stock_products = Product.query.filter(
+            Product.supplier_id == supplier_id,
+            Product.is_active == True,
+            Product.stock_quantity <= Product.low_stock_threshold
+        ).order_by(Product.stock_quantity).limit(10).all()
+        
         return success_response(data={
-            'daily_sales': [
-                {
-                    'date': str(day[0]),
-                    'earnings': float(day[1]) if day[1] else 0,
-                    'items_sold': day[2]
-                }
-                for day in daily_sales
-            ],
-            'top_products': [
-                {
-                    'name': p[0],
-                    'quantity_sold': p[1],
-                    'earnings': float(p[2])
-                }
-                for p in top_products
-            ],
-            'monthly_earnings': monthly_earnings
+            'daily_sales': [{'date': str(d[0]), 'earnings': float(d[1] or 0), 'items_sold': d[2], 'orders': d[3]} for d in daily_sales],
+            'top_products': [{'id': p[0], 'name': p[1], 'price': float(p[2]), 'quantity_sold': p[3], 'earnings': float(p[4]), 'orders': p[5]} for p in top_products],
+            'monthly_earnings': monthly_earnings,
+            'category_performance': [{'name': c[0], 'earnings': float(c[1]), 'quantity': c[2]} for c in category_performance],
+            'return_analysis': {
+                'total_returns': total_returns,
+                'return_rate': round(return_rate, 2),
+                'by_reason': [{'reason': r[0], 'count': r[1]} for r in returns_by_reason]
+            },
+            'profit_metrics': {
+                'total_revenue': float(total_revenue),
+                'total_earnings': float(total_earnings),
+                'platform_commission': float(platform_commission),
+                'profit_margin': round(profit_margin, 2)
+            },
+            'inventory_metrics': {
+                'turnover_rate': round(inventory_turnover, 2),
+                'avg_inventory': round(avg_inventory, 2),
+                'low_stock_count': len(low_stock_products),
+                'low_stock_products': [{'id': p.id, 'name': p.name, 'stock': p.stock_quantity, 'threshold': p.low_stock_threshold} for p in low_stock_products]
+            },
+            'customer_metrics': {
+                'unique_customers': unique_customers,
+                'repeat_customers': repeat_customers,
+                'repeat_rate': round(repeat_rate, 2)
+            },
+            'aov_trend': [{'date': str(a[0]), 'aov': float(a[1] or 0)} for a in aov_data],
+            'growth_metrics': {
+                'mom_growth': round(mom_growth, 2),
+                'yoy_growth': round(yoy_growth, 2),
+                'this_month': float(this_month_sales),
+                'last_month': float(last_month_sales),
+                'this_year': float(this_year_sales),
+                'last_year': float(last_year_sales)
+            },
+            'peak_hours': [{'hour': int(h[0]), 'orders': h[1], 'earnings': float(h[2])} for h in peak_hours]
         })
     except Exception as e:
+        import traceback
+        print(f"Analytics error: {str(e)}")
+        print(traceback.format_exc())
         return error_response(f'Failed to fetch analytics: {str(e)}', 500)
 
 

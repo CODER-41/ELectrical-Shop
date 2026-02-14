@@ -24,14 +24,16 @@ const Home = () => {
       try {
         const categories = ['mobile-phones-tablets', 'laptops-computers', 'tvs-home-entertainment', 'kitchen-appliances', 'gaming', 'accessories'];
         const diverseProducts = [];
+        const seenIds = new Set();
         
         // Fetch one product from each category
         for (const category of categories) {
           try {
             const response = await axios.get(`${API_URL}/products?category=${category}&page=1&per_page=1`);
             const products = response.data.data.products || [];
-            if (products.length > 0 && products[0].image_url) {
+            if (products.length > 0 && products[0].image_url && !seenIds.has(products[0].id)) {
               diverseProducts.push(products[0]);
+              seenIds.add(products[0].id);
             }
           } catch (err) {
             console.log(`No products found for ${category}`);

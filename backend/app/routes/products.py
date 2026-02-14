@@ -327,6 +327,12 @@ def update_product(product_id):
         
         if 'is_active' in data and is_admin:  # Only admin can activate/deactivate
             product.is_active = bool(data['is_active'])
+            # Clear product cache when activation status changes
+            from flask import current_app
+            cache_keys = current_app.cache.cache._cache.keys()
+            for key in list(cache_keys):
+                if key.startswith('products_'):
+                    current_app.cache.delete(key)
         
         db.session.commit()
         
@@ -365,6 +371,13 @@ def delete_product(product_id):
         # Soft delete (deactivate)
         product.is_active = False
         db.session.commit()
+        
+        # Clear product cache
+        from flask import current_app
+        cache_keys = current_app.cache.cache._cache.keys()
+        for key in list(cache_keys):
+            if key.startswith('products_'):
+                current_app.cache.delete(key)
         
         return success_response(message='Product deleted successfully')
         

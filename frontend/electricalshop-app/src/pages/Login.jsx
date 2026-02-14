@@ -48,16 +48,59 @@ const Login = () => {
         localStorage.removeItem(REMEMBER_ME_KEY);
       }
 
-      // Redirect based on role
-      if (user.role === 'customer') {
-        navigate('/');
-      } else if (user.role === 'supplier') {
-        navigate('/supplier/dashboard');
-      } else if (user.role === 'delivery_agent') {
-        navigate('/delivery/dashboard');
-      } else if (user.role.includes('admin') || user.role.includes('manager') || user.role === 'support') {
-        navigate('/admin/dashboard');
-      }
+      // Check maintenance mode before redirecting
+      const checkMaintenanceAndRedirect = async () => {
+        // Clear any old maintenance flag first
+        sessionStorage.removeItem('maintenance_mode');
+        
+        // For non-admin users, check maintenance mode
+        if (!user.role.toLowerCase().includes('admin')) {
+          // Wait a bit for token to be saved to localStorage
+          await new Promise(resolve => setTimeout(resolve, 100));
+          
+          const token = localStorage.getItem('access_token');
+          if (token) {
+            try {
+              // Use role-specific endpoint to check maintenance
+              let checkUrl = `${import.meta.env.VITE_BACKEND_URL}/api/products?page=1&limit=1`;
+              if (user.role === 'supplier') {
+                checkUrl = `${import.meta.env.VITE_BACKEND_URL}/api/supplier/dashboard`;
+              } else if (user.role === 'delivery_agent') {
+                checkUrl = `${import.meta.env.VITE_BACKEND_URL}/api/delivery/dashboard`;
+              }
+              
+              const response = await fetch(checkUrl, {
+                headers: { 'Authorization': `Bearer ${token}` }
+              });
+              
+              // Check for maintenance mode
+              if (response.status === 503) {
+                const data = await response.json();
+                if (data.maintenance_mode) {
+                  sessionStorage.setItem('maintenance_mode', 'true');
+                  window.location.replace('/');
+                  return;
+                }
+              }
+            } catch (error) {
+              console.error('Maintenance check error:', error);
+            }
+          }
+        }
+        
+        // Redirect based on role
+        if (user.role === 'customer') {
+          navigate('/');
+        } else if (user.role === 'supplier') {
+          navigate('/supplier/dashboard');
+        } else if (user.role === 'delivery_agent') {
+          navigate('/delivery/dashboard');
+        } else if (user.role.includes('admin') || user.role.includes('manager') || user.role === 'support') {
+          navigate('/admin/dashboard');
+        }
+      };
+
+      checkMaintenanceAndRedirect();
     }
 
     dispatch(reset());

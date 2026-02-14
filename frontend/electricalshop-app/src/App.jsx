@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
+import { useState, useEffect } from 'react';
+import axios from 'axios';
 
 // Layouts
 import MainLayout from './layouts/MainLayout';
@@ -8,6 +10,7 @@ import MainLayout from './layouts/MainLayout';
 // Components
 import ProtectedRoute from './components/ProtectedRoute';
 import GoogleCallback from './components/GoogleCallback';
+import MaintenancePage from './pages/MaintenancePage';
 
 // Pages
 import Home from './pages/Home';
@@ -74,6 +77,87 @@ import ReturnDetail from './pages/Returns/ReturnDetail';
 import { NotFound } from './pages/Placeholders';
 
 function App() {
+  const [maintenanceMode, setMaintenanceMode] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // Setup axios interceptor for maintenance mode
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        if (error.response?.status === 503 && error.response?.data?.maintenance_mode) {
+          const user = JSON.parse(localStorage.getItem('user') || '{}');
+          if (user.role?.toLowerCase() !== 'admin') {
+            sessionStorage.setItem('maintenance_mode', 'true');
+            setMaintenanceMode(true);
+            setIsAdmin(false);
+          }
+        }
+        return Promise.reject(error);
+      }
+    );
+
+    // Check maintenance mode on mount
+    const checkMaintenance = async () => {
+      // Check sessionStorage first
+      if (sessionStorage.getItem('maintenance_mode') === 'true') {
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        if (user.role?.toLowerCase() !== 'admin') {
+          setMaintenanceMode(true);
+          setIsAdmin(false);
+          setLoading(false);
+          return;
+        } else {
+          sessionStorage.removeItem('maintenance_mode');
+        }
+      }
+
+      try {
+        const response = await axios.get(`${import.meta.env.VITE_BACKEND_URL}/api/health`);
+        setMaintenanceMode(false);
+        sessionStorage.removeItem('maintenance_mode');
+        
+        // Check if user is admin
+        const token = localStorage.getItem('access_token');
+        if (token) {
+          const user = JSON.parse(localStorage.getItem('user') || '{}');
+          setIsAdmin(user.role?.toLowerCase() === 'admin');
+        }
+      } catch (error) {
+        if (error.response?.status === 503 && error.response?.data?.maintenance_mode) {
+          setMaintenanceMode(true);
+          
+          // Check if user is admin
+          const user = JSON.parse(localStorage.getItem('user') || '{}');
+          setIsAdmin(user.role?.toLowerCase() === 'admin');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkMaintenance();
+
+    // Cleanup interceptor on unmount
+    return () => {
+      axios.interceptors.response.eject(interceptor);
+    };
+  }, []);
+
+  // Show maintenance page for non-admin users
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (maintenanceMode && !isAdmin) {
+    return <MaintenancePage />;
+  }
+
   return (
     <>
       <Router>

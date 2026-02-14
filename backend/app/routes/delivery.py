@@ -5,7 +5,7 @@ Delivery agent routes for managing deliveries and COD collection.
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
-from sqlalchemy import func, cast, Text
+from sqlalchemy import func, cast, Text, or_
 from app.models import db
 from app.models.user import User, UserRole, DeliveryAgentProfile
 from app.models.order import Order, OrderStatus, PaymentMethod, PaymentStatus, DeliveryZone
@@ -921,7 +921,7 @@ def generate_delivery_payouts():
 
         # Find all confirmed orders with unpaid delivery fees
         orders = Order.query.filter(
-            db.or_(
+            or_(
                 Order.customer_confirmed_delivery == True,
                 Order.auto_confirmed == True
             ),
@@ -952,6 +952,10 @@ def generate_delivery_payouts():
             net_amount = gross_amount * fee_percentage
             platform_fee = gross_amount - net_amount
 
+            # Get confirmed dates (filter out None values)
+            confirmed_dates = [o.delivery_confirmed_at or o.customer_confirmed_at or o.updated_at for o in orders_list]
+            confirmed_dates = [d for d in confirmed_dates if d is not None]
+            
             # Create payout
             payout = DeliveryPayout(
                 payout_type=DeliveryPayoutType.AGENT,
@@ -962,14 +966,15 @@ def generate_delivery_payouts():
                 order_count=len(orders_list),
                 order_ids=[o.id for o in orders_list],
                 mpesa_number=profile.mpesa_number,
-                period_start=min(o.delivery_confirmed_at for o in orders_list if o.delivery_confirmed_at),
-                period_end=max(o.delivery_confirmed_at for o in orders_list if o.delivery_confirmed_at)
+                period_start=min(confirmed_dates) if confirmed_dates else datetime.utcnow(),
+                period_end=max(confirmed_dates) if confirmed_dates else datetime.utcnow()
             )
             payout.generate_payout_number()
             db.session.add(payout)
 
             # Update agent's pending payout
-            profile.pending_payout += net_amount
+            from decimal import Decimal
+            profile.pending_payout += Decimal(str(net_amount))
 
             payouts_created.append(payout.payout_number)
 

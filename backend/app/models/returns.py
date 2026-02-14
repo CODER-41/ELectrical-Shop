@@ -147,9 +147,12 @@ class Return(db.Model):
         # Derive display names and item price
         product_name = None
         customer_name = None
+        customer_email = None
+        customer_phone = None
+        order_number = None
         item_price = 0
         item_subtotal = 0
-        from app.models.order import OrderItem
+        from app.models.order import OrderItem, Order
         oi = None
         if self.order_item_id:
             oi = OrderItem.query.get(self.order_item_id)
@@ -162,8 +165,18 @@ class Return(db.Model):
             product_name = oi.product_name
             item_price = float(oi.product_price) if oi.product_price else 0
             item_subtotal = item_price * (self.quantity or oi.quantity)
+        
+        # Get customer and order info
         if self.customer:
             customer_name = f"{self.customer.first_name} {self.customer.last_name}"
+            customer_phone = self.customer.phone_number
+            if self.customer.user:
+                customer_email = self.customer.user.email
+        
+        if self.order_id:
+            order = Order.query.get(self.order_id)
+            if order:
+                order_number = order.order_number
 
         # Use item_subtotal as fallback for refund_amount display
         display_refund = refund_amount if refund_amount > 0 else item_subtotal
@@ -192,6 +205,11 @@ class Return(db.Model):
             'customer_refund': float(self.customer_refund) if self.customer_refund else 0,
             'item_price': item_price,
             'item_subtotal': item_subtotal,
+            'product_name': product_name,
+            'customer_name': customer_name,
+            'customer_email': customer_email,
+            'customer_phone': customer_phone,
+            'order_number': order_number,
             'refund_processed_at': self.refund_processed_at.isoformat() if self.refund_processed_at else None,
             'refund_reference': self.refund_reference,
             'refunded_at': self.refunded_at.isoformat() if self.refunded_at else None,

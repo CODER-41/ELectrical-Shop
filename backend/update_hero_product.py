@@ -36,10 +36,10 @@ with app.app_context():
         ipad.slug = "iphone-15-pro-max-hero"
         
         db.session.commit()
-        print(f"\n✅ Updated to: {ipad.name}")
+        print(f"\nUpdated to: {ipad.name}")
         print(f"New slug: {ipad.slug}")
     else:
-        print("❌ iPad Air product not found")
+        print("iPad Air product not found")
         print("\nSearching for any iPad products...")
         ipads = Product.query.filter(Product.name.ilike('%ipad%')).all()
         if ipads:

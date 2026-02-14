@@ -202,6 +202,8 @@ def calculate_delivery_fee():
 def create_order():
     """Create a new order from cart items."""
     try:
+        from app.services.notification_service import notification_service
+        
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         
@@ -241,6 +243,7 @@ def create_order():
         
         subtotal = 0
         order_items = []
+        supplier_ids = set()
         
         for item_data in items:
             product = Product.query.get(item_data['product_id'])
@@ -269,6 +272,7 @@ def create_order():
             order_item.calculate_amounts()
             order_items.append(order_item)
             subtotal += float(order_item.subtotal)
+            supplier_ids.add(product.supplier_id)
         
         print(f'Order items validated, subtotal: {subtotal}')
         
@@ -298,11 +302,51 @@ def create_order():
             product = Product.query.get(item_data['product_id'])
             product.stock_quantity -= order_item.quantity
             product.purchase_count += order_item.quantity
+            
+            # Check for low stock and notify supplier
+            if product.stock_quantity <= product.low_stock_threshold:
+                notification_service.create_notification(
+                    user_id=product.supplier.user_id,
+                    title='Low Stock Alert',
+                    message=f'Product "{product.name}" is running low on stock ({product.stock_quantity} remaining).',
+                    notification_type='warning',
+                    link=f'/supplier/products/{product.id}'
+                )
         
         db.session.add(order)
         db.session.commit()
         
         print(f'Order saved successfully: {order.id}')
+        
+        # Create audit log
+        notification_service.create_audit_log(
+            action='order_created',
+            entity_type='order',
+            entity_id=order.id,
+            user_id=user_id,
+            description=f"Order {order.order_number} created - Total: KES {order.total}"
+        )
+        
+        # Notify admins
+        notification_service.notify_admins(
+            title='New Order Received',
+            message=f'New order #{order.order_number} placed by {user.email} - Total: KES {order.total:,.2f}',
+            notification_type='info',
+            link=f'/admin/orders/{order.id}'
+        )
+        
+        # Notify suppliers
+        from app.models.user import SupplierProfile
+        for supplier_id in supplier_ids:
+            supplier = SupplierProfile.query.get(supplier_id)
+            if supplier:
+                notification_service.create_notification(
+                    user_id=supplier.user_id,
+                    title='New Order Received',
+                    message=f'You have a new order #{order.order_number}. Please prepare items for shipment.',
+                    notification_type='info',
+                    link=f'/supplier/orders/{order.id}'
+                )
         
         # Send order confirmation email
         try:
@@ -406,6 +450,8 @@ def get_order(order_id):
 def update_order_status(order_id):
     """Update order status (Admin/Supplier)."""
     try:
+        from app.services.notification_service import notification_service
+        
         user_id = get_jwt_identity()
         user = User.query.get(user_id)
         order = Order.query.get(order_id)
@@ -435,6 +481,26 @@ def update_order_status(order_id):
             order.admin_notes = data['admin_notes']
         
         db.session.commit()
+        
+        # Create audit log
+        notification_service.create_audit_log(
+            action='order_status_changed',
+            entity_type='order',
+            entity_id=order.id,
+            user_id=user_id,
+            old_values={'status': old_status.value},
+            new_values={'status': new_status},
+            description=f"Order {order.order_number} status changed from {old_status.value} to {new_status}"
+        )
+        
+        # Notify customer
+        notification_service.create_notification(
+            user_id=order.customer.user_id,
+            title=f'Order Status Updated',
+            message=f'Your order #{order.order_number} status has been updated to {new_status}.',
+            notification_type='info',
+            link=f'/orders/{order.id}'
+        )
         
         # Send status update email
         try:
