@@ -169,10 +169,43 @@ const SupplierOrders = () => {
                     </span>
                   </div>
 
+                  {/* Customer Information */}
+                  <div className="mb-3 p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <svg className="w-4 h-4 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <span className="text-sm font-semibold text-blue-900">Customer Details</span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">
+                      <div>
+                        <span className="text-blue-700">Name:</span>
+                        <span className="ml-2 text-blue-900 font-medium">{order.customer_name || 'N/A'}</span>
+                      </div>
+                      <div>
+                        <span className="text-blue-700">Email:</span>
+                        <span className="ml-2 text-blue-900 font-medium">{order.customer_email || 'N/A'}</span>
+                      </div>
+                      {order.customer_phone && (
+                        <div>
+                          <span className="text-blue-700">Phone:</span>
+                          <span className="ml-2 text-blue-900 font-medium">{order.customer_phone}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 text-sm">
                     <div>
-                      <span className="text-gray-600">Date:</span>
+                      <span className="text-gray-600">Purchase Date:</span>
                       <span className="ml-2 text-gray-900 font-medium">{formatDate(order.created_at)}</span>
+                    </div>
+
+                    <div>
+                      <span className="text-gray-600">Purchase Time:</span>
+                      <span className="ml-2 text-gray-900 font-medium">
+                        {new Date(order.created_at).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
                     </div>
 
                     <div>

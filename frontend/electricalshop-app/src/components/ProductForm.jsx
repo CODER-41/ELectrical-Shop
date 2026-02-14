@@ -78,6 +78,9 @@ const ProductForm = ({ product = null, isEdit = false }) => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        // Prevent double submission
+        if (isLoading) return;
+
         // Validate required fields
         if (!formData.name || !formData.category_id || !formData.brand_id) {
             toast.error("Please fill in all required fields.");

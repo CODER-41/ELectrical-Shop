@@ -147,9 +147,12 @@ class Return(db.Model):
         # Derive display names and item price
         product_name = None
         customer_name = None
+        customer_email = None
+        customer_phone = None
+        order_number = None
         item_price = 0
         item_subtotal = 0
-        from app.models.order import OrderItem
+        from app.models.order import OrderItem, Order
         oi = None
         if self.order_item_id:
             oi = OrderItem.query.get(self.order_item_id)
@@ -162,8 +165,18 @@ class Return(db.Model):
             product_name = oi.product_name
             item_price = float(oi.product_price) if oi.product_price else 0
             item_subtotal = item_price * (self.quantity or oi.quantity)
+        
+        # Get customer and order info
         if self.customer:
             customer_name = f"{self.customer.first_name} {self.customer.last_name}"
+            customer_phone = self.customer.phone_number
+            if self.customer.user:
+                customer_email = self.customer.user.email
+        
+        if self.order_id:
+            order = Order.query.get(self.order_id)
+            if order:
+                order_number = order.order_number
 
         # Use item_subtotal as fallback for refund_amount display
         display_refund = refund_amount if refund_amount > 0 else item_subtotal
@@ -192,6 +205,11 @@ class Return(db.Model):
             'customer_refund': float(self.customer_refund) if self.customer_refund else 0,
             'item_price': item_price,
             'item_subtotal': item_subtotal,
+            'product_name': product_name,
+            'customer_name': customer_name,
+            'customer_email': customer_email,
+            'customer_phone': customer_phone,
+            'order_number': order_number,
             'refund_processed_at': self.refund_processed_at.isoformat() if self.refund_processed_at else None,
             'refund_reference': self.refund_reference,
             'refunded_at': self.refunded_at.isoformat() if self.refunded_at else None,
@@ -216,9 +234,12 @@ class SupplierPayout(db.Model):
     __tablename__ = 'supplier_payouts'
 
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    payout_number = db.Column(db.String(50), unique=True, nullable=True, index=True)
     supplier_id = db.Column(db.String(36), db.ForeignKey('supplier_profiles.id'), nullable=False)
     amount = db.Column(db.Numeric(10, 2), nullable=False)
+    net_amount = db.Column(db.Numeric(10, 2), nullable=True)
     status = db.Column(db.String(50), default='pending', nullable=False)
+    payment_reference = db.Column(db.String(100), nullable=True)
     reference = db.Column(db.String(100), nullable=True)
     notes = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
@@ -227,12 +248,24 @@ class SupplierPayout(db.Model):
     # Relationships
     supplier = db.relationship('SupplierProfile', backref=db.backref('payouts', lazy='dynamic'))
 
+    def generate_payout_number(self):
+        """Generate unique payout number."""
+        if not self.payout_number:
+            date_str = datetime.utcnow().strftime('%Y%m%d')
+            count = SupplierPayout.query.filter(
+                SupplierPayout.created_at >= datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            ).count() + 1
+            self.payout_number = f'SPO-{date_str}-{count:04d}'
+
     def to_dict(self):
         return {
             'id': self.id,
+            'payout_number': self.payout_number,
             'supplier_id': self.supplier_id,
             'amount': float(self.amount) if self.amount else 0,
+            'net_amount': float(self.net_amount) if self.net_amount else float(self.amount) if self.amount else 0,
             'status': self.status,
+            'payment_reference': self.payment_reference or self.reference,
             'reference': self.reference,
             'notes': self.notes,
             'created_at': self.created_at.isoformat() if self.created_at else None,

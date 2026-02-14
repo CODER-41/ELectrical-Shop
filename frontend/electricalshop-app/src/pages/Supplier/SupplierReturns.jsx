@@ -327,6 +327,31 @@ const SupplierReturns = () => {
 
             {/* Return Info */}
             <div className="space-y-4 mb-6">
+              {/* Customer Information */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                <p className="text-sm font-semibold text-blue-800 mb-2">Customer Information</p>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-blue-700">Name:</span>
+                    <span className="ml-2 font-medium text-blue-900">{selectedReturn.customer_name || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-blue-700">Email:</span>
+                    <span className="ml-2 font-medium text-blue-900">{selectedReturn.customer_email || 'N/A'}</span>
+                  </div>
+                  {selectedReturn.customer_phone && (
+                    <div>
+                      <span className="text-blue-700">Phone:</span>
+                      <span className="ml-2 font-medium text-blue-900">{selectedReturn.customer_phone}</span>
+                    </div>
+                  )}
+                  <div>
+                    <span className="text-blue-700">Order #:</span>
+                    <span className="ml-2 font-medium text-blue-900">{selectedReturn.order_number || 'N/A'}</span>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-600">Return Number</p>

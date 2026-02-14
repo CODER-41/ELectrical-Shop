@@ -27,19 +27,33 @@ def upload_product_image():
     - product_slug: For naming the image
     """
     try:
+        current_app.logger.info('=== Product image upload started ===')
         user_id = get_jwt_identity()
+        current_app.logger.info(f'User ID: {user_id}')
+        
         user = User.query.get(user_id)
+        current_app.logger.info(f'User found: {user is not None}')
+
+        if not user:
+            current_app.logger.error('User not found')
+            return error_response('User not found', 404)
 
         # Check permissions
+        current_app.logger.info(f'User role: {user.role}')
         if user.role not in [UserRole.SUPPLIER, UserRole.ADMIN, UserRole.PRODUCT_MANAGER]:
+            current_app.logger.error(f'Permission denied for role: {user.role}')
             return error_response('Only suppliers and admins can upload product images', 403)
 
         # Check Cloudinary configuration
+        current_app.logger.info('Checking Cloudinary config')
         config_check = validate_cloudinary_config()
+        current_app.logger.info(f'Cloudinary configured: {config_check["configured"]}')
         if not config_check['configured']:
             return error_response(config_check['message'], 500)
 
         # Get the image
+        current_app.logger.info(f'Request files: {list(request.files.keys())}')
+        current_app.logger.info(f'Request form: {list(request.form.keys())}')
         if 'image' in request.files:
             # File upload
             file = request.files['image']
@@ -62,18 +76,24 @@ def upload_product_image():
                 return error_response(f'File type not allowed. Allowed: {", ".join(allowed_extensions)}', 400)
 
             image = file
+            current_app.logger.info(f'File upload detected: {file.filename}')
 
         elif request.is_json and request.json.get('image'):
             # Base64 or URL
             image = request.json.get('image')
+            current_app.logger.info('JSON image data detected')
         else:
+            current_app.logger.error('No image provided in request')
             return error_response('No image provided', 400)
 
         # Get optional product slug
-        product_slug = request.args.get('product_slug') or (request.json or {}).get('product_slug')
+        product_slug = request.args.get('product_slug') or request.form.get('product_slug')
+        current_app.logger.info(f'Product slug: {product_slug}')
 
         # Upload to Cloudinary
+        current_app.logger.info('Starting Cloudinary upload')
         result = cloudinary_service.upload_product_image(image, product_slug)
+        current_app.logger.info(f'Upload result: {result}')
 
         if result['success']:
             return success_response(
@@ -89,7 +109,9 @@ def upload_product_image():
             return error_response(result.get('error', 'Upload failed'), 500)
 
     except Exception as e:
+        import traceback
         current_app.logger.error(f'Product image upload error: {str(e)}')
+        current_app.logger.error(f'Traceback: {traceback.format_exc()}')
         return error_response(f'Image upload failed: {str(e)}', 500)
 
 

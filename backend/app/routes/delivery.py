@@ -5,7 +5,7 @@ Delivery agent routes for managing deliveries and COD collection.
 from flask import Blueprint, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from datetime import datetime, timedelta
-from sqlalchemy import func, cast, Text
+from sqlalchemy import func, cast, Text, or_
 from app.models import db
 from app.models.user import User, UserRole, DeliveryAgentProfile
 from app.models.order import Order, OrderStatus, PaymentMethod, PaymentStatus, DeliveryZone
@@ -921,7 +921,7 @@ def generate_delivery_payouts():
 
         # Find all confirmed orders with unpaid delivery fees
         orders = Order.query.filter(
-            db.or_(
+            or_(
                 Order.customer_confirmed_delivery == True,
                 Order.auto_confirmed == True
             ),
@@ -952,6 +952,10 @@ def generate_delivery_payouts():
             net_amount = gross_amount * fee_percentage
             platform_fee = gross_amount - net_amount
 
+            # Get confirmed dates (filter out None values)
+            confirmed_dates = [o.delivery_confirmed_at or o.customer_confirmed_at or o.updated_at for o in orders_list]
+            confirmed_dates = [d for d in confirmed_dates if d is not None]
+            
             # Create payout
             payout = DeliveryPayout(
                 payout_type=DeliveryPayoutType.AGENT,
@@ -962,14 +966,15 @@ def generate_delivery_payouts():
                 order_count=len(orders_list),
                 order_ids=[o.id for o in orders_list],
                 mpesa_number=profile.mpesa_number,
-                period_start=min(o.delivery_confirmed_at for o in orders_list if o.delivery_confirmed_at),
-                period_end=max(o.delivery_confirmed_at for o in orders_list if o.delivery_confirmed_at)
+                period_start=min(confirmed_dates) if confirmed_dates else datetime.utcnow(),
+                period_end=max(confirmed_dates) if confirmed_dates else datetime.utcnow()
             )
             payout.generate_payout_number()
             db.session.add(payout)
 
             # Update agent's pending payout
-            profile.pending_payout += net_amount
+            from decimal import Decimal
+            profile.pending_payout += Decimal(str(net_amount))
 
             payouts_created.append(payout.payout_number)
 
@@ -1118,6 +1123,43 @@ def complete_delivery_payout(payout_id):
     except Exception as e:
         db.session.rollback()
         return error_response(f'Failed to complete payout: {str(e)}', 500)
+
+
+@delivery_bp.route('/admin/delivery-payouts/<payout_id>/cancel', methods=['POST'])
+@jwt_required()
+@require_admin
+def cancel_delivery_payout(payout_id):
+    """Cancel a delivery payout that is in pending status."""
+    from app.models.returns import DeliveryPayout
+
+    try:
+        payout = DeliveryPayout.query.get(payout_id)
+        if not payout:
+            return error_response('Payout not found', 404)
+
+        if payout.status == 'completed':
+            return error_response('Cannot cancel completed payout', 400)
+
+        if payout.status == 'processing':
+            return error_response(
+                'Payout is being processed. Cannot cancel at this stage. Contact M-Pesa support if needed.',
+                400
+            )
+
+        data = request.get_json() or {}
+        reason = data.get('reason', 'Cancelled by admin')
+
+        payout.status = 'cancelled'
+        payout.notes = f"{payout.notes or ''}\n\nCancelled: {reason}"
+        db.session.commit()
+
+        return success_response(
+            data=payout.to_dict(),
+            message='Delivery payout cancelled successfully'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to cancel payout: {str(e)}', 500)
 
 
 @delivery_bp.route('/agent/payouts', methods=['GET'])
@@ -1748,6 +1790,11 @@ def approve_zone_request(request_id):
     """Approve a zone request (admin only)."""
     try:
         user_id = get_jwt_identity()
+        
+        # Verify user exists
+        user = User.query.get(user_id)
+        if not user:
+            return error_response('User not found. Please log in again.', 401)
 
         zone_request = DeliveryZoneRequest.query.get(request_id)
 
@@ -1757,7 +1804,7 @@ def approve_zone_request(request_id):
         if zone_request.status != ZoneRequestStatus.PENDING:
             return error_response('Only pending requests can be approved', 400)
 
-        data = request.get_json() or {}
+        data = request.get_json(force=True, silent=True) or {}
         notes = data.get('notes')
 
         zone_request.approve(user_id, notes)
@@ -1769,6 +1816,9 @@ def approve_zone_request(request_id):
         )
     except Exception as e:
         db.session.rollback()
+        import traceback
+        print(f"Approve zone request error: {str(e)}")
+        print(traceback.format_exc())
         return error_response(f'Failed to approve request: {str(e)}', 500)
 
 

@@ -38,6 +38,15 @@ export const updateProduct = createAsyncThunk('supplierProducts/updateProduct', 
   }
 });
 
+export const deleteProduct = createAsyncThunk('supplierProducts/deleteProduct', async (productId, thunkAPI) => {
+  try {
+    const response = await api.delete(`/supplier/products/${productId}`);
+    return { productId, ...response.data };
+  } catch (error) {
+    return thunkAPI.rejectWithValue(error.response?.data?.error || error.response?.data?.message || error.message);
+  }
+});
+
 export const uploadProductImage = createAsyncThunk('supplierProducts/uploadProductImage', async (imageFile, thunkAPI) => {
   try {
     const formData = new FormData();
@@ -121,6 +130,20 @@ const supplierProductsSlice = createSlice({
         state.message = 'Product updated successfully';
       })
       .addCase(updateProduct.rejected, (state, action) => {
+        state.isLoading = false;
+        state.isError = true;
+        state.message = action.payload;
+      })
+      .addCase(deleteProduct.pending, (state) => {
+        state.isLoading = true;
+        state.isError = false;
+      })
+      .addCase(deleteProduct.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.products = state.products.filter(p => p.id !== action.payload.productId);
+        state.message = 'Product deleted successfully';
+      })
+      .addCase(deleteProduct.rejected, (state, action) => {
         state.isLoading = false;
         state.isError = true;
         state.message = action.payload;

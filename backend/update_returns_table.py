@@ -25,7 +25,7 @@ with app.app_context():
         """))
         
         db.session.commit()
-        print("✅ Returns table updated successfully")
+        print(" Returns table updated successfully")
     except Exception as e:
         db.session.rollback()
-        print(f"❌ Error: {e}")
+        print(f" Error: {e}")

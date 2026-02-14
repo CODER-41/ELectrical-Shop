@@ -39,7 +39,9 @@ const ImageUpload = ({
       onImageUploaded(result.data.url);
       toast.success("Image uploaded successfully!");
     } catch (error) {
-      toast.error(error || "Image upload failed. Please try again.");
+      console.error('Upload error:', error);
+      const errorMessage = typeof error === 'string' ? error : error?.message || "Image upload failed. Please try again.";
+      toast.error(errorMessage);
     } finally {
       setUploading(false);
     }

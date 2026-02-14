@@ -3,6 +3,9 @@ import { useSelector } from 'react-redux';
 import api from '../../utils/api';
 import { toast } from 'react-toastify';
 import { PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { Wallet, TrendingUp, TrendingDown, CreditCard, Building2, Store, DollarSign, BarChart3, Users, ArrowUpRight, ArrowDownRight, FileDown, ChevronDown } from 'lucide-react';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 const COLORS = ['#f97316', '#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ec4899'];
 
@@ -23,42 +26,100 @@ const AdminFinancialReports = () => {
     try {
       setLoading(true);
       const response = await api.get('/admin/reports/financial', { params: dateRange });
-      setReport(response.data.data);
+      const data = response.data.data;
+      // Store complete API response
+      setReport(data);
     } catch (error) {
       console.error('Failed to load financial report:', error);
       toast.error('Failed to load financial report');
-      // Set empty report to prevent UI errors
-      setReport({
-        total_revenue: 0,
-        total_commission: 0,
-        total_supplier_earnings: 0,
-        total_refunds: 0,
-        net_revenue: 0,
-        order_count: 0,
-        revenue_by_category: []
-      });
+      setReport(null);
     } finally {
       setLoading(false);
     }
   };
 
-  const exportReport = () => {
+  const [showExportMenu, setShowExportMenu] = useState(false);
+
+  const exportToPDF = () => {
+    if (!report) return;
+    const doc = new jsPDF();
+    
+    const img = new Image();
+    img.src = '/elogo.png';
+    img.onload = () => {
+      doc.addImage(img, 'PNG', 14, 10, 30, 30);
+      
+      doc.setFontSize(18);
+      doc.text('Financial Report', 50, 25);
+      doc.setFontSize(11);
+      doc.text(`Period: ${dateRange.start_date} to ${dateRange.end_date}`, 50, 33);
+    
+      autoTable(doc, {
+        startY: 45,
+      head: [['Metric', 'Value']],
+      body: [
+        ['Total Revenue', formatPrice(report.revenue?.total_revenue || 0)],
+        ['Platform Net Earnings', formatPrice(report.earnings?.platform_net_earnings || 0)],
+        ['Total Payouts Due', formatPrice((report.earnings?.total_supplier_earnings || 0) + (report.earnings?.delivery_agent_share || 0))],
+        ['Total Refunds', formatPrice(report.refunds?.total_refunds_to_customers || 0)],
+        ['Total Orders', report.orders?.total_orders || 0],
+        ['Gross Margin', `${(report.profit_margins?.gross_profit_margin || 0).toFixed(2)}%`],
+        ['Net Margin', `${(report.profit_margins?.net_profit_margin || 0).toFixed(2)}%`]
+      ]
+    });
+    
+    if (report.top_categories?.length > 0) {
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 10,
+        head: [['Category', 'Revenue', '% of Total']],
+        body: report.top_categories.map(c => [
+          c.name,
+          formatPrice(c.revenue),
+          `${((c.revenue / (report.revenue?.total_revenue || 1)) * 100).toFixed(2)}%`
+        ])
+      });
+    }
+    
+    if (report.supplier_performance?.length > 0) {
+      autoTable(doc, {
+        startY: doc.lastAutoTable.finalY + 10,
+        head: [['Supplier', 'Revenue', 'Orders', 'Paid Out', 'Pending']],
+        body: report.supplier_performance.map(s => [
+          s.name,
+          formatPrice(s.revenue),
+          s.orders,
+          formatPrice(s.paid_out),
+          formatPrice(s.pending_payout)
+        ])
+      });
+    }
+    
+      doc.save(`financial-report-${dateRange.start_date}-${dateRange.end_date}.pdf`);
+      toast.success('PDF exported successfully');
+      setShowExportMenu(false);
+    };
+  };
+
+  const exportToCSV = () => {
     if (!report) return;
     
     const csvContent = [
       ['Financial Report', `${dateRange.start_date} to ${dateRange.end_date}`],
       [],
       ['Metric', 'Value'],
-      ['Total Revenue', report.total_revenue],
-      ['Platform Commission', report.total_commission],
-      ['Supplier Earnings', report.total_supplier_earnings],
-      ['Total Refunds', report.total_refunds],
-      ['Net Revenue', report.net_revenue],
-      ['Order Count', report.order_count],
+      ['Total Revenue', report.revenue?.total_revenue || 0],
+      ['Platform Net Earnings', report.earnings?.platform_net_earnings || 0],
+      ['Total Payouts Due', (report.earnings?.total_supplier_earnings || 0) + (report.earnings?.delivery_agent_share || 0)],
+      ['Total Refunds', report.refunds?.total_refunds_to_customers || 0],
+      ['Total Orders', report.orders?.total_orders || 0],
       [],
       ['Revenue by Category'],
-      ['Category', 'Revenue'],
-      ...report.revenue_by_category.map(c => [c.category, c.revenue])
+      ['Category', 'Revenue', '% of Total'],
+      ...(report.top_categories || []).map(c => [
+        c.name,
+        c.revenue,
+        ((c.revenue / (report.revenue?.total_revenue || 1)) * 100).toFixed(2) + '%'
+      ])
     ].map(row => row.join(',')).join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -67,7 +128,8 @@ const AdminFinancialReports = () => {
     a.href = url;
     a.download = `financial-report-${dateRange.start_date}-${dateRange.end_date}.csv`;
     a.click();
-    toast.success('Report exported successfully');
+    toast.success('CSV exported successfully');
+    setShowExportMenu(false);
   };
 
   const formatPrice = (price) => new Intl.NumberFormat('en-KE', { style: 'currency', currency: 'KES' }).format(price);
@@ -83,9 +145,34 @@ const AdminFinancialReports = () => {
           <h1 className="text-3xl font-bold text-gray-900">Financial Reports</h1>
           <p className="mt-2 text-gray-600">Revenue, commission, and financial analytics</p>
         </div>
-        <button onClick={exportReport} className="btn btn-primary">
-          Export CSV
-        </button>
+        <div className="relative">
+          <button
+            onClick={() => setShowExportMenu(!showExportMenu)}
+            className="btn btn-primary flex items-center gap-2"
+          >
+            <FileDown className="w-4 h-4" />
+            Export Report
+            <ChevronDown className="w-4 h-4" />
+          </button>
+          {showExportMenu && (
+            <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
+              <button
+                onClick={exportToPDF}
+                className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+              >
+                <FileDown className="w-4 h-4" />
+                Export as PDF
+              </button>
+              <button
+                onClick={exportToCSV}
+                className="w-full px-4 py-2 text-left hover:bg-gray-50 flex items-center gap-2"
+              >
+                <FileDown className="w-4 h-4" />
+                Export as CSV
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Date Range Filter */}
@@ -121,46 +208,177 @@ const AdminFinancialReports = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <div className="card bg-gradient-to-br from-green-50 to-green-100">
               <p className="text-sm text-green-800 font-medium">Total Revenue</p>
-              <p className="text-3xl font-bold text-green-900 mt-2">{formatPrice(report.total_revenue)}</p>
-              <p className="text-sm text-green-700 mt-1">{report.order_count} orders</p>
+              <p className="text-3xl font-bold text-green-900 mt-2">{formatPrice(report.revenue?.total_revenue || 0)}</p>
+              <p className="text-sm text-green-700 mt-1">{report.orders?.total_orders || 0} orders</p>
+              <p className="text-xs text-green-600 mt-1">Products: {formatPrice(report.revenue?.total_subtotal || 0)}</p>
+              <p className="text-xs text-green-600">Delivery: {formatPrice(report.revenue?.total_delivery_fees || 0)}</p>
             </div>
 
             <div className="card bg-gradient-to-br from-blue-50 to-blue-100">
-              <p className="text-sm text-blue-800 font-medium">Platform Commission</p>
-              <p className="text-3xl font-bold text-blue-900 mt-2">{formatPrice(report.total_commission)}</p>
-              <p className="text-sm text-blue-700 mt-1">
-                {report.total_revenue > 0 ? ((report.total_commission / report.total_revenue) * 100).toFixed(1) : 0}% of revenue
-              </p>
+              <p className="text-sm text-blue-800 font-medium">Platform Earnings</p>
+              <p className="text-3xl font-bold text-blue-900 mt-2">{formatPrice(report.earnings?.platform_gross_earnings || 0)}</p>
+              <p className="text-sm text-blue-700 mt-1">Commission: {formatPrice(report.earnings?.total_commission || 0)}</p>
+              <p className="text-sm text-blue-700">Delivery Cut: {formatPrice(report.earnings?.platform_delivery_earnings || 0)}</p>
             </div>
 
-            <div className="card bg-gradient-to-br from-purple-50 to-purple-100">
-              <p className="text-sm text-purple-800 font-medium">Supplier Earnings</p>
-              <p className="text-3xl font-bold text-purple-900 mt-2">{formatPrice(report.total_supplier_earnings)}</p>
-              <p className="text-sm text-purple-700 mt-1">
-                {report.total_revenue > 0 ? ((report.total_supplier_earnings / report.total_revenue) * 100).toFixed(1) : 0}% of revenue
-              </p>
+            <div className="card bg-gradient-to-br from-orange-50 to-orange-100">
+              <p className="text-sm text-orange-800 font-medium">Payouts (What You Owe)</p>
+              <p className="text-3xl font-bold text-orange-900 mt-2">{formatPrice((report.earnings?.total_supplier_earnings || 0) + (report.earnings?.delivery_agent_share || 0))}</p>
+              <p className="text-sm text-orange-700 mt-1">Suppliers: {formatPrice(report.earnings?.total_supplier_earnings || 0)}</p>
+              <p className="text-sm text-orange-700">Delivery: {formatPrice(report.earnings?.delivery_agent_share || 0)}</p>
             </div>
 
             <div className="card bg-gradient-to-br from-red-50 to-red-100">
-              <p className="text-sm text-red-800 font-medium">Total Refunds</p>
-              <p className="text-3xl font-bold text-red-900 mt-2">{formatPrice(report.total_refunds || 0)}</p>
-              <p className="text-sm text-red-700 mt-1">
-                {report.total_revenue > 0 ? ((report.total_refunds / report.total_revenue) * 100).toFixed(1) : 0}% of revenue
-              </p>
+              <p className="text-sm text-red-800 font-medium">Refunds Breakdown</p>
+              <p className="text-3xl font-bold text-red-900 mt-2">{formatPrice(report.refunds?.total_refunds_to_customers || 0)}</p>
+              <p className="text-sm text-red-700 mt-1">Platform: {formatPrice(report.refunds?.platform_paid_refunds || 0)}</p>
+              <p className="text-sm text-red-700">Suppliers: {formatPrice(report.refunds?.supplier_paid_refunds || 0)}</p>
             </div>
           </div>
 
-          {/* Net Revenue */}
+          {/* Net Earnings */}
           <div className="card mb-8 bg-gradient-to-r from-indigo-500 to-purple-600 text-white">
             <div className="flex justify-between items-center">
               <div>
-                <p className="text-indigo-100 text-sm font-medium">Net Revenue</p>
-                <p className="text-4xl font-bold mt-2">{formatPrice(report.net_revenue)}</p>
-                <p className="text-indigo-100 text-sm mt-2">After refunds</p>
+                <p className="text-indigo-100 text-sm font-medium">Platform Net Earnings (Your Profit)</p>
+                <p className="text-4xl font-bold mt-2">{formatPrice(report.earnings?.platform_net_earnings || 0)}</p>
+                <p className="text-indigo-100 text-sm mt-2">Gross Earnings - Platform Paid Refunds</p>
+                <p className="text-indigo-100 text-xs mt-1">{formatPrice(report.earnings?.platform_gross_earnings || 0)} - {formatPrice(report.refunds?.platform_paid_refunds || 0)}</p>
               </div>
-              <svg className="w-16 h-16 text-white opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+            </div>
+          </div>
+
+          {/* Comprehensive Metrics Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            {/* Cash Flow */}
+            <div className="card">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Wallet className="w-5 h-5 text-blue-600" />
+                Cash Flow
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Outstanding Supplier Payouts</span>
+                  <span className="text-sm font-semibold text-orange-600">{formatPrice(report.cash_flow?.outstanding_supplier_payouts || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Outstanding Delivery Payouts</span>
+                  <span className="text-sm font-semibold text-orange-600">{formatPrice(report.cash_flow?.outstanding_delivery_payouts || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Expected Incoming</span>
+                  <span className="text-sm font-semibold text-green-600">{formatPrice(report.cash_flow?.expected_incoming_revenue || 0)}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t">
+                  <span className="text-sm font-bold text-gray-900">Net Cash Position</span>
+                  <span className="text-sm font-bold text-blue-600">{formatPrice(report.cash_flow?.net_cash_position || 0)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Profit Margins */}
+            <div className="card">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-green-600" />
+                Profit Margins
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Gross Profit</span>
+                  <span className="text-sm font-semibold">{formatPrice(report.profit_margins?.gross_profit || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Gross Margin</span>
+                  <span className="text-sm font-semibold">{(report.profit_margins?.gross_profit_margin || 0).toFixed(2)}%</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Net Margin</span>
+                  <span className="text-sm font-semibold">{(report.profit_margins?.net_profit_margin || 0).toFixed(2)}%</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t">
+                  <span className="text-sm font-bold text-gray-900">Profit per Order</span>
+                  <span className="text-sm font-bold text-green-600">{formatPrice(report.profit_margins?.profit_per_order || 0)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Growth Metrics */}
+            <div className="card">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <TrendingUp className="w-5 h-5 text-purple-600" />
+                Growth
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Revenue Growth</span>
+                  <span className={`text-sm font-semibold ${(report.growth?.revenue_growth || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {(report.growth?.revenue_growth || 0).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Order Growth</span>
+                  <span className={`text-sm font-semibold ${(report.growth?.order_growth || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {(report.growth?.order_growth || 0).toFixed(1)}%
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">New Customers</span>
+                  <span className="text-sm font-semibold">{report.growth?.new_customers || 0}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t">
+                  <span className="text-sm font-bold text-gray-900">Acquisition Cost</span>
+                  <span className="text-sm font-bold">{formatPrice(report.growth?.customer_acquisition_cost || 0)}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Operational Costs & Tax */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <div className="card">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <CreditCard className="w-5 h-5 text-orange-600" />
+                Operational Costs
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">M-Pesa Fees (~1.5%)</span>
+                  <span className="text-sm font-semibold text-red-600">{formatPrice(report.operational_costs?.mpesa_fees || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Paystack Fees (~2.9%)</span>
+                  <span className="text-sm font-semibold text-red-600">{formatPrice(report.operational_costs?.paystack_fees || 0)}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t">
+                  <span className="text-sm font-bold text-gray-900">Total Transaction Fees</span>
+                  <span className="text-sm font-bold text-red-600">{formatPrice(report.operational_costs?.total_transaction_fees || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm font-bold text-gray-900">Net After Fees</span>
+                  <span className="text-sm font-bold text-green-600">{formatPrice(report.operational_costs?.net_after_fees || 0)}</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="card">
+              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Building2 className="w-5 h-5 text-indigo-600" />
+                Tax Information
+              </h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">VAT Collected (16%)</span>
+                  <span className="text-sm font-semibold">{formatPrice(report.tax?.vat_collected || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600">Est. Tax Liability (30%)</span>
+                  <span className="text-sm font-semibold text-orange-600">{formatPrice(report.tax?.estimated_tax_liability || 0)}</span>
+                </div>
+                <div className="flex justify-between pt-2 border-t">
+                  <span className="text-sm font-bold text-gray-900">Net After Tax</span>
+                  <span className="text-sm font-bold text-green-600">{formatPrice(report.tax?.net_after_tax || 0)}</span>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -168,19 +386,19 @@ const AdminFinancialReports = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
             <div className="card">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Revenue by Category</h2>
-              {report.revenue_by_category.length > 0 ? (
+              {(report.top_categories || []).length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
-                      data={report.revenue_by_category}
+                      data={report.top_categories}
                       dataKey="revenue"
-                      nameKey="category"
+                      nameKey="name"
                       cx="50%"
                       cy="50%"
                       outerRadius={100}
-                      label={(entry) => `${entry.category}: ${formatPrice(entry.revenue)}`}
+                      label
                     >
-                      {report.revenue_by_category.map((entry, index) => (
+                      {report.top_categories.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
@@ -194,11 +412,11 @@ const AdminFinancialReports = () => {
 
             <div className="card">
               <h2 className="text-xl font-bold text-gray-900 mb-6">Category Performance</h2>
-              {report.revenue_by_category.length > 0 ? (
+              {(report.top_categories || []).length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={report.revenue_by_category}>
+                  <BarChart data={report.top_categories}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="category" angle={-45} textAnchor="end" height={100} />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
                     <YAxis />
                     <Tooltip formatter={(value) => formatPrice(value)} />
                     <Bar dataKey="revenue" fill="#3b82f6" />
@@ -210,7 +428,43 @@ const AdminFinancialReports = () => {
             </div>
           </div>
 
-          {/* Detailed Breakdown Table */}
+          {/* Supplier Performance */}
+          {(report.supplier_performance || []).length > 0 && (
+            <div className="card mb-8">
+              <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                <Store className="w-6 h-6 text-blue-600" />
+                Top Supplier Performance
+              </h2>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-gray-200">
+                  <thead className="bg-gray-50">
+                    <tr>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Supplier</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Revenue</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Orders</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Paid Out</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Pending</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avg Payout Days</th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white divide-y divide-gray-200">
+                    {report.supplier_performance.map((sup, idx) => (
+                      <tr key={idx}>
+                        <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{sup.name}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-green-600 font-bold">{formatPrice(sup.revenue)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">{sup.orders}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-blue-600">{formatPrice(sup.paid_out)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-orange-600">{formatPrice(sup.pending_payout)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">{sup.avg_payout_days} days</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* Category Revenue Table */}
           <div className="card">
             <h2 className="text-xl font-bold text-gray-900 mb-6">Revenue Breakdown by Category</h2>
             <div className="overflow-x-auto">
@@ -223,14 +477,14 @@ const AdminFinancialReports = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {report.revenue_by_category.map((cat, idx) => (
+                  {(report.top_categories || []).map((cat, idx) => (
                     <tr key={idx}>
-                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{cat.category}</td>
+                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{cat.name}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-green-600 font-bold">
                         {formatPrice(cat.revenue)}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-gray-600">
-                        {((cat.revenue / report.total_revenue) * 100).toFixed(2)}%
+                        {((cat.revenue / (report.revenue?.total_revenue || 1)) * 100).toFixed(2)}%
                       </td>
                     </tr>
                   ))}
