@@ -87,6 +87,7 @@ def create_app(config_name=None):
     from app.routes.uploads import uploads_bp
     from app.routes.cart import cart_bp
     from app.routes.delivery import delivery_bp
+    from app.routes.migrate import migrate_bp
 
 
     app.register_blueprint(auth_bp)
@@ -101,6 +102,7 @@ def create_app(config_name=None):
     app.register_blueprint(cart_bp)
     app.register_blueprint(contact_bp)
     app.register_blueprint(delivery_bp)
+    app.register_blueprint(migrate_bp)
 
     @jwt.unauthorized_loader
     def unauthorized_callback(callback):
