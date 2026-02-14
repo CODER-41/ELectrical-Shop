@@ -188,14 +188,21 @@ class Order(db.Model):
     
     def to_dict(self, include_items=True):
         """Convert order to dictionary."""
-        # Get delivery address manually
         from app.models.address import Address
+        from app.models.user import CustomerProfile
+        
         delivery_address = Address.query.get(self.delivery_address_id) if self.delivery_address_id else None
+        customer = CustomerProfile.query.get(self.customer_id) if self.customer_id else None
         
         data = {
             'id': self.id,
             'order_number': self.order_number,
             'customer_id': self.customer_id,
+            'customer': {
+                'name': f"{customer.first_name} {customer.last_name}",
+                'email': customer.user.email if customer and customer.user else None,
+                'phone': customer.phone_number
+            } if customer else None,
             'delivery_address': delivery_address.to_dict() if delivery_address else None,
             'delivery_zone': self.delivery_zone,
             'delivery_fee': float(self.delivery_fee),
@@ -209,32 +216,25 @@ class Order(db.Model):
             'customer_notes': self.customer_notes,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
-            # COD fields
             'cod_collected_at': self.cod_collected_at.isoformat() if self.cod_collected_at else None,
             'cod_amount_collected': float(self.cod_amount_collected) if self.cod_amount_collected else None,
             'cod_verified_at': self.cod_verified_at.isoformat() if self.cod_verified_at else None,
-            # Delivery assignment
             'assigned_delivery_agent': self.assigned_delivery_agent,
             'assigned_delivery_company': self.assigned_delivery_company,
-            # Delivery confirmation workflow
             'delivery_confirmed_by_agent': self.delivery_confirmed_by_agent,
             'delivery_confirmed_at': self.delivery_confirmed_at.isoformat() if self.delivery_confirmed_at else None,
             'delivery_proof_photo': self.delivery_proof_photo,
             'delivery_recipient_name': self.delivery_recipient_name,
             'delivery_notes': self.delivery_notes,
-            # Customer confirmation
             'customer_confirmed_delivery': self.customer_confirmed_delivery,
             'customer_confirmed_at': self.customer_confirmed_at.isoformat() if self.customer_confirmed_at else None,
             'customer_dispute': self.customer_dispute,
             'customer_dispute_reason': self.customer_dispute_reason,
-            # Auto confirmation
             'auto_confirmed': self.auto_confirmed,
             'auto_confirm_deadline': self.auto_confirm_deadline.isoformat() if self.auto_confirm_deadline else None,
-            # Delivery payment
             'delivery_fee_paid': self.delivery_fee_paid,
             'delivery_fee_paid_at': self.delivery_fee_paid_at.isoformat() if self.delivery_fee_paid_at else None,
             'delivery_payment_reference': self.delivery_payment_reference,
-            # Derived status
             'is_delivery_confirmed': self.is_delivery_confirmed(),
         }
 
