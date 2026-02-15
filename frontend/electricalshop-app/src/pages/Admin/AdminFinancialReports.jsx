@@ -311,16 +311,29 @@ const AdminFinancialReports = () => {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Revenue Growth</span>
-                  <span className={`text-sm font-semibold ${(report.growth?.revenue_growth || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {(report.growth?.revenue_growth || 0).toFixed(1)}%
+                  <span className={`text-sm font-semibold ${
+                    report.growth?.revenue_growth === null 
+                      ? 'text-gray-400' 
+                      : (report.growth?.revenue_growth || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {report.growth?.revenue_growth === null ? 'N/A' : `${(report.growth?.revenue_growth || 0).toFixed(1)}%`}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">Order Growth</span>
-                  <span className={`text-sm font-semibold ${(report.growth?.order_growth || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {(report.growth?.order_growth || 0).toFixed(1)}%
+                  <span className={`text-sm font-semibold ${
+                    report.growth?.order_growth === null 
+                      ? 'text-gray-400' 
+                      : (report.growth?.order_growth || 0) >= 0 ? 'text-green-600' : 'text-red-600'
+                  }`}>
+                    {report.growth?.order_growth === null ? 'N/A' : `${(report.growth?.order_growth || 0).toFixed(1)}%`}
                   </span>
                 </div>
+                {!report.growth?.has_comparison_data && (
+                  <p className="text-xs text-gray-500 italic mt-2">
+                    No data in previous period for comparison
+                  </p>
+                )}
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600">New Customers</span>
                   <span className="text-sm font-semibold">{report.growth?.new_customers || 0}</span>
