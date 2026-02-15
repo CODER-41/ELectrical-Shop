@@ -210,6 +210,9 @@ def create_order():
         if not user or user.role != UserRole.CUSTOMER:
             return error_response('Only customers can create orders', 403)
         
+        if not user.customer_profile:
+            return error_response('Customer profile not found', 400)
+        
         data = request.get_json()
         print(f'Creating order for user {user_id} with data: {data}')
         
@@ -319,34 +322,43 @@ def create_order():
         print(f'Order saved successfully: {order.id}')
         
         # Create audit log
-        notification_service.create_audit_log(
-            action='order_created',
-            entity_type='order',
-            entity_id=order.id,
-            user_id=user_id,
-            description=f"Order {order.order_number} created - Total: KES {order.total}"
-        )
+        try:
+            notification_service.create_audit_log(
+                action='order_created',
+                entity_type='order',
+                entity_id=order.id,
+                user_id=user_id,
+                description=f"Order {order.order_number} created - Total: KES {order.total}"
+            )
+        except Exception as e:
+            print(f'Audit log error: {str(e)}')
         
         # Notify admins
-        notification_service.notify_admins(
-            title='New Order Received',
-            message=f'New order #{order.order_number} placed by {user.email} - Total: KES {order.total:,.2f}',
-            notification_type='info',
-            link=f'/admin/orders/{order.id}'
-        )
+        try:
+            notification_service.notify_admins(
+                title='New Order Received',
+                message=f'New order #{order.order_number} placed by {user.email} - Total: KES {order.total:,.2f}',
+                notification_type='info',
+                link=f'/admin/orders/{order.id}'
+            )
+        except Exception as e:
+            print(f'Admin notification error: {str(e)}')
         
         # Notify suppliers
-        from app.models.user import SupplierProfile
-        for supplier_id in supplier_ids:
-            supplier = SupplierProfile.query.get(supplier_id)
-            if supplier:
-                notification_service.create_notification(
-                    user_id=supplier.user_id,
-                    title='New Order Received',
-                    message=f'You have a new order #{order.order_number}. Please prepare items for shipment.',
-                    notification_type='info',
-                    link=f'/supplier/orders/{order.id}'
-                )
+        try:
+            from app.models.user import SupplierProfile
+            for supplier_id in supplier_ids:
+                supplier = SupplierProfile.query.get(supplier_id)
+                if supplier:
+                    notification_service.create_notification(
+                        user_id=supplier.user_id,
+                        title='New Order Received',
+                        message=f'You have a new order #{order.order_number}. Please prepare items for shipment.',
+                        notification_type='info',
+                        link=f'/supplier/orders/{order.id}'
+                    )
+        except Exception as e:
+            print(f'Supplier notification error: {str(e)}')
         
         # Send order confirmation email
         try:
