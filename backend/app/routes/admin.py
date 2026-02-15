@@ -2104,6 +2104,10 @@ def get_financial_report():
             prev_start = (datetime.fromisoformat(start_date) - timedelta(days=period_days)).isoformat()
             prev_end = start_date
             
+            current_app.logger.info(f'Growth calculation: Current period {start_date} to {end_date} ({period_days} days)')
+            current_app.logger.info(f'Growth calculation: Previous period {prev_start} to {prev_end}')
+            current_app.logger.info(f'Growth calculation: Current revenue = {total_revenue}, Current orders = {len(orders)}')
+            
             prev_orders = Order.query.filter(
                 Order.payment_status == PaymentStatus.COMPLETED,
                 Order.created_at >= datetime.fromisoformat(prev_start),
@@ -2111,8 +2115,20 @@ def get_financial_report():
             ).all()
             
             prev_revenue = sum(float(o.total) for o in prev_orders)
-            revenue_growth = ((total_revenue - prev_revenue) / prev_revenue * 100) if prev_revenue > 0 else 0
-            order_growth = ((len(orders) - len(prev_orders)) / len(prev_orders) * 100) if prev_orders else 0
+            current_app.logger.info(f'Growth calculation: Previous revenue = {prev_revenue}, Previous orders = {len(prev_orders)}')
+            
+            # Calculate growth - return None if no previous data to indicate "N/A"
+            if prev_revenue > 0:
+                revenue_growth = ((total_revenue - prev_revenue) / prev_revenue * 100)
+            else:
+                revenue_growth = None  # No previous data
+            
+            if len(prev_orders) > 0:
+                order_growth = ((len(orders) - len(prev_orders)) / len(prev_orders) * 100)
+            else:
+                order_growth = None  # No previous data
+            
+            current_app.logger.info(f'Growth calculation: Revenue growth = {revenue_growth}%, Order growth = {order_growth}%')
             
             # Customer acquisition (new customers in period)
             new_customers = User.query.filter(
@@ -2265,10 +2281,11 @@ def get_financial_report():
             
             # Growth Metrics
             'growth': {
-                'revenue_growth': float(revenue_growth),
-                'order_growth': float(order_growth),
+                'revenue_growth': float(revenue_growth) if revenue_growth is not None else None,
+                'order_growth': float(order_growth) if order_growth is not None else None,
                 'new_customers': new_customers,
-                'customer_acquisition_cost': float(customer_acquisition_cost)
+                'customer_acquisition_cost': float(customer_acquisition_cost),
+                'has_comparison_data': revenue_growth is not None
             },
             
             # Operational Costs
