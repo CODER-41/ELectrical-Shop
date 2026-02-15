@@ -84,6 +84,10 @@ def create_app(config_name=None):
             db.session.execute(text("ALTER TYPE returnstatus ADD VALUE IF NOT EXISTS 'completed'"))
             db.session.execute(text("ALTER TYPE returnstatus ADD VALUE IF NOT EXISTS 'refund_completed'"))
             db.session.execute(text("ALTER TYPE returnstatus ADD VALUE IF NOT EXISTS 'supplier_review'"))
+            
+            # Add new ENUM values to notificationtype if they don't exist
+            db.session.execute(text("ALTER TYPE notificationtype ADD VALUE IF NOT EXISTS 'warning'"))
+            db.session.execute(text("ALTER TYPE notificationtype ADD VALUE IF NOT EXISTS 'error'"))
             db.session.commit()
             
             # Returns table columns
