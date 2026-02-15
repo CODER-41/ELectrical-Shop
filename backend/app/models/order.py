@@ -11,7 +11,8 @@ class OrderStatus(str, Enum):
     PAID = 'paid'  # Payment confirmed
     PROCESSING = 'processing'  # Quality check in progress
     QUALITY_APPROVED = 'quality_approved'  # Passed quality check
-    SHIPPED = 'shipped'  # Ready for delivery
+    PENDING_ASSIGNMENT = 'pending_assignment'  # Ready for delivery, awaiting agent acceptance
+    SHIPPED = 'shipped'  # Agent accepted, ready for pickup
     OUT_FOR_DELIVERY = 'out_for_delivery'  # Agent started delivery
     ARRIVED = 'arrived'  # Agent arrived at destination
     DELIVERED = 'delivered'  # Successfully delivered

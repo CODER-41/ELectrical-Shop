@@ -558,7 +558,55 @@ def update_payment_status(order_id):
         
         if data['payment_status'] == PaymentStatus.COMPLETED.value:
             order.paid_at = datetime.utcnow()
-            order.status = OrderStatus.PAID
+            
+            # Automatically notify delivery agents when payment is completed
+            from app.models.user import DeliveryAgentProfile
+            from app.models.delivery_request import DeliveryRequest
+            from datetime import timedelta
+            
+            # Find available agents in delivery zone
+            agents = DeliveryAgentProfile.query.join(User).filter(
+                User.is_active == True,
+                DeliveryAgentProfile.is_available == True
+            ).all()
+            
+            zone_agents = []
+            for agent in agents:
+                if agent.assigned_zones and order.delivery_zone in agent.assigned_zones:
+                    zone_agents.append(agent)
+            
+            if not zone_agents:
+                zone_agents = agents
+            
+            if zone_agents:
+                # Change to pending assignment
+                order.status = OrderStatus.PENDING_ASSIGNMENT
+                expires_at = datetime.utcnow() + timedelta(hours=2)
+                
+                for agent in zone_agents:
+                    delivery_request = DeliveryRequest(
+                        order_id=order.id,
+                        delivery_agent_id=agent.user_id,
+                        expires_at=expires_at
+                    )
+                    db.session.add(delivery_request)
+                    
+                    try:
+                        from app.services.notification_service import notification_service
+                        notification_service.create_notification(
+                            user_id=agent.user_id,
+                            title='New Delivery Available',
+                            message=f'Order #{order.order_number} to {order.delivery_zone} - KES {order.delivery_fee} delivery fee.',
+                            notification_type='info',
+                            link=f'/delivery/available-requests'
+                        )
+                    except Exception as e:
+                        print(f'Agent notification error: {str(e)}')
+                
+                print(f'Auto-notified {len(zone_agents)} agents for paid order {order.order_number}')
+            else:
+                # No agents available, set to PAID status for admin to handle
+                order.status = OrderStatus.PAID
         
         db.session.commit()
         

@@ -291,6 +291,26 @@ def init_scheduler(app):
         name='Generate and process supplier payouts (weekly)',
         replace_existing=True
     )
+    
+    # 4. Auto-notify delivery agents - runs every 5 minutes
+    from app.jobs.delivery_assignment import auto_notify_delivery_agents, expire_old_delivery_requests
+    
+    scheduler.add_job(
+        func=auto_notify_delivery_agents,
+        trigger=IntervalTrigger(minutes=5),
+        id='auto_notify_agents',
+        name='Auto-notify delivery agents for ready orders (every 5 min)',
+        replace_existing=True
+    )
+    
+    # 5. Expire old delivery requests - runs every 10 minutes
+    scheduler.add_job(
+        func=expire_old_delivery_requests,
+        trigger=IntervalTrigger(minutes=10),
+        id='expire_delivery_requests',
+        name='Expire old delivery requests (every 10 min)',
+        replace_existing=True
+    )
 
     # Start scheduler
     scheduler.start()

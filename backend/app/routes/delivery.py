@@ -9,6 +9,7 @@ from sqlalchemy import func, cast, Text, or_
 from app.models import db
 from app.models.user import User, UserRole, DeliveryAgentProfile
 from app.models.order import Order, OrderStatus, PaymentMethod, PaymentStatus, DeliveryZone
+from app.models.delivery_request import DeliveryRequest, DeliveryRequestStatus
 from app.models.user import DeliveryCompany
 from app.models.returns import DeliveryZoneRequest, ZoneRequestStatus
 from app.utils.responses import success_response, error_response
@@ -2099,3 +2100,367 @@ def get_delivery_zones_admin():
         return success_response(data={'zones': zones_data})
     except Exception as e:
         return error_response(f'Failed to fetch zones: {str(e)}', 500)
+
+
+# =============================================================================
+# Enterprise-Level Delivery Assignment (Accept/Reject System)
+# =============================================================================
+
+@delivery_bp.route('/available-requests', methods=['GET'])
+@jwt_required()
+@require_delivery_agent
+def get_available_delivery_requests():
+    """Get available delivery requests that agent can accept."""
+    try:
+        user_id = get_jwt_identity()
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+        
+        # Get pending requests for this agent
+        query = DeliveryRequest.query.filter_by(
+            delivery_agent_id=user_id,
+            status=DeliveryRequestStatus.PENDING
+        ).filter(
+            DeliveryRequest.expires_at > datetime.utcnow()
+        ).join(Order).order_by(DeliveryRequest.created_at.desc())
+        
+        requests = query.paginate(page=page, per_page=per_page, error_out=False)
+        
+        # Include order details
+        data = []
+        for req in requests.items:
+            req_dict = req.to_dict()
+            req_dict['order'] = req.order.to_dict(include_items=True)
+            data.append(req_dict)
+        
+        return success_response(data={
+            'requests': data,
+            'pagination': {
+                'page': requests.page,
+                'per_page': requests.per_page,
+                'total': requests.total,
+                'pages': requests.pages
+            }
+        })
+    except Exception as e:
+        return error_response(f'Failed to fetch requests: {str(e)}', 500)
+
+
+@delivery_bp.route('/requests/<request_id>/accept', methods=['POST'])
+@jwt_required()
+@require_delivery_agent
+def accept_delivery_request(request_id):
+    """Agent accepts a delivery request."""
+    try:
+        from app.services.notification_service import notification_service
+        
+        user_id = get_jwt_identity()
+        delivery_request = DeliveryRequest.query.get(request_id)
+        
+        if not delivery_request:
+            return error_response('Request not found', 404)
+        
+        if delivery_request.delivery_agent_id != user_id:
+            return error_response('This request is not assigned to you', 403)
+        
+        if delivery_request.status != DeliveryRequestStatus.PENDING:
+            return error_response('This request has already been responded to', 400)
+        
+        if delivery_request.is_expired():
+            delivery_request.status = DeliveryRequestStatus.EXPIRED
+            db.session.commit()
+            return error_response('This request has expired', 400)
+        
+        # Check if order already assigned
+        order = delivery_request.order
+        if order.assigned_delivery_agent:
+            delivery_request.status = DeliveryRequestStatus.CANCELLED
+            db.session.commit()
+            return error_response('This order has already been assigned to another agent', 400)
+        
+        # Accept the request
+        delivery_request.accept()
+        
+        # Assign order to agent
+        order.assigned_delivery_agent = user_id
+        order.status = OrderStatus.SHIPPED
+        
+        # Cancel other pending requests for this order
+        DeliveryRequest.query.filter(
+            DeliveryRequest.order_id == order.id,
+            DeliveryRequest.id != request_id,
+            DeliveryRequest.status == DeliveryRequestStatus.PENDING
+        ).update({'status': DeliveryRequestStatus.CANCELLED})
+        
+        db.session.commit()
+        
+        # Notify customer
+        try:
+            notification_service.create_notification(
+                user_id=order.customer.user_id,
+                title='Delivery Agent Assigned',
+                message=f'A delivery agent has accepted your order #{order.order_number} and will deliver it soon.',
+                notification_type='info',
+                link=f'/orders/{order.id}'
+            )
+        except Exception as e:
+            print(f'Customer notification error: {str(e)}')
+        
+        # Notify admins
+        try:
+            user = User.query.get(user_id)
+            agent_name = f"{user.delivery_agent_profile.first_name} {user.delivery_agent_profile.last_name}"
+            notification_service.notify_admins(
+                title='Delivery Accepted',
+                message=f'{agent_name} accepted delivery for order #{order.order_number}',
+                notification_type='success',
+                link=f'/admin/orders/{order.id}'
+            )
+        except Exception as e:
+            print(f'Admin notification error: {str(e)}')
+        
+        return success_response(
+            data={
+                'request': delivery_request.to_dict(),
+                'order': order.to_dict()
+            },
+            message='Delivery request accepted successfully'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to accept request: {str(e)}', 500)
+
+
+@delivery_bp.route('/requests/<request_id>/reject', methods=['POST'])
+@jwt_required()
+@require_delivery_agent
+def reject_delivery_request(request_id):
+    """Agent rejects a delivery request."""
+    try:
+        user_id = get_jwt_identity()
+        delivery_request = DeliveryRequest.query.get(request_id)
+        
+        if not delivery_request:
+            return error_response('Request not found', 404)
+        
+        if delivery_request.delivery_agent_id != user_id:
+            return error_response('This request is not assigned to you', 403)
+        
+        if delivery_request.status != DeliveryRequestStatus.PENDING:
+            return error_response('This request has already been responded to', 400)
+        
+        data = request.get_json() or {}
+        reason = data.get('reason', 'No reason provided')
+        
+        # Reject the request
+        delivery_request.reject(reason)
+        db.session.commit()
+        
+        return success_response(
+            data=delivery_request.to_dict(),
+            message='Delivery request rejected'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to reject request: {str(e)}', 500)
+
+
+@delivery_bp.route('/admin/orders/<order_id>/notify-agents', methods=['POST'])
+@jwt_required()
+@require_admin
+def notify_agents_for_delivery(order_id):
+    """Admin notifies available agents about delivery (enterprise-level)."""
+    try:
+        from app.services.notification_service import notification_service
+        
+        order = Order.query.get(order_id)
+        if not order:
+            return error_response('Order not found', 404)
+        
+        if order.assigned_delivery_agent:
+            return error_response('Order already has an assigned agent', 400)
+        
+        if order.status not in [OrderStatus.PROCESSING, OrderStatus.QUALITY_APPROVED]:
+            return error_response('Order must be in processing or quality_approved status', 400)
+        
+        data = request.get_json() or {}
+        timeout_hours = data.get('timeout_hours', 2)  # Default 2 hours
+        
+        # Find available agents in the delivery zone
+        from app.models.user import DeliveryAgentProfile
+        from sqlalchemy import cast, Text
+        
+        agents = DeliveryAgentProfile.query.join(User).filter(
+            User.is_active == True,
+            DeliveryAgentProfile.is_available == True
+        ).all()
+        
+        # Filter by zone if possible
+        zone_agents = []
+        for agent in agents:
+            if agent.assigned_zones and order.delivery_zone in agent.assigned_zones:
+                zone_agents.append(agent)
+        
+        # If no zone-specific agents, use all available agents
+        if not zone_agents:
+            zone_agents = agents
+        
+        if not zone_agents:
+            return error_response('No available delivery agents found', 400)
+        
+        # Create delivery requests for all available agents
+        expires_at = datetime.utcnow() + timedelta(hours=timeout_hours)
+        requests_created = []
+        
+        for agent in zone_agents:
+            delivery_request = DeliveryRequest(
+                order_id=order.id,
+                delivery_agent_id=agent.user_id,
+                expires_at=expires_at
+            )
+            db.session.add(delivery_request)
+            requests_created.append(agent.user_id)
+            
+            # Notify agent
+            try:
+                notification_service.create_notification(
+                    user_id=agent.user_id,
+                    title='New Delivery Available',
+                    message=f'Order #{order.order_number} to {order.delivery_zone} - KES {order.delivery_fee} delivery fee. Accept within {timeout_hours} hours.',
+                    notification_type='info',
+                    link=f'/delivery/available-requests'
+                )
+            except Exception as e:
+                print(f'Agent notification error: {str(e)}')
+        
+        # Update order status
+        order.status = OrderStatus.PENDING_ASSIGNMENT
+        
+        db.session.commit()
+        
+        return success_response(
+            data={
+                'order': order.to_dict(),
+                'agents_notified': len(requests_created),
+                'expires_at': expires_at.isoformat()
+            },
+            message=f'Notified {len(requests_created)} delivery agents'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to notify agents: {str(e)}', 500)
+
+
+@delivery_bp.route('/admin/orders/<order_id>/force-assign', methods=['POST'])
+@jwt_required()
+@require_admin
+def force_assign_delivery_agent(order_id):
+    """Admin manually assigns agent if no one accepts (fallback)."""
+    try:
+        from app.services.notification_service import notification_service
+        
+        order = Order.query.get(order_id)
+        if not order:
+            return error_response('Order not found', 404)
+        
+        data = request.get_json()
+        agent_id = data.get('agent_id')
+        
+        if not agent_id:
+            return error_response('Agent ID is required', 400)
+        
+        agent = User.query.get(agent_id)
+        if not agent or agent.role != UserRole.DELIVERY_AGENT:
+            return error_response('Invalid delivery agent', 400)
+        
+        # Cancel all pending requests
+        DeliveryRequest.query.filter_by(
+            order_id=order.id,
+            status=DeliveryRequestStatus.PENDING
+        ).update({'status': DeliveryRequestStatus.CANCELLED})
+        
+        # Assign order
+        order.assigned_delivery_agent = agent_id
+        order.status = OrderStatus.SHIPPED
+        
+        db.session.commit()
+        
+        # Notify agent
+        try:
+            notification_service.create_notification(
+                user_id=agent_id,
+                title='Delivery Assignment',
+                message=f'You have been assigned order #{order.order_number} for delivery.',
+                notification_type='warning',
+                link=f'/delivery/orders/{order.id}'
+            )
+        except Exception as e:
+            print(f'Agent notification error: {str(e)}')
+        
+        return success_response(
+            data=order.to_dict(),
+            message=f'Order force-assigned to {agent.delivery_agent_profile.first_name}'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to force assign: {str(e)}', 500)
+
+
+@delivery_bp.route('/admin/delivery-requests', methods=['GET'])
+@jwt_required()
+@require_admin
+def get_all_delivery_requests():
+    """Admin views all delivery requests."""
+    try:
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 20))
+        status = request.args.get('status')
+        
+        query = DeliveryRequest.query
+        
+        if status:
+            query = query.filter_by(status=status)
+        
+        requests = query.order_by(DeliveryRequest.created_at.desc())\
+            .paginate(page=page, per_page=per_page, error_out=False)
+        
+        data = []
+        for req in requests.items:
+            req_dict = req.to_dict()
+            req_dict['order_number'] = req.order.order_number
+            req_dict['agent_name'] = f"{req.delivery_agent.delivery_agent_profile.first_name} {req.delivery_agent.delivery_agent_profile.last_name}"
+            data.append(req_dict)
+        
+        return success_response(data={
+            'requests': data,
+            'pagination': {
+                'page': requests.page,
+                'per_page': requests.per_page,
+                'total': requests.total,
+                'pages': requests.pages
+            }
+        })
+    except Exception as e:
+        return error_response(f'Failed to fetch requests: {str(e)}', 500)
+
+
+@delivery_bp.route('/admin/expire-requests', methods=['POST'])
+@jwt_required()
+@require_admin
+def expire_old_delivery_requests():
+    """Expire delivery requests that have passed timeout."""
+    try:
+        expired = DeliveryRequest.query.filter(
+            DeliveryRequest.status == DeliveryRequestStatus.PENDING,
+            DeliveryRequest.expires_at <= datetime.utcnow()
+        ).update({'status': DeliveryRequestStatus.EXPIRED})
+        
+        db.session.commit()
+        
+        return success_response(
+            data={'expired_count': expired},
+            message=f'Expired {expired} delivery requests'
+        )
+    except Exception as e:
+        db.session.rollback()
+        return error_response(f'Failed to expire requests: {str(e)}', 500)

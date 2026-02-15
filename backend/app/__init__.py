@@ -71,6 +71,7 @@ def create_app(config_name=None):
         from app.models.cart import Cart, CartItem
         from app.models.audit_log import AuditLog
         from app.models.otp import OTP
+        from app.models.delivery_request import DeliveryRequest
 
         # One-time data fix: update product images
         _run_startup_fixes(db, Product)
@@ -90,6 +91,9 @@ def create_app(config_name=None):
             db.session.execute(text("ALTER TYPE notificationtype ADD VALUE IF NOT EXISTS 'success'"))
             db.session.execute(text("ALTER TYPE notificationtype ADD VALUE IF NOT EXISTS 'warning'"))
             db.session.execute(text("ALTER TYPE notificationtype ADD VALUE IF NOT EXISTS 'error'"))
+            
+            # Add new ENUM value to orderstatus for enterprise delivery assignment
+            db.session.execute(text("ALTER TYPE orderstatus ADD VALUE IF NOT EXISTS 'pending_assignment'"))
             db.session.commit()
             
             # Returns table columns
@@ -128,6 +132,24 @@ def create_app(config_name=None):
             
             # Notifications table
             db.session.execute(text("ALTER TABLE notifications ADD COLUMN IF NOT EXISTS link VARCHAR(255)"))
+            
+            # Create delivery_requests table if not exists
+            db.session.execute(text("""
+                CREATE TABLE IF NOT EXISTS delivery_requests (
+                    id VARCHAR(36) PRIMARY KEY,
+                    order_id VARCHAR(36) NOT NULL REFERENCES orders(id),
+                    delivery_agent_id VARCHAR(36) NOT NULL REFERENCES users(id),
+                    status VARCHAR(20) NOT NULL DEFAULT 'pending',
+                    responded_at TIMESTAMP,
+                    rejection_reason TEXT,
+                    expires_at TIMESTAMP NOT NULL,
+                    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            """))
+            db.session.execute(text("CREATE INDEX IF NOT EXISTS idx_delivery_requests_order ON delivery_requests(order_id)"))
+            db.session.execute(text("CREATE INDEX IF NOT EXISTS idx_delivery_requests_agent ON delivery_requests(delivery_agent_id)"))
+            db.session.execute(text("CREATE INDEX IF NOT EXISTS idx_delivery_requests_status ON delivery_requests(status)"))
             
             # Update null values
             db.session.execute(text("UPDATE returns SET return_number = 'RET-' || LPAD(id::text, 8, '0') WHERE return_number IS NULL"))
