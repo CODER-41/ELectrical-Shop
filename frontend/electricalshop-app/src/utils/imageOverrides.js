@@ -9,6 +9,9 @@ const CATEGORY_OVERRIDES = {
   'Accessories': {
     'Nikon Z50 Mirrorless Camera': '/assets/nikon-z50-mirrorless-camera.jpg',
   },
+  'Mobile Phones': {
+    'Samsung Galaxy S24 Ultra': '/assets/samsung-galaxy-s24-ultra.jpg',
+  },
 };
 
 export const getProductImage = (productName, cloudinaryUrl, categoryName = null) => {
