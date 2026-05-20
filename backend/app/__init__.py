@@ -211,7 +211,7 @@ def create_app(config_name=None):
         from flask import request
         from app.utils.maintenance import check_maintenance_mode
         from flask_jwt_extended import get_jwt_identity, verify_jwt_in_request
-        
+
         # Skip for health check, admin routes, and login
         if request.path in ['/api/health', '/'] or \
            request.path.startswith('/api/admin') or \
@@ -220,9 +220,15 @@ def create_app(config_name=None):
            request.path.startswith('/api/docs') or \
            request.path.startswith('/api/swagger'):
             return None
-        
-        # Check if maintenance mode is enabled
-        if check_maintenance_mode():
+
+        # Check if maintenance mode is enabled — guard against DB unavailability
+        try:
+            in_maintenance = check_maintenance_mode()
+        except Exception:
+            # DB unavailable: don't block requests, let route handlers surface the real error
+            return None
+
+        if in_maintenance:
             try:
                 verify_jwt_in_request(optional=True)
                 user_id = get_jwt_identity()
@@ -233,18 +239,32 @@ def create_app(config_name=None):
                         return None
             except:
                 pass
-            
+
             return jsonify({
                 'success': False,
                 'error': 'System is under maintenance. Please try again later.',
                 'maintenance_mode': True
             }), 503
-        
+
         return None
 
     @app.route('/api/health', methods=['GET'])
     def health_check():
-        return {'status': 'healthy', 'message': 'Electronics Shop API is running'}, 200
+        from sqlalchemy import text
+        db_ok = False
+        try:
+            db.session.execute(text('SELECT 1'))
+            db_ok = True
+        except Exception:
+            pass
+
+        status = 'healthy' if db_ok else 'degraded'
+        code = 200 if db_ok else 503
+        return jsonify({
+            'status': status,
+            'message': 'Electronics Shop API is running',
+            'database': 'connected' if db_ok else 'unavailable'
+        }), code
 
     @app.route('/')
     def index():

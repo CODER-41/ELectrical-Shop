@@ -26,6 +26,13 @@ class Config:
         )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     SQLALCHEMY_ECHO = False
+    # Render free tier drops idle DB connections; recycle keeps pool healthy
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        'pool_pre_ping': True,    # test connection before using it
+        'pool_recycle': 280,      # recycle before Render's ~5-min idle timeout
+        'pool_size': 5,
+        'max_overflow': 10,
+    }
     
     # JWT
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'dev-jwt-secret-key-change-in-production')
