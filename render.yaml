@@ -11,7 +11,7 @@ services:
     plan: free
     rootDir: backend
     buildCommand: "./build.sh"
-    startCommand: "gunicorn run:app"
+    startCommand: "./start.sh"
     envVars:
       - key: FLASK_ENV
         value: production
