@@ -45,7 +45,7 @@ def create_app(config_name=None):
     
     # init extensions
     db.init_app(app)
-    CORS(app, resources={r"/api/*": {"origins": app.config['FRONTEND_URL']}})
+    CORS(app)
     jwt = JWTManager(app)
     migrate = Migrate(app, db)
     mail.init_app(app)
